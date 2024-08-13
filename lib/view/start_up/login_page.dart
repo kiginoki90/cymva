@@ -1,3 +1,4 @@
+import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_app_check/firebase_app_check.dart'; // App Check をインポート
 import 'package:flutter/gestures.dart';
@@ -98,7 +99,7 @@ class _LoginPageState extends State<LoginPage> {
                           Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                  builder: (context) => Screen()));
+                                  builder: (context) => TimeLinePage()));
                         } else {
                           print('ユーザー情報が取得できません');
                         }

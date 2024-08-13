@@ -49,7 +49,6 @@ class _ScreenState extends State<Screen> {
           });
         },
       ),
-      //下にあるボタン
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(context,

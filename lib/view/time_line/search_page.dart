@@ -18,8 +18,9 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  final TextEditingController _searchController = TextEditingController();
-  List<DocumentSnapshot> _searchResults = [];
+  final TextEditingController _searchController =
+      TextEditingController(); //テキスト入力を管理するためのクラス
+  List<DocumentSnapshot> _searchResults = []; //Listは複数のアイテムを順序づけて保存するためのデータ構造
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +32,8 @@ class _SearchPageState extends State<SearchPage> {
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(
-              controller: _searchController,
+              controller:
+                  _searchController, //TextField の状態を管理するために TextEditingController を指定している。
               onChanged: (query) {
                 if (query.isNotEmpty) {
                   _searchPosts(query);
@@ -50,8 +52,11 @@ class _SearchPageState extends State<SearchPage> {
         ),
       ),
       body: FutureBuilder<Map<String, Account>?>(
-        future: _getAccountsForPosts(), // 投稿に関連するアカウント情報を取得する
+        future:
+            _getAccountsForPosts(), // 投稿に関連するアカウント情報を取得する。futureは非同期でデータを取得するプロパティ
         builder: (context, snapshot) {
+          print(context);
+          //リストが正常に取得できた場合
           if (snapshot.connectionState == ConnectionState.done &&
               snapshot.hasData) {
             final userMap = snapshot.data!;
@@ -71,6 +76,7 @@ class _SearchPageState extends State<SearchPage> {
                 final postIsVideo = post['is_video'] ?? false;
 
                 return InkWell(
+                  //InkWellはタップ可能な領域
                   onTap: () {
                     Navigator.push(
                       context,

@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
