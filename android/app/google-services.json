@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "172950968218",
+    "project_id": "cymva-595b7",
+    "storage_bucket": "cymva-595b7.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:172950968218:android:fc50169d0cd28979040c23",
+        "android_client_info": {
+          "package_name": "com.example.cymva"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRgs1qu7a75paojm9Dum7rhWNkuVXs6YM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
