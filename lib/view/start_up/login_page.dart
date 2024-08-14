@@ -1,11 +1,11 @@
-import 'package:cymva/view/time_line/time_line_page.dart';
+import 'package:cymva/view/poat/time_line_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_app_check/firebase_app_check.dart'; // App Check をインポート
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
-import 'package:cymva/view/screen.dart';
+// import 'package:cymva/view/screen.dart';
 import 'package:cymva/view/start_up/create_account_page.dart';
 
 class LoginPage extends StatefulWidget {

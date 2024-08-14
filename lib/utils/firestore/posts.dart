@@ -27,6 +27,9 @@ class PostFirestore {
         'created_time': Timestamp.now(),
       });
 
+      // favorite_users サブコレクションを空で作成（スター一覧）
+      await result.collection('favorite_users').doc('placeholder').set({});
+
       print('投稿完了');
       return true;
     } on FirebaseException catch (e) {

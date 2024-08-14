@@ -1,0 +1,136 @@
+import 'package:cymva/model/account.dart';
+import 'package:cymva/model/post.dart';
+import 'package:cymva/utils/firestore/users.dart';
+import 'package:cymva/view/float_bottom.dart';
+import 'package:cymva/view/navigation_bar.dart';
+import 'package:cymva/view/poat/post_item_widget.dart';
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/utils/favorite_post.dart';
+
+class SearchPage extends StatefulWidget {
+  const SearchPage({super.key});
+
+  @override
+  State<SearchPage> createState() => _SearchPageState();
+}
+
+class _SearchPageState extends State<SearchPage> {
+  final TextEditingController _searchController = TextEditingController();
+  List<DocumentSnapshot> _searchResults = [];
+  // late Future<List<String>>? _favoritePostsFuture;
+
+  final FavoritePost _favoritePost = FavoritePost();
+
+  @override
+  void initState() {
+    super.initState();
+    // _favoritePostsFuture = _favoritePost.getFavoritePosts();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('検索'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(50.0),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (query) {
+                if (query.isNotEmpty) {
+                  _searchPosts(query);
+                } else {
+                  setState(() {
+                    _searchResults = [];
+                  });
+                }
+              },
+              decoration: const InputDecoration(
+                hintText: '検索...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+        ),
+      ),
+      body: FutureBuilder<Map<String, Account>?>(
+        future: _getAccountsForPosts(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.hasData) {
+            final userMap = snapshot.data!;
+            return ListView.builder(
+              itemCount: _searchResults.length,
+              itemBuilder: (context, index) {
+                final postData =
+                    _searchResults[index].data() as Map<String, dynamic>;
+                final postAccountId = postData['post_account_id'];
+                final account = userMap[postAccountId];
+
+                if (account == null) return Container();
+
+                final post = Post(
+                  id: _searchResults[index].id,
+                  content: postData['content'],
+                  postAccountId: postAccountId,
+                  createdTime: postData['created_time'],
+                  mediaUrl: postData['media_url'],
+                  isVideo: postData['is_video'] ?? false,
+                );
+                // Account postAccount = snapshot.data![post.postAccountId]!;
+
+                _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                    ValueNotifier<int>(0);
+                _favoritePost.updateFavoriteUsersCount(post.id);
+
+                return PostItemWidget(
+                  post: post,
+                  postAccount: account,
+                  favoriteUsersNotifier:
+                      _favoritePost.favoriteUsersNotifiers[post.id]!,
+                  isFavoriteNotifier: ValueNotifier<bool>(
+                    _favoritePost.favoritePostsNotifier.value.contains(post.id),
+                  ),
+                  onFavoriteToggle: () => _favoritePost.toggleFavorite(
+                    post.id,
+                    _favoritePost.favoritePostsNotifier.value.contains(post.id),
+                  ),
+                );
+              },
+            );
+          } else {
+            return const Center(child: CircularProgressIndicator());
+          }
+        },
+      ),
+      floatingActionButton: FloatBottom(),
+      bottomNavigationBar: NavigationBarPage(selectedIndex: 2),
+    );
+  }
+
+  Future<Map<String, Account>?> _getAccountsForPosts() async {
+    List<String> postAccountIds = _searchResults
+        .map((doc) => doc['post_account_id'] as String)
+        .toSet()
+        .toList();
+
+    return await UserFirestore.getPostUserMap(postAccountIds);
+  }
+
+  Future<void> _searchPosts(String query) async {
+    final firestore = FirebaseFirestore.instance;
+
+    final querySnapshot = await firestore
+        .collection('posts')
+        .where('content', isGreaterThanOrEqualTo: query)
+        .where('content', isLessThanOrEqualTo: '$query\uf8ff')
+        .get();
+
+    setState(() {
+      _searchResults = querySnapshot.docs;
+    });
+  }
+}

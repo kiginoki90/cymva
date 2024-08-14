@@ -1,8 +1,8 @@
-import 'package:cymva/view/time_line/search_page.dart';
+import 'package:cymva/view/poat/search_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/view/account/account_page.dart';
-import 'package:cymva/view/time_line/time_line_page.dart';
+import 'package:cymva/view/poat/time_line_page.dart';
 
 class NavigationBarPage extends StatefulWidget {
   final int selectedIndex;
