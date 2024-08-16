@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/number_symbols_data.dart';
 import 'package:cymva/model/account.dart';
 
 class Authentication {

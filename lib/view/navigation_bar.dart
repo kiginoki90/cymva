@@ -1,8 +1,9 @@
+import 'package:cymva/view/poat/post_page.dart';
 import 'package:cymva/view/poat/search_page.dart';
+import 'package:cymva/view/poat/timeline_body.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/view/account/account_page.dart';
-import 'package:cymva/view/poat/time_line_page.dart';
 
 class NavigationBarPage extends StatefulWidget {
   final int selectedIndex;
@@ -21,49 +22,45 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
 
   late List<Widget> pageList;
 
+  @override
   void initState() {
     super.initState();
     // 必要なデータを用意して初期化
     pageList = [
-      const TimeLinePage(),
+      TimeLineBody(),
       AccountPage(userId: userId),
       SearchPage(),
+      PostPage()
     ];
   }
 
   void _handleItemTapped(int index) {
-    if (index == 0) {
-      // タイムラインページ
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const TimeLinePage()),
-      );
-    } else if (index == 1) {
-      // アカウントページ
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => AccountPage(userId: userId)),
-      );
-    } else if (index == 2) {
-      //検索ページ
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => SearchPage()),
-      );
-      // widget.onItemTapped(index);
-    }
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation1, animation2) => pageList[index],
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
       items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: ''),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home_outlined),
+          label: '',
+        ),
         BottomNavigationBarItem(
             icon: Icon(Icons.perm_identity_outlined), label: ''),
         BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline), label: ''),
       ],
       currentIndex: widget.selectedIndex,
+      type: BottomNavigationBarType.fixed,
       onTap: _handleItemTapped, // タップされたときの処理
     );
   }

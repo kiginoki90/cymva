@@ -18,10 +18,33 @@ class UserFirestore {
         'created_time': Timestamp.now(),
         'updated_time': Timestamp.now(),
       });
-      print('OK!');
+
+      // Add subcollections with an empty document
+      await users
+          .doc(newAccount.id)
+          .collection('favorite_posts')
+          .doc('initial')
+          .set({});
+      await users
+          .doc(newAccount.id)
+          .collection('my_posts')
+          .doc('initial')
+          .set({});
+      await users
+          .doc(newAccount.id)
+          .collection('follow')
+          .doc('initial')
+          .set({});
+      await users
+          .doc(newAccount.id)
+          .collection('followers')
+          .doc('initial')
+          .set({});
+
+      print('ユーザー作成が完了しました');
       return true;
     } on FirebaseException catch (e) {
-      print('CCerror: $e');
+      print('ユーザー作成エラー: $e');
       return false;
     }
   }

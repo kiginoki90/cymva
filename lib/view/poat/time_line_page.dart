@@ -1,7 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:cymva/view/float_bottom.dart';
-import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/poat/post_item_widget.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
@@ -111,10 +109,6 @@ class _TimeLineState extends State<TimeLinePage> {
             return const Center(child: CircularProgressIndicator());
           }
         },
-      ),
-      floatingActionButton: const FloatBottom(),
-      bottomNavigationBar: const NavigationBarPage(
-        selectedIndex: 0,
       ),
     );
   }

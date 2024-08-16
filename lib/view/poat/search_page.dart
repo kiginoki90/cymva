@@ -1,7 +1,6 @@
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/utils/firestore/users.dart';
-import 'package:cymva/view/float_bottom.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/poat/post_item_widget.dart';
 import 'package:flutter/material.dart';
@@ -106,7 +105,6 @@ class _SearchPageState extends State<SearchPage> {
           }
         },
       ),
-      floatingActionButton: FloatBottom(),
       bottomNavigationBar: NavigationBarPage(selectedIndex: 2),
     );
   }

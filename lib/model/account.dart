@@ -20,13 +20,13 @@ class Account {
 
   factory Account.fromDocument(DocumentSnapshot doc) {
     return Account(
-      id: doc['id'],
+      id: doc.id, // ドキュメントIDをidフィールドにセット
       name: doc['name'],
-      imagePath: doc['imagePath'],
-      selfIntroduction: doc['selfIntroduction'],
-      userId: doc['userId'],
-      createdTime: doc['createdTime'],
-      updatedTime: doc['updatedTime'],
+      imagePath: doc['image_path'],
+      selfIntroduction: doc['self_introduction'],
+      userId: doc['user_id'],
+      createdTime: doc['created_time'],
+      updatedTime: doc['updated_time'],
     );
   }
 }

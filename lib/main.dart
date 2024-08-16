@@ -1,4 +1,4 @@
-import 'package:cymva/view/poat/time_line_page.dart';
+import 'package:cymva/view/poat/timeline_body.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
@@ -27,11 +27,12 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       //アプリケーションのテーマ。seedColorを元に色合いが生成される。
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme:
+            ColorScheme.fromSeed(seedColor: Color.fromARGB(255, 140, 199, 221)),
         useMaterial3: true,
       ),
       //homeプロパティはこの画面が起動された際に表示される最初の画面となる。
-      home: const TimeLinePage(),
+      home: const TimeLineBody(),
     );
   }
 }

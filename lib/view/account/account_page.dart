@@ -1,7 +1,6 @@
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/account/favorite_list.dart';
 import 'package:cymva/view/account/image_post_list.dart';
-import 'package:cymva/view/float_bottom.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/poat/time_line_page.dart';
 import 'package:flutter/material.dart';
@@ -20,10 +19,12 @@ class AccountPage extends StatefulWidget {
 
 class _AccountPageState extends State<AccountPage> {
   Account? myAccount;
+  late PageController _pageController; // PageControllerの追加
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(); // PageControllerの初期化
     _getAccount();
   }
 
@@ -45,6 +46,12 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   @override
+  void dispose() {
+    _pageController.dispose(); // PageControllerの破棄
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (myAccount == null) {
       return Scaffold(
@@ -56,22 +63,23 @@ class _AccountPageState extends State<AccountPage> {
       body: SafeArea(
         child: Column(
           children: [
-            AccountHeader(userId: widget.userId),
+            AccountHeader(
+              userId: widget.userId,
+              pageController: _pageController, // pageControllerを渡す
+            ),
             Expanded(
               child: PageView(
+                controller: _pageController, // PageControllerを設定
                 children: [
                   PostList(myAccount: myAccount!),
                   ImagePostList(myAccount: myAccount!),
-                  FavoriteList(
-                    myAccount: myAccount!,
-                  )
+                  FavoriteList(myAccount: myAccount!)
                 ],
               ),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatBottom(),
       bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
     );
   }

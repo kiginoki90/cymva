@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cymva/view/navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/utils/authentication.dart';
@@ -168,6 +169,7 @@ class _PostPageState extends State<PostPage> {
           ),
         ),
       ),
+      bottomNavigationBar: NavigationBarPage(selectedIndex: 3),
     );
   }
 }
