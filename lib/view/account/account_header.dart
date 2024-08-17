@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +7,8 @@ import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/account/edit_account_page.dart';
 import 'package:cymva/view/poat/time_line_page.dart';
 import 'package:cymva/model/account.dart';
+import 'package:cymva/view/account/follow_page.dart';
+import 'package:cymva/view/account/follower_page.dart';
 
 class AccountHeader extends StatefulWidget {
   final String userId;
@@ -25,12 +26,16 @@ class _AccountHeaderState extends State<AccountHeader> {
   Account? myAccount;
   int currentPage = 0;
   bool isFollowing = false;
+  late Future<int> _followCountFuture;
+  late Future<int> _followerCountFuture;
 
   @override
   void initState() {
     super.initState();
     _getAccount();
     _checkFollowStatus(); // フォロー状態を確認
+    _followCountFuture = _getFollowCount();
+    _followerCountFuture = _getFollowerCount();
     widget.pageController.addListener(() {
       setState(() {
         currentPage = widget.pageController.page?.round() ?? 0;
@@ -67,6 +72,20 @@ class _AccountHeaderState extends State<AccountHeader> {
         myAccount = account;
       });
     }
+  }
+
+  Future<int> _getFollowCount() async {
+    final followCollection =
+        UserFirestore.users.doc(widget.userId).collection('follow');
+    final followDocs = await followCollection.get();
+    return followDocs.size;
+  }
+
+  Future<int> _getFollowerCount() async {
+    final followersCollection =
+        UserFirestore.users.doc(widget.userId).collection('followers');
+    final followerDocs = await followersCollection.get();
+    return followerDocs.size;
   }
 
   @override
@@ -213,6 +232,76 @@ class _AccountHeaderState extends State<AccountHeader> {
                       ),
                     ],
                   )
+                ],
+              ),
+              SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  FutureBuilder<int>(
+                    future: _followCountFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return CircularProgressIndicator();
+                      }
+                      if (snapshot.hasError) {
+                        return Text('エラー');
+                      }
+                      final followCount = snapshot.data ?? 0;
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  FollowPage(userId: widget.userId),
+                            ),
+                          );
+                        },
+                        child: Column(
+                          children: [
+                            Text(
+                              'フォロー: $followCount',
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  FutureBuilder<int>(
+                    future: _followerCountFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return CircularProgressIndicator();
+                      }
+                      if (snapshot.hasError) {
+                        return Text('エラー');
+                      }
+                      final followerCount = snapshot.data ?? 0;
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  FollowerPage(userId: widget.userId),
+                            ),
+                          );
+                        },
+                        child: Column(
+                          children: [
+                            Text(
+                              'フォロワー: $followerCount',
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
               SizedBox(height: 15),

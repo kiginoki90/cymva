@@ -2,6 +2,7 @@ import 'package:cymva/model/account.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/poat/follow_page.dart';
 import 'package:cymva/view/poat/time_line_page.dart';
+import 'package:cymva/view/poat/timeline_header.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/favorite_post.dart';
@@ -17,6 +18,8 @@ class TimeLineBody extends StatefulWidget {
 class _TimeLineBodyState extends State<TimeLineBody> {
   late Future<List<String>>? _favoritePostsFuture;
   final FavoritePost _favoritePost = FavoritePost();
+  final PageController _pageController = PageController();
+
   Account? myAccount;
 
   @override
@@ -62,15 +65,28 @@ class _TimeLineBodyState extends State<TimeLineBody> {
     if (myAccount == null) {
       return Scaffold(
         body: Center(
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(), // ローディングインジケーターを表示
         ),
       );
     }
 
-    // アカウント情報が取得できたら、PageViewを表示
+    // アカウント情報が取得された場合に表示するUI
     return Scaffold(
-      body: PageView(
-        children: [TimeLinePage(), FollowPage(myAccount: myAccount!)],
+      body: SafeArea(
+        child: Column(
+          children: [
+            TimelineHeader(pageController: _pageController),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                children: [
+                  TimeLinePage(),
+                  FollowPage(myAccount: myAccount!),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: NavigationBarPage(selectedIndex: 0),
     );

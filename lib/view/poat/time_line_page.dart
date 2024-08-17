@@ -27,88 +27,86 @@ class _TimeLineState extends State<TimeLinePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text('タイムライン'),
-        elevation: 2,
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: PostFirestore.posts
-            .orderBy('created_time', descending: true)
-            .snapshots(),
-        builder: (context, postSnapshot) {
-          if (postSnapshot.hasData) {
-            List<String> postAccountIds = [];
-            postSnapshot.data!.docs.forEach((doc) {
-              Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-              if (!postAccountIds.contains(data['post_account_id'])) {
-                postAccountIds.add(data['post_account_id']);
-              }
-            });
-            return FutureBuilder<Map<String, Account>?>(
-              future: UserFirestore.getPostUserMap(postAccountIds),
-              builder: (context, userSnapshot) {
-                if (userSnapshot.hasData &&
-                    userSnapshot.connectionState == ConnectionState.done) {
-                  return FutureBuilder<List<String>>(
-                    future: _favoritePostsFuture,
-                    builder: (context, favoriteSnapshot) {
-                      if (favoriteSnapshot.connectionState ==
-                              ConnectionState.done &&
-                          favoriteSnapshot.hasData) {
-                        return ListView.builder(
-                          itemCount: postSnapshot.data!.docs.length,
-                          itemBuilder: (context, index) {
-                            Map<String, dynamic> data =
-                                postSnapshot.data!.docs[index].data()
-                                    as Map<String, dynamic>;
-                            Post post = Post(
-                              id: postSnapshot.data!.docs[index].id,
-                              content: data['content'],
-                              postAccountId: data['post_account_id'],
-                              createdTime: data['created_time'],
-                              mediaUrl: data['media_url'],
-                              isVideo: data['is_video'] ?? false,
-                            );
-                            Account postAccount =
-                                userSnapshot.data![post.postAccountId]!;
-
-                            _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                                ValueNotifier<int>(0);
-                            _favoritePost.updateFavoriteUsersCount(post.id);
-
-                            return PostItemWidget(
-                              post: post,
-                              postAccount: postAccount,
-                              favoriteUsersNotifier: _favoritePost
-                                  .favoriteUsersNotifiers[post.id]!,
-                              isFavoriteNotifier: ValueNotifier<bool>(
-                                _favoritePost.favoritePostsNotifier.value
-                                    .contains(post.id),
-                              ),
-                              onFavoriteToggle: () =>
-                                  _favoritePost.toggleFavorite(
-                                post.id,
-                                _favoritePost.favoritePostsNotifier.value
-                                    .contains(post.id),
-                              ),
-                            );
-                          },
-                        );
-                      } else {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                    },
-                  );
-                } else {
-                  return const Center(child: CircularProgressIndicator());
+      body: Container(
+        child: StreamBuilder<QuerySnapshot>(
+          stream: PostFirestore.posts
+              .orderBy('created_time', descending: true)
+              .snapshots(),
+          builder: (context, postSnapshot) {
+            if (postSnapshot.hasData) {
+              List<String> postAccountIds = [];
+              postSnapshot.data!.docs.forEach((doc) {
+                Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+                if (!postAccountIds.contains(data['post_account_id'])) {
+                  postAccountIds.add(data['post_account_id']);
                 }
-              },
-            );
-          } else {
-            return const Center(child: CircularProgressIndicator());
-          }
-        },
+              });
+              return FutureBuilder<Map<String, Account>?>(
+                future: UserFirestore.getPostUserMap(postAccountIds),
+                builder: (context, userSnapshot) {
+                  if (userSnapshot.hasData &&
+                      userSnapshot.connectionState == ConnectionState.done) {
+                    return FutureBuilder<List<String>>(
+                      future: _favoritePostsFuture,
+                      builder: (context, favoriteSnapshot) {
+                        if (favoriteSnapshot.connectionState ==
+                                ConnectionState.done &&
+                            favoriteSnapshot.hasData) {
+                          return ListView.builder(
+                            itemCount: postSnapshot.data!.docs.length,
+                            itemBuilder: (context, index) {
+                              Map<String, dynamic> data =
+                                  postSnapshot.data!.docs[index].data()
+                                      as Map<String, dynamic>;
+                              Post post = Post(
+                                id: postSnapshot.data!.docs[index].id,
+                                content: data['content'],
+                                postAccountId: data['post_account_id'],
+                                createdTime: data['created_time'],
+                                mediaUrl: data['media_url'],
+                                isVideo: data['is_video'] ?? false,
+                              );
+                              Account postAccount =
+                                  userSnapshot.data![post.postAccountId]!;
+
+                              _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                                  ValueNotifier<int>(0);
+                              _favoritePost.updateFavoriteUsersCount(post.id);
+
+                              return PostItemWidget(
+                                post: post,
+                                postAccount: postAccount,
+                                favoriteUsersNotifier: _favoritePost
+                                    .favoriteUsersNotifiers[post.id]!,
+                                isFavoriteNotifier: ValueNotifier<bool>(
+                                  _favoritePost.favoritePostsNotifier.value
+                                      .contains(post.id),
+                                ),
+                                onFavoriteToggle: () =>
+                                    _favoritePost.toggleFavorite(
+                                  post.id,
+                                  _favoritePost.favoritePostsNotifier.value
+                                      .contains(post.id),
+                                ),
+                              );
+                            },
+                          );
+                        } else {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                      },
+                    );
+                  } else {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                },
+              );
+            } else {
+              return const Center(child: CircularProgressIndicator());
+            }
+          },
+        ),
       ),
     );
   }
