@@ -43,7 +43,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                 //FunctionUtils.getImageFromGallery()はギャラリーから画像を選択する処理を行う。
                 onTap: () async {
                   //resultが変数。varは変数を宣言するために使用されるキーワード。型を具体的に明示しない際に使用する。
-                  var result = await FunctionUtils.getImageFromGallery();
+                  var result = await FunctionUtils.getImageFromGallery(context);
                   if (result != null) {
                     //画像が取得できたら選択された画像のパスを使ってFileオブジェクトを生成。imageに代入している。
                     setState(() {
@@ -114,8 +114,8 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       //resultがUserCredential型であることをチェック
                       if (result is UserCredential) {
                         //画像のアップロードを行い、アップロードされた画像のパスを返す。パスはiamgePathへ。
-                        String iamgePath = await FunctionUtils.uploadImage(
-                            result.user!.uid, image!);
+                        String? iamgePath = await FunctionUtils.uploadImage(
+                            result.user!.uid, image!, context);
                         //Accountクラスのインスタンス作成。ID等5つのデータが含まれる。
                         //Accountオブジェクトが作られる。
                         Account newAccount = Account(
@@ -123,7 +123,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                           name: nameController.text,
                           userId: userIdController.text,
                           selfIntroduction: selfIntroductionController.text,
-                          imagePath: iamgePath,
+                          imagePath: iamgePath!,
                         );
                         //作成したAccountオブジェクトをFirestoreに保存する。
                         var _result = await UserFirestore.setUser(newAccount);

@@ -22,20 +22,33 @@ class PostDetailPage extends StatelessWidget {
     required this.postAccountImagePath,
   }) : super(key: key);
 
-  Future<void> _deletePost(BuildContext context) async {
+  Future<void> _deletePost(
+      BuildContext context, String postId, String postAccountId) async {
+    final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+    // サブコレクションの削除を含むドキュメント削除関数
+    Future<void> deleteCollection(String collectionPath) async {
+      final collectionRef = _firestore.collection(collectionPath);
+      final querySnapshot = await collectionRef.get();
+
+      for (final doc in querySnapshot.docs) {
+        await doc.reference.delete();
+      }
+    }
+
     try {
-      // Firestoreインスタンスを取得
-      final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+      // favorite_usersサブコレクションの削除
+      await deleteCollection('posts/$postId/favorite_users');
 
       // postsコレクションから該当するドキュメントを削除
-      await _firestore.collection('posts').doc(post.id).delete();
+      await _firestore.collection('posts').doc(postId).delete();
 
       // usersコレクションの該当するユーザーのmy_postsサブコレクションから該当するドキュメントを削除
       await _firestore
           .collection('users')
-          .doc(post.postAccountId)
+          .doc(postAccountId)
           .collection('my_posts')
-          .doc(post.id)
+          .doc(postId)
           .delete();
 
       // 削除成功メッセージ
@@ -112,7 +125,8 @@ class PostDetailPage extends StatelessWidget {
                     onSelected: (String value) {
                       switch (value) {
                         case 'Option 1':
-                          _deletePost(context); // 削除処理を呼び出す
+                          _deletePost(context, post.id,
+                              post.postAccountId); // 削除処理を呼び出す
                           break;
                         case 'Option 2':
                           // Option 2 の処理

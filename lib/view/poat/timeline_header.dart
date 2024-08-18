@@ -45,10 +45,7 @@ class _TimelineHeaderState extends State<TimelineHeader> {
                 icon: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.home,
-                      color: currentPage == 0 ? Colors.blue : Colors.grey,
-                    ),
+                    Text('タイムライン'),
                     Container(
                       margin: const EdgeInsets.only(top: 2),
                       height: 2,
@@ -66,10 +63,7 @@ class _TimelineHeaderState extends State<TimelineHeader> {
                 icon: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.people,
-                      color: currentPage == 1 ? Colors.blue : Colors.grey,
-                    ),
+                    Text('フォロー'),
                     Container(
                       margin: const EdgeInsets.only(top: 2),
                       height: 2,

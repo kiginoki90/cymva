@@ -49,7 +49,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
               SizedBox(height: 30),
               GestureDetector(
                 onTap: () async {
-                  var result = await FunctionUtils.getImageFromGallery();
+                  var result = await FunctionUtils.getImageFromGallery(context);
                   if (result != null) {
                     setState(() {
                       image = File(result.path);
@@ -97,8 +97,8 @@ class _EditAccountPageState extends State<EditAccountPage> {
                         imagePath = myAccount.imagePath;
                       } else {
                         var result = await FunctionUtils.uploadImage(
-                            myAccount.id, image!);
-                        imagePath = result;
+                            myAccount.id, image!, context);
+                        String? imagePath = result;
                       }
                       Account updateAccount = Account(
                           id: myAccount.id,

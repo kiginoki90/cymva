@@ -1,8 +1,9 @@
 import 'dart:io';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
-import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/posts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cymva/utils/function_utils.dart';
@@ -41,17 +42,27 @@ class _PostPageState extends State<PostPage> {
       isPickerActive = true;
     });
 
-    //画像、動画の選択を非同期で行う。
-    final pickedFile = isVideo
-        ? await picker.pickVideo(source: ImageSource.gallery)
-        : await picker.pickImage(source: ImageSource.gallery);
+    // メディアの選択処理
+    File? pickedFile;
+    if (isVideo) {
+      final videoFile = await picker.pickVideo(source: ImageSource.gallery);
+      if (videoFile != null) {
+        pickedFile = File(videoFile.path);
+      }
+    } else {
+      pickedFile = await FunctionUtils.getImageFromGallery(
+          context); // 画像の場合はファイルサイズを確認する
+    }
+
+    // //画像、動画の選択を非同期で行う。
+    // final pickedFile = isVideo
+    //     ? await picker.pickVideo(source: ImageSource.gallery)
+    //     : await picker.pickImage(source: ImageSource.gallery);
 
     //選択されたメディアの処理を行う。
     setState(() {
       if (pickedFile != null) {
-        //pickedFileがnullでないのなら選択されたファイルのパスを_mediaFileに設定。
-        _mediaFile = File(pickedFile.path);
-        //isVideoフラグを更新
+        _mediaFile = pickedFile;
         this.isVideo = isVideo;
 
         //メディアが動画の場合、VideoPlayerController.fileメソッドを使用して動画再生の準備をする。
@@ -63,7 +74,7 @@ class _PostPageState extends State<PostPage> {
             });
         }
       } else {
-        print('No media selected.');
+        print('No media selected or file too large.');
       }
       isPickerActive = false;
     });
@@ -90,12 +101,18 @@ class _PostPageState extends State<PostPage> {
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextField(
                 controller: contentController,
                 decoration: InputDecoration(
                   hintText: 'Content',
+                  border: OutlineInputBorder(),
                 ),
+                maxLines: null, // 高さが自動で調整されるようにする
+                maxLength: 200, // 最大文字数200
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
               ),
               const SizedBox(height: 20),
               //メディアを選択した場合のメディアの表示。
@@ -142,16 +159,18 @@ class _PostPageState extends State<PostPage> {
                     String? mediaUrl;
                     if (_mediaFile != null) {
                       //現在ログインしているユーザーのアカウントIDを取得する。
-                      var result = Authentication.myAccount!.id;
+                      final String userId =
+                          FirebaseAuth.instance.currentUser!.uid;
+
                       //メディアファイルをアップロード。その後URLを取得。
-                      mediaUrl =
-                          await FunctionUtils.uploadImage(result, _mediaFile!);
+                      mediaUrl = await FunctionUtils.uploadImage(
+                          userId, _mediaFile!, context);
                     }
 
                     //Postオブジェクトを作成。Postクラスのコンストラクタに必要な情報を渡す。
                     Post newPost = Post(
                       content: contentController.text,
-                      postAccountId: Authentication.myAccount!.id,
+                      postAccountId: FirebaseAuth.instance.currentUser!.uid,
                       mediaUrl: mediaUrl,
                       isVideo: isVideo,
                     );
@@ -159,7 +178,28 @@ class _PostPageState extends State<PostPage> {
                     var result = await PostFirestore.addPost(newPost);
                     //投稿の保存が成功した場合、現在の画面を閉じて前の画面に戻る。
                     if (result == true) {
-                      Navigator.pop(context);
+                      // Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('投稿が完了しました')),
+                      );
+                      final String userId = FirebaseAuth
+                          .instance.currentUser!.uid; // 投稿完了後にAccountPageへ遷移
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (context) => AccountPage(userId: userId),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('投稿に失敗しました')),
+                      );
+                      final String userId =
+                          FirebaseAuth.instance.currentUser!.uid;
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (context) => AccountPage(userId: userId),
+                        ),
+                      );
                     }
                   }
                 },

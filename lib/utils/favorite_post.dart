@@ -37,12 +37,18 @@ class FavoritePost {
         .doc(postId)
         .collection('favorite_users');
 
+    final timestamp = Timestamp.now(); // 現在の時間を取得
+
     if (isFavorite == true) {
       await favoritePostsCollection.doc(postId).delete();
       await favoriteUsersCollection.doc(userId).delete();
     } else {
-      await favoritePostsCollection.doc(postId).set({});
-      await favoriteUsersCollection.doc(userId).set({});
+      await favoritePostsCollection.doc(postId).set({
+        'added_at': timestamp, // 投稿が追加された時間を記録
+      });
+      await favoriteUsersCollection.doc(userId).set({
+        'added_at': timestamp, // ユーザーが投稿をお気に入りにした時間を記録
+      });
     }
 
     final updatedFavorites = favoritePostsNotifier.value.toSet();
