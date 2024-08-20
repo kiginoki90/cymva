@@ -20,6 +20,20 @@ class FunctionUtils {
   //   // }
   // }
 
+  static Future<List<File>?> getImagesFromGallery(BuildContext context) async {
+    ImagePicker picker = ImagePicker();
+    final pickedFiles = await picker.pickMultiImage(); // 複数枚の画像を選択
+
+    if (pickedFiles != null && pickedFiles.isNotEmpty) {
+      return pickedFiles.map((file) => File(file.path)).toList();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('画像が選択されていません')),
+      );
+      return null;
+    }
+  }
+
   // ギャラリーから画像を取得し、ファイルサイズが適切かチェック
   static Future<File?> getImageFromGallery(BuildContext context) async {
     ImagePicker picker = ImagePicker();

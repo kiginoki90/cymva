@@ -92,13 +92,19 @@ class _EditAccountPageState extends State<EditAccountPage> {
                     if (nameController.text.isNotEmpty &&
                         userIdController.text.isNotEmpty &&
                         selfIntroductionController.text.isNotEmpty) {
-                      String imagePath = '';
+                      String? imagePath = '';
+
                       if (image == null) {
-                        imagePath = myAccount.imagePath;
+                        imagePath = myAccount.imagePath ?? '';
                       } else {
-                        var result = await FunctionUtils.uploadImage(
+                        String? result = await FunctionUtils.uploadImage(
                             myAccount.id, image!, context);
-                        String? imagePath = result;
+                        if (result != null) {
+                          imagePath = result;
+                        } else {
+                          imagePath =
+                              'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344';
+                        }
                       }
                       Account updateAccount = Account(
                           id: myAccount.id,
