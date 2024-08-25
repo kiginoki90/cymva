@@ -1,40 +1,51 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/post.dart';
 
-//投稿に関するプログラムFirestore
+// 投稿に関するプログラムFirestore
 class PostFirestore {
   static final _firestoreInstance = FirebaseFirestore.instance;
   static final CollectionReference posts =
       _firestoreInstance.collection('posts');
 
-  static Future<dynamic> addPost(Post newPost) async {
+  static Future<String?> addPost(Post newPost) async {
     try {
       final CollectionReference _userPost = _firestoreInstance
           .collection('users')
           .doc(newPost.postAccountId)
           .collection('my_posts');
 
-      var result = await posts.add({
+      // 新しい投稿データのマップを作成
+      Map<String, dynamic> postData = {
         'content': newPost.content,
         'post_account_id': newPost.postAccountId,
         'created_time': Timestamp.now(),
         'media_url': newPost.mediaUrl,
         'is_video': newPost.isVideo,
+        'post_id': '', // 後でドキュメントIDで更新するために空文字で初期化
+      };
+
+      // Firestoreに投稿を追加し、その結果からドキュメントIDを取得
+      DocumentReference docRef = await posts.add(postData);
+
+      // 投稿データの 'post_id' フィールドをドキュメントIDで更新
+      await docRef.update({
+        'post_id': docRef.id,
       });
 
-      await _userPost.doc(result.id).set({
-        'post_id': result.id,
+      // ユーザーの投稿サブコレクションにドキュメントを追加
+      await _userPost.doc(docRef.id).set({
+        'post_id': docRef.id,
         'created_time': Timestamp.now(),
       });
 
       // favorite_users サブコレクションを空で作成（スター一覧）
-      await result.collection('favorite_users').doc('placeholder').set({});
+      await docRef.collection('favorite_users').doc('placeholder').set({});
 
       print('投稿完了');
-      return true;
+      return docRef.id; // 作成した投稿のドキュメントIDを返す
     } on FirebaseException catch (e) {
       print('投稿エラー: $e');
-      return false;
+      return null;
     }
   }
 

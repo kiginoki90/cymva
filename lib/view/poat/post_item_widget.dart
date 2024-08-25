@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:cymva/view/post_detail_page.dart';
 import 'package:cymva/view/full_screen_image.dart';
 import 'package:cymva/view/account/account_page.dart';
+import 'package:cymva/model/account.dart';
 
 class PostItemWidget extends StatelessWidget {
   final Post post;
@@ -16,11 +17,11 @@ class PostItemWidget extends StatelessWidget {
   const PostItemWidget({
     required this.post,
     required this.postAccount,
-    required this.favoriteUsersNotifier,
     required this.isFavoriteNotifier,
     required this.onFavoriteToggle,
-  });
-
+    required this.favoriteUsersNotifier,
+    Key? key,
+  }) : super(key: key);
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -33,6 +34,9 @@ class PostItemWidget extends StatelessWidget {
               postAccountName: postAccount.name,
               postAccountUserId: postAccount.userId,
               postAccountImagePath: postAccount.imagePath,
+              favoriteUsersNotifier: favoriteUsersNotifier,
+              isFavoriteNotifier: isFavoriteNotifier,
+              onFavoriteToggle: onFavoriteToggle,
             ),
           ),
         );

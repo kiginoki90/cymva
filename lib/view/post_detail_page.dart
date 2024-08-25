@@ -1,4 +1,9 @@
+import 'package:cymva/model/account.dart';
+import 'package:cymva/utils/favorite_post.dart';
+import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/navigation_bar.dart';
+import 'package:cymva/view/poat/post_item_widget.dart';
+import 'package:cymva/view/reply_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/model/post.dart';
@@ -8,11 +13,14 @@ import 'package:cymva/view/full_screen_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class PostDetailPage extends StatelessWidget {
+class PostDetailPage extends StatefulWidget {
   final Post post;
   final String postAccountName;
   final String postAccountUserId;
   final String postAccountImagePath;
+  final ValueNotifier<int> favoriteUsersNotifier;
+  final ValueNotifier<bool> isFavoriteNotifier;
+  final VoidCallback onFavoriteToggle;
 
   const PostDetailPage({
     Key? key,
@@ -20,58 +28,94 @@ class PostDetailPage extends StatelessWidget {
     required this.postAccountName,
     required this.postAccountUserId,
     required this.postAccountImagePath,
+    required this.favoriteUsersNotifier,
+    required this.isFavoriteNotifier,
+    required this.onFavoriteToggle,
   }) : super(key: key);
 
-  Future<void> _deletePost(
-      BuildContext context, String postId, String postAccountId) async {
-    final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  @override
+  _PostDetailPageState createState() => _PostDetailPageState();
+}
 
-    // サブコレクションの削除を含むドキュメント削除関数
-    Future<void> deleteCollection(String collectionPath) async {
-      final collectionRef = _firestore.collection(collectionPath);
-      final querySnapshot = await collectionRef.get();
+class _PostDetailPageState extends State<PostDetailPage> {
+  late Future<List<Post>> _replyPostsFuture;
+  final FavoritePost _favoritePost = FavoritePost();
 
-      for (final doc in querySnapshot.docs) {
-        await doc.reference.delete();
-      }
-    }
+  @override
+  void initState() {
+    super.initState();
+    _replyPostsFuture = getReplyPosts(widget.post.id);
+  }
 
+  static final _firestoreInstance = FirebaseFirestore.instance;
+
+  static Future<Map<String, dynamic>?> getUser(String userId) async {
     try {
-      // favorite_usersサブコレクションの削除
-      await deleteCollection('posts/$postId/favorite_users');
+      var doc = await _firestoreInstance.collection('users').doc(userId).get();
+      return doc.data();
+    } catch (e) {
+      print('ユーザー情報取得エラー: $e');
+      return null;
+    }
+  }
 
-      // postsコレクションから該当するドキュメントを削除
-      await _firestore.collection('posts').doc(postId).delete();
-
-      // usersコレクションの該当するユーザーのmy_postsサブコレクションから該当するドキュメントを削除
-      await _firestore
+  Future<void> _deletePost(BuildContext context) async {
+    try {
+      await _firestoreInstance.collection('posts').doc(widget.post.id).delete();
+      await _firestoreInstance
           .collection('users')
-          .doc(postAccountId)
+          .doc(widget.post.postAccountId)
           .collection('my_posts')
-          .doc(postId)
+          .doc(widget.post.id)
           .delete();
-
-      // 削除成功メッセージ
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('投稿を削除しました')),
       );
-
-      // 削除後に前の画面に戻る
       Navigator.of(context).pop();
     } catch (e) {
-      // エラーメッセージ
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('投稿の削除に失敗しました: $e')),
       );
     }
   }
 
+  Future<List<Post>> getReplyPosts(String postId) async {
+    try {
+      final replyPostCollectionRef = _firestoreInstance
+          .collection('posts')
+          .doc(postId)
+          .collection('reply_post');
+      final snapshot = await replyPostCollectionRef.get();
+
+      if (snapshot.docs.isEmpty) {
+        print('サブコレクションreply_postは存在しません。');
+        return [];
+      }
+
+      List<Post> replyPosts = [];
+      for (var doc in snapshot.docs) {
+        var postData = doc.data();
+        var replyPostId = doc.id;
+        var postSnapshot =
+            await _firestoreInstance.collection('posts').doc(replyPostId).get();
+        if (postSnapshot.exists) {
+          var postDetailData = postSnapshot.data();
+          if (postDetailData != null) {
+            replyPosts.add(Post.fromMap(postDetailData));
+          }
+        }
+      }
+
+      return replyPosts;
+    } catch (e) {
+      print('サブコレクションの取得に失敗しました: $e');
+      return [];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 現在ログインしているユーザーのIDを取得
     final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
-
-    final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
     return Scaffold(
       appBar: AppBar(
@@ -90,15 +134,15 @@ class PostDetailPage extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (context) =>
-                            AccountPage(userId: post.postAccountId),
+                            AccountPage(userId: widget.post.postAccountId),
                       ),
                     );
                   },
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0), // 角を丸める
+                    borderRadius: BorderRadius.circular(8.0),
                     child: Image.network(
-                      postAccountImagePath,
-                      width: 44, // 高さをCircleAvatarの直径に合わせる
+                      widget.postAccountImagePath,
+                      width: 44,
                       height: 44,
                       fit: BoxFit.cover,
                     ),
@@ -109,32 +153,21 @@ class PostDetailPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      postAccountName,
+                      widget.postAccountName,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      '@$postAccountUserId',
+                      '@${widget.postAccountUserId}',
                       style: const TextStyle(color: Colors.grey),
                     ),
                   ],
                 ),
                 Spacer(),
-                if (post.postAccountId == currentUserId)
+                if (widget.post.postAccountId == currentUserId)
                   PopupMenuButton<String>(
                     icon: Icon(Icons.add),
                     onSelected: (String value) {
-                      switch (value) {
-                        case 'Option 1':
-                          _deletePost(context, post.id,
-                              post.postAccountId); // 削除処理を呼び出す
-                          break;
-                        case 'Option 2':
-                          // Option 2 の処理
-                          break;
-                        case 'Option 3':
-                          // Option 3 の処理
-                          break;
-                      }
+                      if (value == 'Option 1') _deletePost(context);
                     },
                     itemBuilder: (BuildContext context) {
                       return [
@@ -142,7 +175,7 @@ class PostDetailPage extends StatelessWidget {
                           value: 'Option 1',
                           child: Text(
                             'ポストの削除',
-                            style: TextStyle(color: Colors.red), // テキストの色を赤に変更
+                            style: TextStyle(color: Colors.red),
                           ),
                         ),
                         PopupMenuItem<String>(
@@ -160,50 +193,151 @@ class PostDetailPage extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              DateFormat('yyyy/M/d').format(post.createdTime!.toDate()),
+              DateFormat('yyyy/M/d').format(widget.post.createdTime!.toDate()),
               style: const TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(post.content),
-                const SizedBox(height: 10),
-                if (post.isVideo)
-                  AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: VideoPlayer(VideoPlayerController.networkUrl(
-                        Uri.parse(post.mediaUrl!))),
-                  )
-                else if (post.mediaUrl != null)
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              FullScreenImagePage(imageUrl: post.mediaUrl!),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      constraints: BoxConstraints(
-                        maxHeight: 400,
-                      ),
-                      child: Image.network(
-                        post.mediaUrl!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                      ),
+            Text(widget.post.content),
+            const SizedBox(height: 10),
+            if (widget.post.isVideo)
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: VideoPlayer(VideoPlayerController.networkUrl(
+                    Uri.parse(widget.post.mediaUrl!))),
+              )
+            else if (widget.post.mediaUrl != null)
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          FullScreenImagePage(imageUrl: widget.post.mediaUrl!),
                     ),
-                  )
+                  );
+                },
+                child: Container(
+                  constraints: BoxConstraints(maxHeight: 400),
+                  child: Image.network(
+                    widget.post.mediaUrl!,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    ValueListenableBuilder<int>(
+                      valueListenable: widget.favoriteUsersNotifier,
+                      builder: (context, value, child) {
+                        return Text((value - 1).toString());
+                      },
+                    ),
+                    const SizedBox(width: 5),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: widget.isFavoriteNotifier,
+                      builder: (context, isFavorite, child) {
+                        return GestureDetector(
+                          onTap: () {
+                            widget.onFavoriteToggle();
+                            widget.isFavoriteNotifier.value =
+                                !widget.isFavoriteNotifier.value;
+                          },
+                          child: Icon(
+                            isFavorite ? Icons.star : Icons.star_outline,
+                            color: isFavorite
+                                ? Color.fromARGB(255, 255, 183, 59)
+                                : Colors.grey,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.comment),
+                ),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.share),
+                ),
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ReplyPage(post: widget.post),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.reply), // 返信ボタン
+                ),
               ],
-            )
+            ),
+            const SizedBox(height: 10),
+            // FutureBuilderを使用して返信ポストを表示
+            FutureBuilder<List<Post>>(
+              future: _replyPostsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Text('エラーが発生しました: ${snapshot.error}');
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Text('返信ポストはありません。');
+                } else {
+                  List<Post> replyPosts = snapshot.data!;
+                  return Column(
+                    children: replyPosts.map((replyPost) {
+                      return FutureBuilder<Account?>(
+                        future: UserFirestore.getUser(replyPost.postAccountId),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return CircularProgressIndicator();
+                          } else if (snapshot.hasError || !snapshot.hasData) {
+                            return Text('エラーが発生しました。');
+                          } else {
+                            Account? postAccount = snapshot.data;
+                            return PostItemWidget(
+                              post: replyPost,
+                              postAccount: postAccount!,
+                              favoriteUsersNotifier:
+                                  _favoritePost.favoriteUsersNotifiers[
+                                          replyPost.postId] ??
+                                      ValueNotifier<int>(0), // null対策を追加
+                              isFavoriteNotifier: ValueNotifier<bool>(
+                                _favoritePost.favoritePostsNotifier.value
+                                    .contains(replyPost.postId),
+                              ),
+                              onFavoriteToggle: () {
+                                _favoritePost.toggleFavorite(
+                                  replyPost.id,
+                                  _favoritePost.favoritePostsNotifier.value
+                                      .contains(replyPost.postId),
+                                );
+                                _favoritePost.favoriteUsersNotifiers[
+                                        replyPost.postId] ??=
+                                    ValueNotifier<int>(0); // エントリが存在しない場合に追加
+                                _favoritePost.updateFavoriteUsersCount(
+                                    replyPost.postId); // カウントを更新
+                              },
+                            );
+                          }
+                        },
+                      );
+                    }).toList(),
+                  );
+                }
+              },
+            ),
           ],
         ),
-      ),
-      bottomNavigationBar: NavigationBarPage(
-        selectedIndex: 1,
       ),
     );
   }

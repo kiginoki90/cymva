@@ -28,6 +28,7 @@ class _TimeLineState extends State<TimeLinePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
+        //Firestoreからポストデータをリアルタイムで取得
         child: StreamBuilder<QuerySnapshot>(
           stream: PostFirestore.posts
               .orderBy('created_time', descending: true)
@@ -41,6 +42,7 @@ class _TimeLineState extends State<TimeLinePage> {
                   postAccountIds.add(data['post_account_id']);
                 }
               });
+              //投稿に関するユーザー情報を取得
               return FutureBuilder<Map<String, Account>?>(
                 future: UserFirestore.getPostUserMap(postAccountIds),
                 builder: (context, userSnapshot) {

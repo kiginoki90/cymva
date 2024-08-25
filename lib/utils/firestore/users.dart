@@ -50,23 +50,29 @@ class UserFirestore {
   }
 
 //データベースから情報を取得、それをAccountのインスタンスに変換するためのメソッド
-  static Future<dynamic> getUser(String uid) async {
+  static Future<Account?> getUser(String uid) async {
     try {
       DocumentSnapshot documentSnapshot = await users.doc(uid).get();
-      Map<String, dynamic> data =
-          documentSnapshot.data() as Map<String, dynamic>;
-      Account myAccount = Account(
+      if (documentSnapshot.exists) {
+        Map<String, dynamic> data =
+            documentSnapshot.data() as Map<String, dynamic>;
+        Account myAccount = Account(
           id: uid,
-          name: data['name'],
-          userId: data['user_id'],
-          selfIntroduction: data['self_introduction'],
-          imagePath: data['image_path'],
-          createdTime: data['created_time'],
-          updatedTime: data['updated_time']);
-      //作成したオブジェクトをmyaccountに保存
-      Authentication.myAccount = myAccount;
-      print('ユーザー取得完了');
-      return myAccount;
+          name: data['name'] ?? '', // デフォルト値を空の文字列に設定
+          userId: data['user_id'] ?? '',
+          selfIntroduction: data['self_introduction'] ?? '',
+          imagePath: data['image_path'] ?? '',
+          createdTime: data['created_time'] as Timestamp?,
+          updatedTime: data['updated_time'] as Timestamp?,
+        );
+        // 作成したオブジェクトをmyAccountに保存
+        Authentication.myAccount = myAccount;
+        print('ユーザー取得完了');
+        return myAccount;
+      } else {
+        print('ユーザーが存在しません');
+        return null;
+      }
     } on FirebaseException catch (e) {
       print('user_error: $e');
       return null;

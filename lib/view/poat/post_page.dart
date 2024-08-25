@@ -16,33 +16,20 @@ class PostPage extends StatefulWidget {
   State<PostPage> createState() => _PostPageState();
 }
 
-//投稿ページ
 class _PostPageState extends State<PostPage> {
-  //_PostPageStateクラスの状態を管理するための変数やコントローラを定義している。
-  //TextEditingControllerのインスタンスを定義している。
-  //このコントローラを使用して、ユーザーが入力したテキストを取得したり設定したりする。
   TextEditingController contentController = TextEditingController();
-  //選択した画像や動画を保持するための変数。
   File? _mediaFile;
-  //ImagePickerクラスのインスタンスを作成。このクラスは画像や動画を選択するためのライブラリを提供する。
   final picker = ImagePicker();
   bool isVideo = false;
-  //VideoPlayerControllerクラスのインスタンスを保持するための変数。これは動画の再生を管理する。
   VideoPlayerController? _videoController;
-  //メディアがアクティブかどうかを示すためのブール型の変数。
   bool isPickerActive = false;
 
-  //非同期の関数の宣言
-  //ユーザーが画像や動画を選択するためのロジックを実装。
   Future getMedia(bool isVideo) async {
-    //メディアがすでにアクティブな場合、関数を修了する。
     if (isPickerActive) return;
-    //setStateメソッドはウィジェットの状態が変更されたことを Flutter に知らせる役割
     setState(() {
       isPickerActive = true;
     });
 
-    // メディアの選択処理
     File? pickedFile;
     if (isVideo) {
       final videoFile = await picker.pickVideo(source: ImageSource.gallery);
@@ -50,27 +37,18 @@ class _PostPageState extends State<PostPage> {
         pickedFile = File(videoFile.path);
       }
     } else {
-      pickedFile = await FunctionUtils.getImageFromGallery(
-          context); // 画像の場合はファイルサイズを確認する
+      pickedFile = await FunctionUtils.getImageFromGallery(context);
     }
 
-    // //画像、動画の選択を非同期で行う。
-    // final pickedFile = isVideo
-    //     ? await picker.pickVideo(source: ImageSource.gallery)
-    //     : await picker.pickImage(source: ImageSource.gallery);
-
-    //選択されたメディアの処理を行う。
     setState(() {
       if (pickedFile != null) {
         _mediaFile = pickedFile;
         this.isVideo = isVideo;
-
-        //メディアが動画の場合、VideoPlayerController.fileメソッドを使用して動画再生の準備をする。
         if (isVideo) {
           _videoController = VideoPlayerController.file(_mediaFile!)
             ..initialize().then((_) {
-              setState(() {}); // コントローラの初期化後に再描画
-              _videoController!.play(); // ビデオを再生
+              setState(() {});
+              _videoController!.play();
             });
         }
       } else {
@@ -80,14 +58,12 @@ class _PostPageState extends State<PostPage> {
     });
   }
 
-//ウィジェットが破棄される時に呼び出される。リソースを適切に解放するために使用される。
   @override
   void dispose() {
     _videoController?.dispose();
     super.dispose();
   }
 
-//buildメソッドはflutterのUIを構築するために使用される。StatefulWidgetの状態が変更されるたびに再実行される。
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -109,15 +85,13 @@ class _PostPageState extends State<PostPage> {
                   hintText: 'Content',
                   border: OutlineInputBorder(),
                 ),
-                maxLines: null, // 高さが自動で調整されるようにする
-                maxLength: 200, // 最大文字数200
+                maxLines: null,
+                maxLength: 200,
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
               ),
               const SizedBox(height: 20),
-              //メディアを選択した場合のメディアの表示。
               if (_mediaFile != null)
-                //isVideoはメディアが動画かどうか判定するフラグ。trueなら動画、falseは画像。
                 isVideo
                     ? _videoController != null &&
                             _videoController!.value.isInitialized
@@ -125,22 +99,20 @@ class _PostPageState extends State<PostPage> {
                             aspectRatio: _videoController!.value.aspectRatio,
                             child: VideoPlayer(_videoController!),
                           )
-                        : CircularProgressIndicator() // ビデオの初期化中にローディングインジケータを表示
+                        : CircularProgressIndicator()
                     : Container(
-                        width: 150, // 画像の表示幅を指定
-                        height: 150, // 画像の表示高さを指定
+                        width: 150,
+                        height: 150,
                         child: Image.file(
                           _mediaFile!,
-                          fit: BoxFit.cover, // 画像がコンテナにフィットするように設定
+                          fit: BoxFit.cover,
                         ),
                       ),
               const SizedBox(height: 20),
               Row(
-                //子ウィジェットを水平方向に配置する。
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   ElevatedButton(
-                    //ElevatedButtonを押した場合getMediaメソッドを呼ぶ。
                     onPressed: () => getMedia(false),
                     child: const Text('画像を選択'),
                   ),
@@ -153,52 +125,39 @@ class _PostPageState extends State<PostPage> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () async {
-                  //テキストフィールドが空でない、またはメディアが選択されている場合に処理を行う。
                   if (contentController.text.isNotEmpty || _mediaFile != null) {
-                    //メディアファイルURLの変数を宣言。？はnullになる可能性があるという意味。
                     String? mediaUrl;
                     if (_mediaFile != null) {
-                      //現在ログインしているユーザーのアカウントIDを取得する。
                       final String userId =
                           FirebaseAuth.instance.currentUser!.uid;
-
-                      //メディアファイルをアップロード。その後URLを取得。
                       mediaUrl = await FunctionUtils.uploadImage(
                           userId, _mediaFile!, context);
                     }
 
-                    //Postオブジェクトを作成。Postクラスのコンストラクタに必要な情報を渡す。
                     Post newPost = Post(
                       content: contentController.text,
                       postAccountId: FirebaseAuth.instance.currentUser!.uid,
                       mediaUrl: mediaUrl,
                       isVideo: isVideo,
                     );
-                    //Postオブジェクトを Firestore に追加
+
+                    // 投稿の追加処理
                     var result = await PostFirestore.addPost(newPost);
-                    //投稿の保存が成功した場合、現在の画面を閉じて前の画面に戻る。
-                    if (result == true) {
-                      // Navigator.pop(context);
+
+                    // 投稿の保存が成功したかどうかを判定
+                    if (result != null) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('投稿が完了しました')),
                       );
-                      final String userId = FirebaseAuth
-                          .instance.currentUser!.uid; // 投稿完了後にAccountPageへ遷移
                       Navigator.of(context).pushReplacement(
                         MaterialPageRoute(
-                          builder: (context) => AccountPage(userId: userId),
+                          builder: (context) => AccountPage(
+                              userId: FirebaseAuth.instance.currentUser!.uid),
                         ),
                       );
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('投稿に失敗しました')),
-                      );
-                      final String userId =
-                          FirebaseAuth.instance.currentUser!.uid;
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (context) => AccountPage(userId: userId),
-                        ),
                       );
                     }
                   }
