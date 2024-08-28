@@ -57,17 +57,10 @@ class _TimeLineState extends State<TimeLinePage> {
                           return ListView.builder(
                             itemCount: postSnapshot.data!.docs.length,
                             itemBuilder: (context, index) {
-                              Map<String, dynamic> data =
-                                  postSnapshot.data!.docs[index].data()
-                                      as Map<String, dynamic>;
-                              Post post = Post(
-                                id: postSnapshot.data!.docs[index].id,
-                                content: data['content'],
-                                postAccountId: data['post_account_id'],
-                                createdTime: data['created_time'],
-                                mediaUrl: data['media_url'],
-                                isVideo: data['is_video'] ?? false,
-                              );
+                              // Post クラスのインスタンスを作成するために fromDocument を使用
+                              Post post = Post.fromDocument(
+                                  postSnapshot.data!.docs[index]);
+
                               Account postAccount =
                                   userSnapshot.data![post.postAccountId]!;
 

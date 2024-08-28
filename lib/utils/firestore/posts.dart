@@ -21,7 +21,8 @@ class PostFirestore {
         'created_time': Timestamp.now(),
         'media_url': newPost.mediaUrl,
         'is_video': newPost.isVideo,
-        'post_id': '', // 後でドキュメントIDで更新するために空文字で初期化
+        'post_id': '',
+        'reply': newPost.reply,
       };
 
       // Firestoreに投稿を追加し、その結果からドキュメントIDを取得
@@ -38,8 +39,8 @@ class PostFirestore {
         'created_time': Timestamp.now(),
       });
 
-      // favorite_users サブコレクションを空で作成（スター一覧）
-      await docRef.collection('favorite_users').doc('placeholder').set({});
+      // // favorite_users サブコレクションを空で作成（スター一覧）
+      // await docRef.collection('favorite_users').doc('placeholder').set({});
 
       print('投稿完了');
       return docRef.id; // 作成した投稿のドキュメントIDを返す
@@ -66,6 +67,8 @@ class PostFirestore {
           createdTime: data['created_time'],
           isVideo: data['is_video'] ?? false, // is_videoが存在しない場合はfalseを設定
           mediaUrl: data['media_url'], // media_urlが存在しない場合はnullになる
+          reply: data['reply'] ?? null,
+          postId: data['post_id'] ?? '',
         );
         postList.add(post);
       }

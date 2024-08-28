@@ -75,7 +75,7 @@ class _ReplyPageState extends State<ReplyPage> {
         postAccountId: FirebaseAuth.instance.currentUser!.uid,
         mediaUrl: mediaUrl,
         isVideo: isVideo,
-        reply: widget.post.id, // 返信元のポストIDをセット
+        reply: widget.post.id,
       );
 
       // Firestoreに返信を追加し、新しい投稿のIDを取得

@@ -7,8 +7,8 @@ class Post {
   Timestamp? createdTime;
   String? mediaUrl;
   bool isVideo;
-  String reply;
   String postId;
+  String? reply;
 
   Post({
     this.id = '',
@@ -17,8 +17,8 @@ class Post {
     this.createdTime,
     this.mediaUrl,
     this.isVideo = false,
-    this.reply = '',
     this.postId = '',
+    this.reply,
   });
 
   // Convert to Map for Firestore
@@ -30,22 +30,22 @@ class Post {
       'createdTime': createdTime ?? FieldValue.serverTimestamp(),
       'mediaUrl': mediaUrl,
       'isVideo': isVideo,
-      'reply': reply,
       'postId': postId,
+      'reply': reply,
     };
   }
 
   // Create a Post from Firestore document
   factory Post.fromDocument(DocumentSnapshot doc) {
     return Post(
-      id: doc['id'],
+      id: doc.id,
       content: doc['content'],
       postAccountId: doc['post_account_id'],
       createdTime: doc['created_time'],
       mediaUrl: doc['media_url'],
       isVideo: doc['is_video'],
-      reply: doc['reply'] ?? '',
       postId: doc['post_id'] ?? '',
+      reply: doc['reply'] ?? null,
     );
   }
 
@@ -58,8 +58,8 @@ class Post {
       createdTime: data['created_time'],
       mediaUrl: data['media_url'],
       isVideo: data['is_video'] ?? false,
-      reply: data['reply'] ?? '',
       postId: data['post_id'] ?? '',
+      reply: data['reply'] ?? null,
     );
   }
 }

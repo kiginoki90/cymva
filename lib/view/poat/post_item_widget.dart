@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/model/account.dart';
@@ -5,9 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:cymva/view/post_detail_page.dart';
 import 'package:cymva/view/full_screen_image.dart';
 import 'package:cymva/view/account/account_page.dart';
-import 'package:cymva/model/account.dart';
 
-class PostItemWidget extends StatelessWidget {
+class PostItemWidget extends StatefulWidget {
   final Post post;
   final Account postAccount;
   final ValueNotifier<int> favoriteUsersNotifier;
@@ -22,6 +22,41 @@ class PostItemWidget extends StatelessWidget {
     required this.favoriteUsersNotifier,
     Key? key,
   }) : super(key: key);
+
+  @override
+  _PostItemWidgetState createState() => _PostItemWidgetState();
+}
+
+class _PostItemWidgetState extends State<PostItemWidget> {
+  final ValueNotifier<int> _replyCountNotifier = ValueNotifier<int>(0);
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchReplyCount();
+  }
+
+  void _fetchReplyCount() {
+    // post.idが存在しない場合はpost.postIdを使用する
+    String documentId =
+        widget.post.id.isNotEmpty ? widget.post.id : widget.post.postId;
+
+    FirebaseFirestore.instance
+        .collection('posts')
+        .doc(documentId)
+        .collection('reply_post')
+        .snapshots()
+        .listen((snapshot) {
+      _replyCountNotifier.value = snapshot.size; // ドキュメント数をカウントして更新
+    });
+  }
+
+  @override
+  void dispose() {
+    _replyCountNotifier.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -30,13 +65,13 @@ class PostItemWidget extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) => PostDetailPage(
-              post: post,
-              postAccountName: postAccount.name,
-              postAccountUserId: postAccount.userId,
-              postAccountImagePath: postAccount.imagePath,
-              favoriteUsersNotifier: favoriteUsersNotifier,
-              isFavoriteNotifier: isFavoriteNotifier,
-              onFavoriteToggle: onFavoriteToggle,
+              post: widget.post,
+              postAccountName: widget.postAccount.name,
+              postAccountUserId: widget.postAccount.userId,
+              postAccountImagePath: widget.postAccount.imagePath,
+              favoriteUsersNotifier: widget.favoriteUsersNotifier,
+              isFavoriteNotifier: widget.isFavoriteNotifier,
+              onFavoriteToggle: widget.onFavoriteToggle,
             ),
           ),
         );
@@ -57,14 +92,14 @@ class PostItemWidget extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        AccountPage(userId: post.postAccountId),
+                        AccountPage(userId: widget.post.postAccountId),
                   ),
                 );
               },
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
                 child: Image.network(
-                  postAccount.imagePath,
+                  widget.postAccount.imagePath,
                   width: 44,
                   height: 44,
                   fit: BoxFit.cover,
@@ -83,40 +118,40 @@ class PostItemWidget extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            postAccount.name,
+                            widget.postAccount.name,
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           Text(
-                            '@${postAccount.userId}',
+                            '@${widget.postAccount.userId}',
                             style: const TextStyle(color: Colors.grey),
                           ),
                         ],
                       ),
                       Text(DateFormat('yyyy/M/d')
-                          .format(post.createdTime!.toDate())),
+                          .format(widget.post.createdTime!.toDate())),
                     ],
                   ),
                   const SizedBox(height: 5),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(post.content),
+                      Text(widget.post.content),
                       const SizedBox(height: 10),
-                      if (post.mediaUrl != null)
+                      if (widget.post.mediaUrl != null)
                         GestureDetector(
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => FullScreenImagePage(
-                                    imageUrl: post.mediaUrl!),
+                                    imageUrl: widget.post.mediaUrl!),
                               ),
                             );
                           },
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: Image.network(
-                              post.mediaUrl!,
+                              widget.post.mediaUrl!,
                               width: MediaQuery.of(context).size.width * 0.9,
                               height: 180,
                               fit: BoxFit.cover,
@@ -132,20 +167,20 @@ class PostItemWidget extends StatelessWidget {
                       Row(
                         children: [
                           ValueListenableBuilder<int>(
-                            valueListenable: favoriteUsersNotifier,
+                            valueListenable: widget.favoriteUsersNotifier,
                             builder: (context, value, child) {
-                              return Text((value - 1).toString());
+                              return Text((value).toString());
                             },
                           ),
                           const SizedBox(width: 5),
                           ValueListenableBuilder<bool>(
-                            valueListenable: isFavoriteNotifier,
+                            valueListenable: widget.isFavoriteNotifier,
                             builder: (context, isFavorite, child) {
                               return GestureDetector(
                                 onTap: () {
-                                  onFavoriteToggle();
-                                  isFavoriteNotifier.value =
-                                      !isFavoriteNotifier.value;
+                                  widget.onFavoriteToggle();
+                                  widget.isFavoriteNotifier.value =
+                                      !widget.isFavoriteNotifier.value;
                                 },
                                 child: Icon(
                                   isFavorite ? Icons.star : Icons.star_outline,
@@ -158,9 +193,19 @@ class PostItemWidget extends StatelessWidget {
                           ),
                         ],
                       ),
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.comment),
+                      ValueListenableBuilder<int>(
+                        valueListenable: _replyCountNotifier,
+                        builder: (context, replyCount, child) {
+                          return Row(
+                            children: [
+                              IconButton(
+                                onPressed: () {},
+                                icon: const Icon(Icons.comment),
+                              ),
+                              Text(replyCount.toString()), // ここに返信の数を表示
+                            ],
+                          );
+                        },
                       ),
                       IconButton(
                         onPressed: () {},
