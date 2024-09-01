@@ -71,8 +71,8 @@ class FunctionUtils {
     try {
       final FirebaseStorage storageInstance = FirebaseStorage.instance;
 
-      // より短いファイル名 (4 文字)
-      String shortFileName = 'img_${_generateRandomString(4)}.jpg';
+      // ファイル名 (8文字)
+      String shortFileName = 'img_${_generateRandomString(8)}.jpg';
 
       // Firebase Storage でのファイルパスを設定
       final Reference ref = storageInstance.ref().child('$uid/$shortFileName');

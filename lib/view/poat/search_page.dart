@@ -85,6 +85,11 @@ class _SearchPageState extends State<SearchPage> {
                     ValueNotifier<int>(0);
                 _favoritePost.updateFavoriteUsersCount(post.id);
 
+                // リツイートの状態を管理するためのValueNotifierを初期化
+                ValueNotifier<bool> isRetweetedNotifier = ValueNotifier<bool>(
+                  false, // Firestoreからリツイートの状態を取得し初期化する
+                );
+
                 return PostItemWidget(
                   post: post,
                   postAccount: account,
@@ -97,6 +102,15 @@ class _SearchPageState extends State<SearchPage> {
                     post.id,
                     _favoritePost.favoritePostsNotifier.value.contains(post.id),
                   ),
+                  // リツイートの状態を渡す
+                  isRetweetedNotifier: isRetweetedNotifier,
+                  // リツイートの状態をトグルする処理
+                  onRetweetToggle: () {
+                    // ここにリツイートの状態をFirestoreに保存するロジックを追加する
+                    bool currentState = isRetweetedNotifier.value;
+                    isRetweetedNotifier.value = !currentState;
+                    // Firestoreでリツイートの情報を更新する処理
+                  },
                 );
               },
             );

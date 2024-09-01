@@ -9,6 +9,7 @@ class Post {
   bool isVideo;
   String postId;
   String? reply;
+  String? repost;
 
   Post({
     this.id = '',
@@ -19,6 +20,7 @@ class Post {
     this.isVideo = false,
     this.postId = '',
     this.reply,
+    this.repost = '',
   });
 
   // Convert to Map for Firestore
@@ -32,6 +34,7 @@ class Post {
       'isVideo': isVideo,
       'postId': postId,
       'reply': reply,
+      'repost': repost,
     };
   }
 
@@ -46,6 +49,7 @@ class Post {
       isVideo: doc['is_video'],
       postId: doc['post_id'] ?? '',
       reply: doc['reply'] ?? null,
+      repost: doc['repost'] ?? null,
     );
   }
 
@@ -60,6 +64,7 @@ class Post {
       isVideo: data['is_video'] ?? false,
       postId: data['post_id'] ?? '',
       reply: data['reply'] ?? null,
+      repost: data['repost'] ?? '',
     );
   }
 }

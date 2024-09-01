@@ -1,8 +1,10 @@
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/utils/firestore/users.dart';
+import 'package:cymva/view/divider_with_circle.dart';
 import 'package:cymva/view/poat/post_item_widget.dart';
 import 'package:cymva/view/reply_page.dart';
+import 'package:cymva/view/repost_item.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/model/post.dart';
@@ -20,6 +22,8 @@ class PostDetailPage extends StatefulWidget {
   final ValueNotifier<int> favoriteUsersNotifier;
   final ValueNotifier<bool> isFavoriteNotifier;
   final VoidCallback onFavoriteToggle;
+  final ValueNotifier<bool> isRetweetedNotifier;
+  final VoidCallback onRetweetToggle;
 
   const PostDetailPage({
     Key? key,
@@ -30,6 +34,8 @@ class PostDetailPage extends StatefulWidget {
     required this.favoriteUsersNotifier,
     required this.isFavoriteNotifier,
     required this.onFavoriteToggle,
+    required this.isRetweetedNotifier, // Add this line
+    required this.onRetweetToggle, // Add this line
   }) : super(key: key);
 
   @override
@@ -40,27 +46,35 @@ class _PostDetailPageState extends State<PostDetailPage> {
   late Future<List<Post>> _replyPostsFuture;
   Future<Post?>? _replyToPostFuture;
   final FavoritePost _favoritePost = FavoritePost();
-  final ScrollController _scrollController = ScrollController();
+  // final ScrollController _scrollController = ScrollController();
   final GlobalKey _userRowKey = GlobalKey();
+  Post? _repostPost;
+  Account? _repostPostAccount;
 
   @override
   void initState() {
     super.initState();
-    _replyPostsFuture = getReplyPosts(widget.post.id);
+    _replyPostsFuture = getRePosts(widget.post.id);
+
     if (widget.post.reply != null && widget.post.reply!.isNotEmpty) {
-      // 投稿が他の投稿への返信である場合にその返信元を取得
       _replyToPostFuture = getPostById(widget.post.reply!);
     }
+    _fetchRepostDetails();
+  }
 
-    // ウィジェットのレンダリングが完了した後にスクロールする
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // ユーザー情報のウィジェットの位置までスクロール
-      Scrollable.ensureVisible(
-        _userRowKey.currentContext!,
-        duration: Duration(milliseconds: 500), // スクロールのアニメーション時間
-        curve: Curves.easeInOut, // スクロールのアニメーションカーブ
-      );
-    });
+  Future<void> _fetchRepostDetails() async {
+    try {
+      if (widget.post.repost != null) {
+        _repostPost = await getPostById(widget.post.repost!);
+      }
+      if (_repostPost != null) {
+        _repostPostAccount =
+            await UserFirestore.getUser(_repostPost!.postAccountId);
+        setState(() {});
+      }
+    } catch (e) {
+      print('Repost details fetch failed: $e');
+    }
   }
 
   static final _firestoreInstance = FirebaseFirestore.instance;
@@ -127,7 +141,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
   }
 
-  Future<List<Post>> getReplyPosts(String postId) async {
+  Future<List<Post>> getRePosts(String postId) async {
     try {
       final replyPostCollectionRef = _firestoreInstance
           .collection('posts')
@@ -171,6 +185,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
       body: Padding(
         padding: const EdgeInsets.all(10.0),
         child: SingleChildScrollView(
+          // controller: _scrollController,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -198,27 +213,64 @@ class _PostDetailPageState extends State<PostDetailPage> {
                             return Text('エラーが発生しました。');
                           } else {
                             Account? postAccount = snapshot.data;
-                            return PostItemWidget(
-                              post: replyToPost,
-                              postAccount: postAccount!,
-                              favoriteUsersNotifier:
-                                  _favoritePost.favoriteUsersNotifiers[
-                                          replyToPost.postId] ??
-                                      ValueNotifier<int>(0),
-                              isFavoriteNotifier: ValueNotifier<bool>(
-                                  _favoritePost.favoritePostsNotifier.value
-                                      .contains(replyToPost.postId)),
-                              onFavoriteToggle: () {
-                                _favoritePost.toggleFavorite(
-                                  replyToPost.id,
-                                  _favoritePost.favoritePostsNotifier.value
-                                      .contains(replyToPost.postId),
-                                );
-                                _favoritePost.favoriteUsersNotifiers[replyToPost
-                                    .postId] ??= ValueNotifier<int>(0);
-                                _favoritePost.updateFavoriteUsersCount(
-                                    replyToPost.postId);
-                              },
+
+                            // リツイートの状態を管理するためのValueNotifierを初期化
+                            ValueNotifier<bool> isRetweetedNotifier =
+                                ValueNotifier<bool>(
+                              false, // Firestoreからリツイートの状態を取得し初期化する
+                            );
+
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                DividerWithCircle(),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      PostItemWidget(
+                                        post: replyToPost,
+                                        postAccount: postAccount!,
+                                        favoriteUsersNotifier: _favoritePost
+                                                    .favoriteUsersNotifiers[
+                                                replyToPost.postId] ??
+                                            ValueNotifier<int>(0),
+                                        isFavoriteNotifier: ValueNotifier<bool>(
+                                            _favoritePost
+                                                .favoritePostsNotifier.value
+                                                .contains(replyToPost.postId)),
+                                        onFavoriteToggle: () {
+                                          _favoritePost.toggleFavorite(
+                                            replyToPost.id,
+                                            _favoritePost
+                                                .favoritePostsNotifier.value
+                                                .contains(replyToPost.postId),
+                                          );
+                                          _favoritePost.favoriteUsersNotifiers[
+                                                  replyToPost.postId] ??=
+                                              ValueNotifier<int>(0);
+                                          _favoritePost
+                                              .updateFavoriteUsersCount(
+                                                  replyToPost.postId);
+                                        },
+                                        // リツイートの状態を渡す
+                                        isRetweetedNotifier:
+                                            isRetweetedNotifier,
+                                        // リツイートの状態をトグルする処理
+                                        onRetweetToggle: () {
+                                          // ここにリツイートの状態をFirestoreに保存するロジックを追加する
+                                          bool currentState =
+                                              isRetweetedNotifier.value;
+                                          isRetweetedNotifier.value =
+                                              !currentState;
+                                          // Firestoreでリツイートの情報を更新する処理
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             );
                           }
                         },
@@ -226,6 +278,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     }
                   },
                 ),
+              const SizedBox(height: 15),
               Row(
                 key: _userRowKey,
                 children: [
@@ -328,6 +381,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   ),
                 ),
               const SizedBox(height: 10),
+              if (_repostPost != null && _repostPostAccount != null)
+                RepostItem(
+                  repostPost: _repostPost!,
+                  repostPostAccount: _repostPostAccount!,
+                ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -424,6 +482,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                 return Text('エラーが発生しました。');
                               } else {
                                 Account? postAccount = snapshot.data;
+                                // リツイートの状態を管理するためのValueNotifierを初期化
+                                ValueNotifier<bool> isRetweetedNotifier =
+                                    ValueNotifier<bool>(
+                                  false, // Firestoreからリツイートの状態を取得し初期化する
+                                );
                                 return PostItemWidget(
                                   post: replyPost,
                                   postAccount: postAccount!,
@@ -446,6 +509,16 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                         ValueNotifier<int>(0);
                                     _favoritePost.updateFavoriteUsersCount(
                                         replyPost.postId);
+                                  },
+                                  // リツイートの状態を渡す
+                                  isRetweetedNotifier: isRetweetedNotifier,
+                                  // リツイートの状態をトグルする処理
+                                  onRetweetToggle: () {
+                                    // ここにリツイートの状態をFirestoreに保存するロジックを追加する
+                                    bool currentState =
+                                        isRetweetedNotifier.value;
+                                    isRetweetedNotifier.value = !currentState;
+                                    // Firestoreでリツイートの情報を更新する処理
                                   },
                                 );
                               }

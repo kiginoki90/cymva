@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/view/repost_item.dart';
+import 'package:cymva/view/repost_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/model/account.dart';
@@ -12,7 +14,9 @@ class PostItemWidget extends StatefulWidget {
   final Account postAccount;
   final ValueNotifier<int> favoriteUsersNotifier;
   final ValueNotifier<bool> isFavoriteNotifier;
+  final ValueNotifier<bool> isRetweetedNotifier; // Add this line
   final VoidCallback onFavoriteToggle;
+  final VoidCallback onRetweetToggle; // Add this line
 
   const PostItemWidget({
     required this.post,
@@ -20,6 +24,8 @@ class PostItemWidget extends StatefulWidget {
     required this.isFavoriteNotifier,
     required this.onFavoriteToggle,
     required this.favoriteUsersNotifier,
+    required this.isRetweetedNotifier, // Add this line
+    required this.onRetweetToggle, // Add this line
     Key? key,
   }) : super(key: key);
 
@@ -29,15 +35,17 @@ class PostItemWidget extends StatefulWidget {
 
 class _PostItemWidgetState extends State<PostItemWidget> {
   final ValueNotifier<int> _replyCountNotifier = ValueNotifier<int>(0);
+  Post? _repostPost;
+  Account? _repostPostAccount;
 
   @override
   void initState() {
     super.initState();
     _fetchReplyCount();
+    _fetchRepostData();
   }
 
   void _fetchReplyCount() {
-    // post.idが存在しない場合はpost.postIdを使用する
     String documentId =
         widget.post.id.isNotEmpty ? widget.post.id : widget.post.postId;
 
@@ -47,8 +55,35 @@ class _PostItemWidgetState extends State<PostItemWidget> {
         .collection('reply_post')
         .snapshots()
         .listen((snapshot) {
-      _replyCountNotifier.value = snapshot.size; // ドキュメント数をカウントして更新
+      _replyCountNotifier.value = snapshot.size;
     });
+  }
+
+  Future<void> _fetchRepostData() async {
+    if (widget.post.repost != null && widget.post.repost!.isNotEmpty) {
+      // Fetch the original post data from Firestore
+      DocumentSnapshot repostSnapshot = await FirebaseFirestore.instance
+          .collection('posts')
+          .doc(widget.post.repost)
+          .get();
+
+      if (repostSnapshot.exists) {
+        Post repostPost = Post.fromDocument(repostSnapshot);
+        _repostPost = repostPost;
+
+        DocumentSnapshot repostAccountSnapshot = await FirebaseFirestore
+            .instance
+            .collection('users')
+            .doc(repostPost.postAccountId)
+            .get();
+
+        if (repostAccountSnapshot.exists) {
+          _repostPostAccount = Account.fromDocument(repostAccountSnapshot);
+        }
+
+        setState(() {});
+      }
+    }
   }
 
   @override
@@ -72,6 +107,8 @@ class _PostItemWidgetState extends State<PostItemWidget> {
               favoriteUsersNotifier: widget.favoriteUsersNotifier,
               isFavoriteNotifier: widget.isFavoriteNotifier,
               onFavoriteToggle: widget.onFavoriteToggle,
+              isRetweetedNotifier: widget.isRetweetedNotifier,
+              onRetweetToggle: widget.onRetweetToggle,
             ),
           ),
         );
@@ -83,138 +120,178 @@ class _PostItemWidgetState extends State<PostItemWidget> {
           ),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        AccountPage(userId: widget.post.postAccountId),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            AccountPage(userId: widget.post.postAccountId),
+                      ),
+                    );
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Image.network(
+                      widget.postAccount.imagePath,
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.cover,
+                    ),
                   ),
-                );
-              },
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  widget.postAccount.imagePath,
-                  width: 44,
-                  height: 44,
-                  fit: BoxFit.cover,
                 ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.postAccount.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                '@${widget.postAccount.userId}',
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                          Text(DateFormat('yyyy/M/d')
+                              .format(widget.post.createdTime!.toDate())),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.postAccount.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            '@${widget.postAccount.userId}',
-                            style: const TextStyle(color: Colors.grey),
-                          ),
+                          Text(widget.post.content),
+                          const SizedBox(height: 10),
+                          if (widget.post.mediaUrl != null)
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => FullScreenImagePage(
+                                        imageUrl: widget.post.mediaUrl!),
+                                  ),
+                                );
+                              },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  widget.post.mediaUrl!,
+                                  width:
+                                      MediaQuery.of(context).size.width * 0.9,
+                                  height: 180,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
-                      Text(DateFormat('yyyy/M/d')
-                          .format(widget.post.createdTime!.toDate())),
+                      const SizedBox(height: 10),
+                      // RepostWidget を使用して再投稿を表示
+                      if (_repostPost != null && _repostPostAccount != null)
+                        RepostItem(
+                          repostPost: _repostPost!,
+                          repostPostAccount: _repostPostAccount!,
+                        ),
                     ],
                   ),
-                  const SizedBox(height: 5),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(widget.post.content),
-                      const SizedBox(height: 10),
-                      if (widget.post.mediaUrl != null)
-                        GestureDetector(
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    ValueListenableBuilder<int>(
+                      valueListenable: widget.favoriteUsersNotifier,
+                      builder: (context, value, child) {
+                        return Text(value.toString());
+                      },
+                    ),
+                    const SizedBox(width: 5),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: widget.isFavoriteNotifier,
+                      builder: (context, isFavorite, child) {
+                        return GestureDetector(
+                          onTap: () {
+                            widget.onFavoriteToggle();
+                            widget.isFavoriteNotifier.value =
+                                !widget.isFavoriteNotifier.value;
+                          },
+                          child: Icon(
+                            isFavorite ? Icons.star : Icons.star_outline,
+                            color: isFavorite
+                                ? Color.fromARGB(255, 255, 183, 59)
+                                : Colors.grey,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    ValueListenableBuilder<bool>(
+                      valueListenable: widget.isRetweetedNotifier,
+                      builder: (context, isRetweeted, child) {
+                        return GestureDetector(
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => FullScreenImagePage(
-                                    imageUrl: widget.post.mediaUrl!),
+                                builder: (context) => RepostPage(
+                                  post: widget.post,
+                                ),
                               ),
                             );
                           },
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              widget.post.mediaUrl!,
-                              width: MediaQuery.of(context).size.width * 0.9,
-                              height: 180,
-                              fit: BoxFit.cover,
-                            ),
+                          child: Icon(
+                            isRetweeted ? Icons.repeat : Icons.repeat_outlined,
+                            color: isRetweeted ? Colors.blue : Colors.grey,
                           ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 5),
+                  ],
+                ),
+                ValueListenableBuilder<int>(
+                  valueListenable: _replyCountNotifier,
+                  builder: (context, replyCount, child) {
+                    return Row(
+                      children: [
+                        IconButton(
+                          onPressed: () {},
+                          icon: const Icon(Icons.comment),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          ValueListenableBuilder<int>(
-                            valueListenable: widget.favoriteUsersNotifier,
-                            builder: (context, value, child) {
-                              return Text((value).toString());
-                            },
-                          ),
-                          const SizedBox(width: 5),
-                          ValueListenableBuilder<bool>(
-                            valueListenable: widget.isFavoriteNotifier,
-                            builder: (context, isFavorite, child) {
-                              return GestureDetector(
-                                onTap: () {
-                                  widget.onFavoriteToggle();
-                                  widget.isFavoriteNotifier.value =
-                                      !widget.isFavoriteNotifier.value;
-                                },
-                                child: Icon(
-                                  isFavorite ? Icons.star : Icons.star_outline,
-                                  color: isFavorite
-                                      ? Color.fromARGB(255, 255, 183, 59)
-                                      : Colors.grey,
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                      ValueListenableBuilder<int>(
-                        valueListenable: _replyCountNotifier,
-                        builder: (context, replyCount, child) {
-                          return Row(
-                            children: [
-                              IconButton(
-                                onPressed: () {},
-                                icon: const Icon(Icons.comment),
-                              ),
-                              Text(replyCount.toString()), // ここに返信の数を表示
-                            ],
-                          );
-                        },
-                      ),
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.share),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                        Text(replyCount.toString()),
+                      ],
+                    );
+                  },
+                ),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.share),
+                ),
+              ],
             ),
           ],
         ),

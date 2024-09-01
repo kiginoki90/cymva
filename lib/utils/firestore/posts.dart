@@ -23,6 +23,7 @@ class PostFirestore {
         'is_video': newPost.isVideo,
         'post_id': '',
         'reply': newPost.reply,
+        'repost': newPost.repost,
       };
 
       // Firestoreに投稿を追加し、その結果からドキュメントIDを取得
@@ -69,6 +70,7 @@ class PostFirestore {
           mediaUrl: data['media_url'], // media_urlが存在しない場合はnullになる
           reply: data['reply'] ?? null,
           postId: data['post_id'] ?? '',
+          repost: data['repost'] ?? null,
         );
         postList.add(post);
       }
