@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/view/reply_page.dart';
 import 'package:cymva/view/repost_item.dart';
 import 'package:cymva/view/repost_page.dart';
 import 'package:flutter/material.dart';
@@ -14,9 +15,9 @@ class PostItemWidget extends StatefulWidget {
   final Account postAccount;
   final ValueNotifier<int> favoriteUsersNotifier;
   final ValueNotifier<bool> isFavoriteNotifier;
-  final ValueNotifier<bool> isRetweetedNotifier; // Add this line
+  final ValueNotifier<bool> isRetweetedNotifier;
   final VoidCallback onFavoriteToggle;
-  final VoidCallback onRetweetToggle; // Add this line
+  final VoidCallback onRetweetToggle;
 
   const PostItemWidget({
     required this.post,
@@ -24,8 +25,8 @@ class PostItemWidget extends StatefulWidget {
     required this.isFavoriteNotifier,
     required this.onFavoriteToggle,
     required this.favoriteUsersNotifier,
-    required this.isRetweetedNotifier, // Add this line
-    required this.onRetweetToggle, // Add this line
+    required this.isRetweetedNotifier,
+    required this.onRetweetToggle,
     Key? key,
   }) : super(key: key);
 
@@ -140,15 +141,16 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                     borderRadius: BorderRadius.circular(8.0),
                     child: Image.network(
                       widget.postAccount.imagePath,
-                      width: 44,
-                      height: 44,
+                      width: 40,
+                      height: 40,
                       fit: BoxFit.cover,
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 5),
                 Expanded(
                   child: Column(
+                    // Expandedの中にColumnを使用
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
@@ -177,15 +179,16 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(widget.post.content),
-                          const SizedBox(height: 10),
-                          if (widget.post.mediaUrl != null)
+                          if (widget.post.mediaUrl != null) ...[
+                            SizedBox(height: 10), // 画像がある場合に余白を表示
                             GestureDetector(
                               onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => FullScreenImagePage(
-                                        imageUrl: widget.post.mediaUrl!),
+                                      imageUrl: widget.post.mediaUrl!,
+                                    ),
                                   ),
                                 );
                               },
@@ -200,96 +203,125 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                 ),
                               ),
                             ),
+                          ],
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      // RepostWidget を使用して再投稿を表示
                       if (_repostPost != null && _repostPostAccount != null)
                         RepostItem(
                           repostPost: _repostPost!,
                           repostPostAccount: _repostPostAccount!,
                         ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              ValueListenableBuilder<int>(
+                                valueListenable: widget.favoriteUsersNotifier,
+                                builder: (context, value, child) {
+                                  return Text(value.toString());
+                                },
+                              ),
+                              const SizedBox(width: 5),
+                              ValueListenableBuilder<bool>(
+                                valueListenable: widget.isFavoriteNotifier,
+                                builder: (context, isFavorite, child) {
+                                  return GestureDetector(
+                                    onTap: () {
+                                      widget.onFavoriteToggle();
+                                      widget.isFavoriteNotifier.value =
+                                          !widget.isFavoriteNotifier.value;
+                                    },
+                                    child: Icon(
+                                      isFavorite
+                                          ? Icons.star
+                                          : Icons.star_outline,
+                                      color: isFavorite
+                                          ? Color.fromARGB(255, 255, 183, 59)
+                                          : Colors.grey,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              // リツイート数を表示
+                              StreamBuilder<QuerySnapshot>(
+                                stream: FirebaseFirestore.instance
+                                    .collection('posts')
+                                    .doc(widget.post.postId) // 対象のポストIDを指定
+                                    .collection('repost') // repostサブコレクション
+                                    .snapshots(), // リアルタイムでドキュメント数を監視
+                                builder: (context, snapshot) {
+                                  if (!snapshot.hasData) {
+                                    // データがない場合は0を表示
+                                    return Text('0');
+                                  }
+                                  // repostサブコレクションのドキュメント数を表示
+                                  final repostCount =
+                                      snapshot.data!.docs.length;
+                                  return Text(repostCount.toString());
+                                },
+                              ),
+                              ValueListenableBuilder<bool>(
+                                valueListenable: widget.isRetweetedNotifier,
+                                builder: (context, isRetweeted, child) {
+                                  return GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              RepostPage(post: widget.post),
+                                        ),
+                                      );
+                                    },
+                                    child: Icon(
+                                      isRetweeted
+                                          ? Icons.repeat
+                                          : Icons.repeat_outlined,
+                                      color: isRetweeted
+                                          ? Colors.blue
+                                          : Colors.grey,
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 5),
+                            ],
+                          ),
+                          ValueListenableBuilder<int>(
+                            valueListenable: _replyCountNotifier,
+                            builder: (context, replyCount, child) {
+                              return Row(
+                                children: [
+                                  Text(replyCount.toString()),
+                                  IconButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              ReplyPage(post: widget.post),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.comment),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                          IconButton(
+                            onPressed: () {},
+                            icon: const Icon(Icons.share),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    ValueListenableBuilder<int>(
-                      valueListenable: widget.favoriteUsersNotifier,
-                      builder: (context, value, child) {
-                        return Text(value.toString());
-                      },
-                    ),
-                    const SizedBox(width: 5),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: widget.isFavoriteNotifier,
-                      builder: (context, isFavorite, child) {
-                        return GestureDetector(
-                          onTap: () {
-                            widget.onFavoriteToggle();
-                            widget.isFavoriteNotifier.value =
-                                !widget.isFavoriteNotifier.value;
-                          },
-                          child: Icon(
-                            isFavorite ? Icons.star : Icons.star_outline,
-                            color: isFavorite
-                                ? Color.fromARGB(255, 255, 183, 59)
-                                : Colors.grey,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    ValueListenableBuilder<bool>(
-                      valueListenable: widget.isRetweetedNotifier,
-                      builder: (context, isRetweeted, child) {
-                        return GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => RepostPage(
-                                  post: widget.post,
-                                ),
-                              ),
-                            );
-                          },
-                          child: Icon(
-                            isRetweeted ? Icons.repeat : Icons.repeat_outlined,
-                            color: isRetweeted ? Colors.blue : Colors.grey,
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 5),
-                  ],
-                ),
-                ValueListenableBuilder<int>(
-                  valueListenable: _replyCountNotifier,
-                  builder: (context, replyCount, child) {
-                    return Row(
-                      children: [
-                        IconButton(
-                          onPressed: () {},
-                          icon: const Icon(Icons.comment),
-                        ),
-                        Text(replyCount.toString()),
-                      ],
-                    );
-                  },
-                ),
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(Icons.share),
                 ),
               ],
             ),

@@ -30,8 +30,8 @@ class RepostItem extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8.0),
                 child: Image.network(
                   repostPostAccount.imagePath,
-                  width: 44,
-                  height: 44,
+                  width: 30,
+                  height: 30,
                   fit: BoxFit.cover,
                 ),
               ),
@@ -39,6 +39,10 @@ class RepostItem extends StatelessWidget {
               Text(
                 repostPostAccount.name,
                 style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                '@${repostPostAccount.userId}',
+                style: const TextStyle(color: Colors.grey),
               ),
             ],
           ),

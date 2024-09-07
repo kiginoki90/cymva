@@ -56,7 +56,6 @@ class Post {
   // Create a Post from a Map
   factory Post.fromMap(Map<String, dynamic> data) {
     return Post(
-      id: data['id'] ?? '',
       content: data['content'] ?? '',
       postAccountId: data['post_account_id'] ?? '',
       createdTime: data['created_time'],

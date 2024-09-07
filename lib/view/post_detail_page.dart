@@ -5,6 +5,8 @@ import 'package:cymva/view/divider_with_circle.dart';
 import 'package:cymva/view/poat/post_item_widget.dart';
 import 'package:cymva/view/reply_page.dart';
 import 'package:cymva/view/repost_item.dart';
+import 'package:cymva/view/repost_list_page.dart';
+import 'package:cymva/view/repost_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/model/post.dart';
@@ -34,8 +36,8 @@ class PostDetailPage extends StatefulWidget {
     required this.favoriteUsersNotifier,
     required this.isFavoriteNotifier,
     required this.onFavoriteToggle,
-    required this.isRetweetedNotifier, // Add this line
-    required this.onRetweetToggle, // Add this line
+    required this.isRetweetedNotifier,
+    required this.onRetweetToggle,
   }) : super(key: key);
 
   @override
@@ -46,6 +48,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
   late Future<List<Post>> _replyPostsFuture;
   Future<Post?>? _replyToPostFuture;
   final FavoritePost _favoritePost = FavoritePost();
+  final ValueNotifier<int> _replyCountNotifier = ValueNotifier<int>(0);
   // final ScrollController _scrollController = ScrollController();
   final GlobalKey _userRowKey = GlobalKey();
   Post? _repostPost;
@@ -54,12 +57,27 @@ class _PostDetailPageState extends State<PostDetailPage> {
   @override
   void initState() {
     super.initState();
-    _replyPostsFuture = getRePosts(widget.post.id);
+    _replyPostsFuture = getRePosts(widget.post.postId);
 
     if (widget.post.reply != null && widget.post.reply!.isNotEmpty) {
       _replyToPostFuture = getPostById(widget.post.reply!);
     }
     _fetchRepostDetails();
+    _fetchReplyCount();
+  }
+
+  void _fetchReplyCount() {
+    String documentId =
+        widget.post.id.isNotEmpty ? widget.post.id : widget.post.postId;
+
+    FirebaseFirestore.instance
+        .collection('posts')
+        .doc(documentId)
+        .collection('reply_post')
+        .snapshots()
+        .listen((snapshot) {
+      _replyCountNotifier.value = snapshot.size;
+    });
   }
 
   Future<void> _fetchRepostDetails() async {
@@ -115,19 +133,22 @@ class _PostDetailPageState extends State<PostDetailPage> {
             .collection('posts')
             .doc(widget.post.reply)
             .collection('reply_post')
-            .doc(widget.post.id)
+            .doc(widget.post.postId)
             .delete();
       }
 
       //投稿の削除
-      await _firestoreInstance.collection('posts').doc(widget.post.id).delete();
+      await _firestoreInstance
+          .collection('posts')
+          .doc(widget.post.postId)
+          .delete();
 
       //ユーザーのポスト一覧からの削除
       await _firestoreInstance
           .collection('users')
           .doc(widget.post.postAccountId)
           .collection('my_posts')
-          .doc(widget.post.id)
+          .doc(widget.post.postId)
           .delete();
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -172,6 +193,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
       print('サブコレクションの取得に失敗しました: $e');
       return [];
     }
+  }
+
+  @override
+  void dispose() {
+    _replyCountNotifier.dispose();
+    super.dispose();
   }
 
   @override
@@ -242,7 +269,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                                 .contains(replyToPost.postId)),
                                         onFavoriteToggle: () {
                                           _favoritePost.toggleFavorite(
-                                            replyToPost.id,
+                                            replyToPost.postId,
                                             _favoritePost
                                                 .favoritePostsNotifier.value
                                                 .contains(replyToPost.postId),
@@ -351,7 +378,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     .format(widget.post.createdTime!.toDate()),
                 style: const TextStyle(color: Colors.grey),
               ),
-              const SizedBox(height: 10),
+              // const SizedBox(height: 10),
               Text(widget.post.content),
               const SizedBox(height: 10),
               if (widget.post.isVideo)
@@ -380,11 +407,31 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 10),
               if (_repostPost != null && _repostPostAccount != null)
-                RepostItem(
-                  repostPost: _repostPost!,
-                  repostPostAccount: _repostPostAccount!,
+                GestureDetector(
+                  onTap: () {
+                    // タップされた RepostItem の詳細ページに遷移
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PostDetailPage(
+                          post: _repostPost!,
+                          postAccountName: _repostPostAccount!.name,
+                          postAccountUserId: _repostPostAccount!.userId,
+                          postAccountImagePath: _repostPostAccount!.imagePath,
+                          favoriteUsersNotifier: ValueNotifier<int>(0),
+                          isFavoriteNotifier: ValueNotifier<bool>(false),
+                          onFavoriteToggle: () {},
+                          isRetweetedNotifier: ValueNotifier<bool>(false),
+                          onRetweetToggle: () {},
+                        ),
+                      ),
+                    );
+                  },
+                  child: RepostItem(
+                    repostPost: _repostPost!,
+                    repostPostAccount: _repostPostAccount!,
+                  ),
                 ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -418,26 +465,151 @@ class _PostDetailPageState extends State<PostDetailPage> {
                       ),
                     ],
                   ),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.comment),
+                  Row(
+                    children: [
+                      // リツイート数を表示
+                      StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('posts')
+                            .doc(widget.post.postId)
+                            .collection('repost')
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            // データがない場合は0を表示
+                            return Text('0');
+                          }
+                          // repostサブコレクションのドキュメント数を表示
+                          final repostCount = snapshot.data!.docs.length;
+                          return Text(repostCount.toString());
+                        },
+                      ),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: widget.isRetweetedNotifier,
+                        builder: (context, isRetweeted, child) {
+                          return GestureDetector(
+                            onTap: () {
+                              // 中央に表示されるポップアップを表示
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: const Text('リツイート'),
+                                    content: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        ListTile(
+                                          leading: const Icon(Icons.edit),
+                                          title: const Text('引用'),
+                                          onTap: () {
+                                            // 引用を選択した場合はRepostPageへ遷移
+                                            Navigator.pop(
+                                                context); // ポップアップを閉じる
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    RepostPage(
+                                                  post: widget
+                                                      .post, // 引用するポストのデータ
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        ListTile(
+                                          leading: const Icon(Icons.repeat),
+                                          title: const Text('再投稿'),
+                                          onTap: () async {
+                                            Navigator.pop(
+                                                context); // ポップアップを閉じる
+
+                                            // 再投稿を行う処理（Firestoreにデータを追加）
+                                            await FirebaseFirestore.instance
+                                                .collection('posts')
+                                                .add({
+                                              'repostId':
+                                                  widget.post.postId, // 元の投稿ID
+                                              'createdAt':
+                                                  Timestamp.now(), // 投稿時間
+                                              'userId': FirebaseAuth.instance
+                                                  .currentUser!.uid, // 投稿者
+                                              'type': 'repost', // 投稿タイプ
+                                            });
+
+                                            // 再投稿完了メッセージを表示
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                  content: Text('再投稿しました')),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                            child: Icon(
+                              isRetweeted
+                                  ? Icons.repeat
+                                  : Icons.repeat_outlined,
+                              color: isRetweeted ? Colors.blue : Colors.grey,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  ValueListenableBuilder<int>(
+                    valueListenable: _replyCountNotifier,
+                    builder: (context, replyCount, child) {
+                      return Row(
+                        children: [
+                          Text(replyCount.toString()),
+                          IconButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      ReplyPage(post: widget.post),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.comment),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   IconButton(
                     onPressed: () {},
                     icon: const Icon(Icons.share),
                   ),
-                  IconButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ReplyPage(post: widget.post),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.reply), // 返信ボタン
-                  ),
                 ],
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          RepostListPage(postId: widget.post.postId),
+                    ),
+                  );
+                },
+                child: const Padding(
+                  padding: EdgeInsets.only(top: 10),
+                  child: Text(
+                    'リツイート一覧を表示',
+                    style: TextStyle(
+                      color: Colors.blue, // リンクのように見えるスタイル
+                      decoration: TextDecoration.underline, // 下線を追加
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 10),
               // FutureBuilderを使用して返信ポストを表示

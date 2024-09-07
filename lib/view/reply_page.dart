@@ -25,6 +25,17 @@ class _ReplyPageState extends State<ReplyPage> {
   VideoPlayerController? _videoController;
   bool isPickerActive = false;
 
+  // アイコン、名前、アカウントIDを格納するための変数
+  String? _postAccountName;
+  String? _postAccountIconUrl;
+  String? _postAccountId;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPostAccountInfo(); // 投稿者情報を取得
+  }
+
   Future getMedia(bool isVideo) async {
     if (isPickerActive) return;
     setState(() {
@@ -60,6 +71,22 @@ class _ReplyPageState extends State<ReplyPage> {
     });
   }
 
+  Future<void> _fetchPostAccountInfo() async {
+    // Firestoreから投稿者の情報を取得
+    final accountSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.post.postAccountId)
+        .get();
+
+    if (accountSnapshot.exists) {
+      setState(() {
+        _postAccountName = accountSnapshot['name']; // 名前を取得
+        _postAccountIconUrl = accountSnapshot['image_path']; // アイコン画像を取得
+        _postAccountId = accountSnapshot['user_id']; // アカウントIDを取得
+      });
+    }
+  }
+
   Future<void> _sendReply() async {
     if (_replyController.text.isNotEmpty || _mediaFile != null) {
       String? mediaUrl;
@@ -69,7 +96,6 @@ class _ReplyPageState extends State<ReplyPage> {
             await FunctionUtils.uploadImage(userId, _mediaFile!, context);
       }
 
-      // 返信ポストとして新しい投稿を作成
       Post replyPost = Post(
         content: _replyController.text,
         postAccountId: FirebaseAuth.instance.currentUser!.uid,
@@ -78,7 +104,6 @@ class _ReplyPageState extends State<ReplyPage> {
         reply: widget.post.id,
       );
 
-      // Firestoreに返信を追加し、新しい投稿のIDを取得
       String? replyPostId = await PostFirestore.addPost(replyPost);
 
       if (replyPostId != null) {
@@ -87,7 +112,6 @@ class _ReplyPageState extends State<ReplyPage> {
             .doc(widget.post.id)
             .collection('reply_post');
 
-        // サブコレクションにドキュメントを追加（存在しない場合は作成）
         await replyPostCollectionRef.doc(replyPostId).set({
           'id': replyPostId,
           'timestamp': FieldValue.serverTimestamp(),
@@ -96,7 +120,7 @@ class _ReplyPageState extends State<ReplyPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('返信が完了しました')),
         );
-        Navigator.of(context).pop(); // 返信後に前の画面に戻る
+        Navigator.of(context).pop();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('返信に失敗しました')),
@@ -125,31 +149,54 @@ class _ReplyPageState extends State<ReplyPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 投稿内容を表示
-              Text(
-                widget.post.content,
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              const SizedBox(height: 10),
-              // 画像がある場合は表示
-              if (widget.post.mediaUrl != null && !widget.post.isVideo)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Image.network(
-                    widget.post.mediaUrl!,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 投稿者のアイコンと名前、アカウントIDを表示
+                  Row(
+                    children: [
+                      if (_postAccountIconUrl != null)
+                        CircleAvatar(
+                          backgroundImage: NetworkImage(_postAccountIconUrl!),
+                        ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_postAccountName != null)
+                            Text(
+                              _postAccountName!,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 15),
+                            ),
+                          if (_postAccountId != null)
+                            Text(
+                              '@$_postAccountId',
+                              style: const TextStyle(
+                                  color: Colors.grey, fontSize: 13),
+                            ),
+                        ],
+                      ),
+                    ],
                   ),
-                ),
-              // 動画がある場合は表示
-              if (widget.post.isVideo && widget.post.mediaUrl != null)
-                AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: VideoPlayer(VideoPlayerController.networkUrl(
-                      Uri.parse(widget.post.mediaUrl!))),
-                ),
+                  const SizedBox(height: 10),
+                  Text(
+                    widget.post.content,
+                    style: const TextStyle(fontSize: 18),
+                  ),
+                  const SizedBox(height: 10),
+                  if (widget.post.mediaUrl != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Image.network(
+                        widget.post.mediaUrl!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                      ),
+                    ),
+                ],
+              ),
               const SizedBox(height: 20),
-              // 返信テキストフィールド
               TextField(
                 controller: _replyController,
                 maxLines: 5,
@@ -159,7 +206,6 @@ class _ReplyPageState extends State<ReplyPage> {
                 ),
               ),
               const SizedBox(height: 20),
-              // メディアが選択されている場合の表示
               if (_mediaFile != null)
                 isVideo
                     ? _videoController != null &&
@@ -178,7 +224,6 @@ class _ReplyPageState extends State<ReplyPage> {
                         ),
                       ),
               const SizedBox(height: 20),
-              // メディア選択ボタン
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -193,7 +238,6 @@ class _ReplyPageState extends State<ReplyPage> {
                 ],
               ),
               const SizedBox(height: 20),
-              // 返信を送信するボタン
               ElevatedButton(
                 onPressed: _sendReply,
                 child: const Text('返信を送信'),
