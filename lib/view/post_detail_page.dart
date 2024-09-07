@@ -2,6 +2,7 @@ import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/divider_with_circle.dart';
+import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/poat/post_item_widget.dart';
 import 'package:cymva/view/reply_page.dart';
 import 'package:cymva/view/repost_item.dart';
@@ -26,6 +27,7 @@ class PostDetailPage extends StatefulWidget {
   final VoidCallback onFavoriteToggle;
   final ValueNotifier<bool> isRetweetedNotifier;
   final VoidCallback onRetweetToggle;
+  final ValueNotifier<bool> replyFlag;
 
   const PostDetailPage({
     Key? key,
@@ -38,6 +40,7 @@ class PostDetailPage extends StatefulWidget {
     required this.onFavoriteToggle,
     required this.isRetweetedNotifier,
     required this.onRetweetToggle,
+    required this.replyFlag,
   }) : super(key: key);
 
   @override
@@ -250,7 +253,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                             return Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                DividerWithCircle(),
+                                // DividerWithCircle(),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
@@ -293,6 +296,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                               !currentState;
                                           // Firestoreでリツイートの情報を更新する処理
                                         },
+
+                                        replyFlag: ValueNotifier<bool>(true),
                                       ),
                                     ],
                                   ),
@@ -424,6 +429,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           onFavoriteToggle: () {},
                           isRetweetedNotifier: ValueNotifier<bool>(false),
                           onRetweetToggle: () {},
+                          replyFlag: ValueNotifier<bool>(false),
                         ),
                       ),
                     );
@@ -603,10 +609,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
                 child: const Padding(
                   padding: EdgeInsets.only(top: 10),
                   child: Text(
-                    'リツイート一覧を表示',
+                    '引用一覧 ▶️',
                     style: TextStyle(
-                      color: Colors.blue, // リンクのように見えるスタイル
-                      decoration: TextDecoration.underline, // 下線を追加
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
@@ -682,16 +688,14 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                     _favoritePost.updateFavoriteUsersCount(
                                         replyPost.postId);
                                   },
-                                  // リツイートの状態を渡す
                                   isRetweetedNotifier: isRetweetedNotifier,
-                                  // リツイートの状態をトグルする処理
                                   onRetweetToggle: () {
-                                    // ここにリツイートの状態をFirestoreに保存するロジックを追加する
                                     bool currentState =
                                         isRetweetedNotifier.value;
                                     isRetweetedNotifier.value = !currentState;
                                     // Firestoreでリツイートの情報を更新する処理
                                   },
+                                  replyFlag: ValueNotifier<bool>(false),
                                 );
                               }
                             },
@@ -706,6 +710,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
           ),
         ),
       ),
+      bottomNavigationBar: NavigationBarPage(selectedIndex: 0),
     );
   }
 }

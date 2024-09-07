@@ -18,6 +18,27 @@ class _LoginPageState extends State<LoginPage> {
   TextEditingController passController = TextEditingController();
   String? errorMessage; // エラーメッセージを保存する変数
 
+  Future<void> _sendPasswordResetEmail() async {
+    String email = emailController.text;
+    if (email.isEmpty) {
+      setState(() {
+        errorMessage = 'メールアドレスを入力してください';
+      });
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('パスワードリセットのメールを送信しました')),
+      );
+    } catch (e) {
+      setState(() {
+        errorMessage = 'メールの送信に失敗しました: $e';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,6 +93,16 @@ class _LoginPageState extends State<LoginPage> {
                               builder: (context) => CreateAccountPage(),
                             ),
                           );
+                        },
+                    ),
+                    TextSpan(text: '\n\n'),
+                    TextSpan(text: 'パスワードを忘れてしまった方は'),
+                    TextSpan(
+                      text: 'こちら',
+                      style: TextStyle(color: Colors.blue),
+                      recognizer: TapGestureRecognizer()
+                        ..onTap = () {
+                          _sendPasswordResetEmail();
                         },
                     ),
                   ],

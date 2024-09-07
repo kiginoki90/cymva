@@ -73,6 +73,7 @@ class FavoriteList extends StatelessWidget {
                           isRetweetedNotifier.value = !currentState;
                           // Firestoreでリツイートの情報を更新する処理
                         },
+                        replyFlag: ValueNotifier<bool>(false),
                       );
                     },
                   );

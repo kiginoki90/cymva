@@ -111,6 +111,7 @@ class _SearchPageState extends State<SearchPage> {
                     isRetweetedNotifier.value = !currentState;
                     // Firestoreでリツイートの情報を更新する処理
                   },
+                  replyFlag: ValueNotifier<bool>(false),
                 );
               },
             );

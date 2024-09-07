@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/view/account/edit_page/account_top_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
-import 'package:cymva/view/account/edit_account_page.dart';
+import 'package:cymva/view/account/edit_page/edit_account_page.dart';
 import 'package:cymva/view/poat/time_line_page.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/view/account/follow_page.dart';
@@ -100,40 +101,52 @@ class _AccountHeaderState extends State<AccountHeader> {
       children: [
         Container(
           padding: const EdgeInsets.only(right: 15, left: 15, top: 20),
-          height: 200,
+          height: 80,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.network(
-                          myAccount!.imagePath,
-                          width: 70,
-                          height: 70,
-                          fit: BoxFit.cover,
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AccountTopPage(
+                            userId: currentUserId,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            myAccount!.name,
-                            style: const TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.bold),
+                      );
+                    },
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8.0),
+                          child: Image.network(
+                            myAccount!.imagePath,
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
                           ),
-                          Text(
-                            '@${myAccount!.userId}',
-                            style: const TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      )
-                    ],
+                        ),
+                        SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              myAccount!.name,
+                              style: const TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              '@${myAccount!.userId}',
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                   Column(
                     children: [
@@ -234,78 +247,6 @@ class _AccountHeaderState extends State<AccountHeader> {
                   )
                 ],
               ),
-              SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  FutureBuilder<int>(
-                    future: _followCountFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return CircularProgressIndicator();
-                      }
-                      if (snapshot.hasError) {
-                        return Text('エラー');
-                      }
-                      final followCount = snapshot.data ?? 0;
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  FollowPage(userId: widget.userId),
-                            ),
-                          );
-                        },
-                        child: Column(
-                          children: [
-                            Text(
-                              'フォロー: $followCount',
-                              style: TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                  FutureBuilder<int>(
-                    future: _followerCountFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return CircularProgressIndicator();
-                      }
-                      if (snapshot.hasError) {
-                        return Text('エラー');
-                      }
-                      final followerCount = snapshot.data ?? 0;
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  FollowerPage(userId: widget.userId),
-                            ),
-                          );
-                        },
-                        child: Column(
-                          children: [
-                            Text(
-                              'フォロワー: $followerCount',
-                              style: TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-              SizedBox(height: 15),
-              Text(myAccount!.selfIntroduction), // nullチェック後にアクセス
             ],
           ),
         ),

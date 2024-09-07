@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cymva/view/account/edit_page/change_password_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
@@ -122,6 +123,17 @@ class _EditAccountPageState extends State<EditAccountPage> {
                   },
                   child: Text('更新')),
               SizedBox(height: 50),
+              ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ChangePasswordPage(),
+                      ),
+                    );
+                  },
+                  child: Text('パスワード変更')),
+              SizedBox(height: 20),
               ElevatedButton(
                   onPressed: () {
                     Authentication.signOut();
