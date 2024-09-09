@@ -89,17 +89,22 @@ class _ReplyPageState extends State<ReplyPage> {
 
   Future<void> _sendReply() async {
     if (_replyController.text.isNotEmpty || _mediaFile != null) {
-      String? mediaUrl;
+      List<String>? mediaUrls;
+
       if (_mediaFile != null) {
         final String userId = FirebaseAuth.instance.currentUser!.uid;
-        mediaUrl =
+        String? mediaUrl =
             await FunctionUtils.uploadImage(userId, _mediaFile!, context);
+
+        if (mediaUrl != null) {
+          mediaUrls = [mediaUrl]; // 画像がある場合はリストに追加
+        }
       }
 
       Post replyPost = Post(
         content: _replyController.text,
         postAccountId: FirebaseAuth.instance.currentUser!.uid,
-        mediaUrl: mediaUrl,
+        mediaUrl: mediaUrls, // リストで渡す
         isVideo: isVideo,
         reply: widget.post.id,
       );
@@ -185,15 +190,18 @@ class _ReplyPageState extends State<ReplyPage> {
                     style: const TextStyle(fontSize: 18),
                   ),
                   const SizedBox(height: 10),
-                  if (widget.post.mediaUrl != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Image.network(
-                        widget.post.mediaUrl!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
+                  // 複数のメディアがある場合に表示
+                  if (widget.post.mediaUrl != null &&
+                      widget.post.mediaUrl!.isNotEmpty)
+                    for (String mediaUrl in widget.post.mediaUrl!)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Image.network(
+                          mediaUrl,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                        ),
                       ),
-                    ),
                 ],
               ),
               const SizedBox(height: 20),

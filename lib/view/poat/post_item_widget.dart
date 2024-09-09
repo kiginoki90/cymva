@@ -194,31 +194,53 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(widget.post.content),
-                                if (widget.post.mediaUrl != null) ...[
-                                  SizedBox(height: 10),
-                                  GestureDetector(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              FullScreenImagePage(
-                                            imageUrl: widget.post.mediaUrl!,
+
+                                // 複数のメディアを表示
+                                if (widget.post.mediaUrl != null &&
+                                    widget.post.mediaUrl!.isNotEmpty) ...[
+                                  const SizedBox(height: 10),
+                                  GridView.builder(
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    shrinkWrap: true,
+                                    itemCount: widget.post.mediaUrl!.length,
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      crossAxisSpacing: 4,
+                                      mainAxisSpacing: 4,
+                                    ),
+                                    itemBuilder:
+                                        (BuildContext context, int index) {
+                                      final mediaUrl =
+                                          widget.post.mediaUrl![index];
+                                      return GestureDetector(
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  FullScreenImagePage(
+                                                imageUrl: mediaUrl,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          child: Image.network(
+                                            mediaUrl,
+                                            width: MediaQuery.of(context)
+                                                    .size
+                                                    .width *
+                                                0.45,
+                                            height: 180,
+                                            fit: BoxFit.cover,
                                           ),
                                         ),
                                       );
                                     },
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        widget.post.mediaUrl!,
-                                        width:
-                                            MediaQuery.of(context).size.width *
-                                                0.9,
-                                        height: 180,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
                                   ),
                                 ],
                               ],
@@ -258,7 +280,7 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                                 ? Icons.star
                                                 : Icons.star_outline,
                                             color: isFavorite
-                                                ? Color.fromARGB(
+                                                ? const Color.fromARGB(
                                                     255, 255, 183, 59)
                                                 : Colors.grey,
                                           ),

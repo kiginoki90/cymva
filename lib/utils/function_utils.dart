@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 class FunctionUtils {
   // static Future<dynamic> getImageFromGallery() async {
@@ -71,25 +72,29 @@ class FunctionUtils {
     try {
       final FirebaseStorage storageInstance = FirebaseStorage.instance;
 
-      // ファイル名 (8文字)
+      // ファイル名 (8文字のランダム文字列)
       String shortFileName = 'img_${_generateRandomString(8)}.jpg';
 
       // Firebase Storage でのファイルパスを設定
       final Reference ref = storageInstance.ref().child('$uid/$shortFileName');
 
       print('Uploading to: $ref');
+
       // File を Uint8List に変換
-      Uint8List imageBytes = image.readAsBytesSync();
+      Uint8List imageBytes = await image.readAsBytes();
+
+      // ファイルをアップロード
       await ref.putData(imageBytes);
 
+      // ダウンロードURLを取得
       String downloadUrl = await ref.getDownloadURL();
-      return downloadUrl;
+      return downloadUrl; // 正常にアップロードされた場合はURLを返す
     } catch (e) {
       print('画像のアップロード中にエラーが発生しました: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('画像のアップロード中にエラーが発生しました')),
       );
-      return null;
+      return null; // エラー時はnullを返す
     }
   }
 
@@ -99,5 +104,14 @@ class FunctionUtils {
     final random = Random();
     return String.fromCharCodes(Iterable.generate(length,
         (_) => characters.codeUnitAt(random.nextInt(characters.length))));
+  }
+
+  // AssetからFileに変換するヘルパーメソッド
+
+  static Future<File> xFileToFile(XFile xFile) async {
+    final byteData = await xFile.readAsBytes();
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File('${tempDir.path}/${xFile.name}');
+    return await tempFile.writeAsBytes(byteData);
   }
 }

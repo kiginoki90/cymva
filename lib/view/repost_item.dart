@@ -49,15 +49,20 @@ class RepostItem extends StatelessWidget {
           const SizedBox(height: 5),
           Text(repostPost.content),
           const SizedBox(height: 5),
-          if (repostPost.mediaUrl != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                repostPost.mediaUrl!,
-                width: MediaQuery.of(context).size.width * 0.85,
-                height: 160,
-                fit: BoxFit.cover,
-              ),
+          if (repostPost.mediaUrl != null && repostPost.mediaUrl!.isNotEmpty)
+            Wrap(
+              spacing: 8.0, // 画像間のスペース
+              children: repostPost.mediaUrl!.map((url) {
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    url,
+                    width: MediaQuery.of(context).size.width * 0.85, // 幅の調整
+                    height: 160,
+                    fit: BoxFit.cover,
+                  ),
+                );
+              }).toList(),
             ),
         ],
       ),

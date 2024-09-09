@@ -56,6 +56,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
   final GlobalKey _userRowKey = GlobalKey();
   Post? _repostPost;
   Account? _repostPostAccount;
+  VideoPlayerController? _videoController;
 
   @override
   void initState() {
@@ -64,6 +65,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
     if (widget.post.reply != null && widget.post.reply!.isNotEmpty) {
       _replyToPostFuture = getPostById(widget.post.reply!);
+    }
+    if (widget.post.isVideo && widget.post.mediaUrl != null) {
+      _initializeVideoPlayer();
     }
     _fetchRepostDetails();
     _fetchReplyCount();
@@ -95,6 +99,17 @@ class _PostDetailPageState extends State<PostDetailPage> {
       }
     } catch (e) {
       print('Repost details fetch failed: $e');
+    }
+  }
+
+  void _initializeVideoPlayer() {
+    if (widget.post.mediaUrl != null && widget.post.mediaUrl!.isNotEmpty) {
+      _videoController =
+          VideoPlayerController.networkUrl(Uri.parse(widget.post.mediaUrl![0]))
+            ..initialize().then((_) {
+              setState(() {});
+              _videoController!.play();
+            });
     }
   }
 
@@ -383,35 +398,58 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     .format(widget.post.createdTime!.toDate()),
                 style: const TextStyle(color: Colors.grey),
               ),
-              // const SizedBox(height: 10),
+              const SizedBox(height: 10),
+
+              // コンテンツ（テキスト）
               Text(widget.post.content),
               const SizedBox(height: 10),
-              if (widget.post.isVideo)
-                AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: VideoPlayer(VideoPlayerController.networkUrl(
-                      Uri.parse(widget.post.mediaUrl!))),
-                )
-              else if (widget.post.mediaUrl != null)
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => FullScreenImagePage(
-                            imageUrl: widget.post.mediaUrl!),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    constraints: BoxConstraints(maxHeight: 400),
-                    child: Image.network(
-                      widget.post.mediaUrl!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
+
+              // メディアの表示
+              if (widget.post.mediaUrl != null &&
+                  widget.post.mediaUrl!.isNotEmpty)
+                if (widget.post.isVideo)
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: _videoController != null &&
+                            _videoController!.value.isInitialized
+                        ? VideoPlayer(_videoController!)
+                        : const CircularProgressIndicator(),
+                  )
+                else
+                  // 複数画像の表示
+                  GridView.builder(
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount: widget.post.mediaUrl!.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 4,
+                      mainAxisSpacing: 4,
                     ),
+                    itemBuilder: (context, index) {
+                      final mediaUrl = widget.post.mediaUrl![index];
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  FullScreenImagePage(imageUrl: mediaUrl),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          constraints: const BoxConstraints(maxHeight: 400),
+                          child: Image.network(
+                            mediaUrl,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                ),
               if (_repostPost != null && _repostPostAccount != null)
                 GestureDetector(
                   onTap: () {

@@ -64,22 +64,12 @@ class _SearchPageState extends State<SearchPage> {
             return ListView.builder(
               itemCount: _searchResults.length,
               itemBuilder: (context, index) {
-                final postData =
-                    _searchResults[index].data() as Map<String, dynamic>;
-                final postAccountId = postData['post_account_id'];
-                final account = userMap[postAccountId];
+                final postDoc = _searchResults[index];
+                final post = Post.fromDocument(postDoc);
 
-                if (account == null) return Container();
+                final postAccount = userMap[post.postAccountId];
 
-                final post = Post(
-                  id: _searchResults[index].id,
-                  content: postData['content'],
-                  postAccountId: postAccountId,
-                  createdTime: postData['created_time'],
-                  mediaUrl: postData['media_url'],
-                  isVideo: postData['is_video'] ?? false,
-                );
-                // Account postAccount = snapshot.data![post.postAccountId]!;
+                if (postAccount == null) return Container();
 
                 _favoritePost.favoriteUsersNotifiers[post.id] ??=
                     ValueNotifier<int>(0);
@@ -92,7 +82,7 @@ class _SearchPageState extends State<SearchPage> {
 
                 return PostItemWidget(
                   post: post,
-                  postAccount: account,
+                  postAccount: postAccount,
                   favoriteUsersNotifier:
                       _favoritePost.favoriteUsersNotifiers[post.id]!,
                   isFavoriteNotifier: ValueNotifier<bool>(

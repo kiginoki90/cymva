@@ -5,7 +5,7 @@ class Post {
   String content;
   String postAccountId;
   Timestamp? createdTime;
-  String? mediaUrl;
+  List<String>? mediaUrl;
   bool isVideo;
   String postId;
   String? reply;
@@ -20,7 +20,7 @@ class Post {
     this.isVideo = false,
     this.postId = '',
     this.reply,
-    this.repost = '',
+    this.repost,
   });
 
   // Convert to Map for Firestore
@@ -28,28 +28,30 @@ class Post {
     return {
       'id': id,
       'content': content,
-      'postAccountId': postAccountId,
-      'createdTime': createdTime ?? FieldValue.serverTimestamp(),
-      'mediaUrl': mediaUrl,
-      'isVideo': isVideo,
-      'postId': postId,
+      'post_account_id': postAccountId, // Fixed key
+      'created_time': createdTime ?? FieldValue.serverTimestamp(),
+      'media_url': mediaUrl ?? [], // Ensure default empty list
+      'is_video': isVideo,
+      'post_id': postId,
       'reply': reply,
       'repost': repost,
     };
   }
 
-  // Create a Post from Firestore document
+  // FirestoreドキュメントからPostを作成
   factory Post.fromDocument(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>; // Data extraction
+
     return Post(
       id: doc.id,
-      content: doc['content'],
-      postAccountId: doc['post_account_id'],
-      createdTime: doc['created_time'],
-      mediaUrl: doc['media_url'],
-      isVideo: doc['is_video'],
-      postId: doc['post_id'] ?? '',
-      reply: doc['reply'] ?? null,
-      repost: doc['repost'] ?? null,
+      content: data['content'] ?? '',
+      postAccountId: data['post_account_id'] ?? '',
+      createdTime: data['created_time'] as Timestamp?,
+      mediaUrl: List<String>.from(data['media_url'] ?? []),
+      isVideo: data['is_video'] ?? false,
+      postId: data['post_id'] ?? '',
+      reply: data['reply'] as String?,
+      repost: data['repost'] as String?,
     );
   }
 
@@ -58,12 +60,12 @@ class Post {
     return Post(
       content: data['content'] ?? '',
       postAccountId: data['post_account_id'] ?? '',
-      createdTime: data['created_time'],
-      mediaUrl: data['media_url'],
+      createdTime: data['created_time'] as Timestamp?,
+      mediaUrl: List<String>.from(data['media_url'] ?? []),
       isVideo: data['is_video'] ?? false,
       postId: data['post_id'] ?? '',
-      reply: data['reply'] ?? null,
-      repost: data['repost'] ?? '',
+      reply: data['reply'] as String?,
+      repost: data['repost'] as String?,
     );
   }
 }

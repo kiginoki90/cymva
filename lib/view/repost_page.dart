@@ -57,21 +57,24 @@ class _RepostPageState extends State<RepostPage> {
 
   Future<void> _sendRepost() async {
     if (_retweetController.text.isNotEmpty || _mediaFile != null) {
-      String? mediaUrl;
+      List<String>? mediaUrls; // 修正: メディアURLをリストとして扱う
 
       // メディアが選択されている場合、Firebase Storageにアップロードする
       if (_mediaFile != null) {
         final String userId = FirebaseAuth.instance.currentUser!.uid;
-        mediaUrl =
+        String? uploadedMediaUrl =
             await FunctionUtils.uploadImage(userId, _mediaFile!, context);
+
+        if (uploadedMediaUrl != null) {
+          mediaUrls = [uploadedMediaUrl]; // URLをリストに追加
+        }
       }
 
       // Firestoreに再投稿情報を追加する処理を実装
       Post rePost = Post(
         content: _retweetController.text,
         postAccountId: FirebaseAuth.instance.currentUser!.uid,
-        mediaUrl: mediaUrl,
-        // isVideo: isVideo,
+        mediaUrl: mediaUrls, // 修正: リストを渡す
         repost: widget.post.id,
       );
 
@@ -162,14 +165,15 @@ class _RepostPageState extends State<RepostPage> {
                       const SizedBox(height: 10),
                       // 画像がある場合は表示
                       if (widget.post.mediaUrl != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Image.network(
-                            widget.post.mediaUrl!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
+                        for (String mediaUrl in widget.post.mediaUrl!)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Image.network(
+                              mediaUrl,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                            ),
                           ),
-                        ),
                     ],
                   ),
                 ),
