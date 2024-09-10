@@ -67,7 +67,9 @@ class PostFirestore {
           postAccountId: data['post_account_id'],
           createdTime: data['created_time'],
           isVideo: data['is_video'] ?? false, // is_videoが存在しない場合はfalseを設定
-          mediaUrl: data['media_url'], // media_urlが存在しない場合はnullになる
+          mediaUrl: (data['media_url'] as List<dynamic>?)
+              ?.map((item) => item as String)
+              .toList(), // リストに変換
           reply: data['reply'] ?? null,
           postId: data['post_id'] ?? '',
           repost: data['repost'] ?? null,

@@ -30,6 +30,7 @@ class _AccountPageState extends State<AccountPage> {
 
   Future<void> _getAccount() async {
     final Account? account = await UserFirestore.getUser(widget.userId);
+    print(account);
     if (account == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('ユーザー情報が取得できませんでした')),

@@ -1,13 +1,11 @@
 import 'dart:io';
 
-import 'package:cymva/view/account/edit_page/change_password_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/utils/function_utils.dart';
 import 'package:cymva/utils/widget_utils.dart';
-import 'package:cymva/view/start_up/login_page.dart';
 
 class EditAccountPage extends StatefulWidget {
   @override
@@ -122,43 +120,6 @@ class _EditAccountPageState extends State<EditAccountPage> {
                     }
                   },
                   child: Text('更新')),
-              SizedBox(height: 50),
-              ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ChangePasswordPage(),
-                      ),
-                    );
-                  },
-                  child: Text('パスワード変更')),
-              SizedBox(height: 20),
-              ElevatedButton(
-                  onPressed: () {
-                    Authentication.signOut();
-                    while (Navigator.canPop(context)) {
-                      Navigator.pop(context);
-                    }
-                    Navigator.pushReplacement(context,
-                        MaterialPageRoute(builder: (context) => LoginPage()));
-                  },
-                  child: Text('ログアウト')),
-              SizedBox(
-                height: 50,
-              ),
-              ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: () {
-                    UserFirestore.deleteUser(myAccount.id);
-                    Authentication.deleteAuth();
-                    while (Navigator.canPop(context)) {
-                      Navigator.pop(context);
-                    }
-                    Navigator.pushReplacement(context,
-                        MaterialPageRoute(builder: (context) => LoginPage()));
-                  },
-                  child: Text('アカウントを削除'))
             ],
           ),
         ),

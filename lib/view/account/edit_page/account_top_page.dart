@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/view/account/edit_page/account_options_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/authentication.dart';
@@ -11,6 +12,7 @@ import 'package:cymva/view/account/follow_page.dart';
 import 'package:cymva/view/account/follower_page.dart';
 import 'package:cymva/view/account/account_page.dart';
 
+//アカウント詳細ページ
 class AccountTopPage extends StatefulWidget {
   final String userId;
   const AccountTopPage({Key? key, required this.userId}) : super(key: key);
@@ -131,7 +133,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
                                     context,
                                     MaterialPageRoute(
                                         builder: (context) =>
-                                            EditAccountPage()));
+                                            AccountOptionsPage()));
                                 if (result == true) {
                                   setState(() {
                                     myAccount = Authentication.myAccount!;

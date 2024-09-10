@@ -1,0 +1,173 @@
+import 'package:flutter/material.dart';
+import 'package:cymva/model/account.dart';
+import 'package:cymva/utils/authentication.dart';
+import 'package:cymva/utils/firestore/users.dart';
+import 'package:cymva/view/account/edit_page/change_password_page.dart';
+import 'package:cymva/view/account/edit_page/edit_account_page.dart';
+import 'package:cymva/view/start_up/login_page.dart';
+
+class AccountOptionsPage extends StatelessWidget {
+  Account myAccount = Authentication.myAccount!;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Account Options', style: TextStyle(color: Colors.black)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.black),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildOptionItem(
+              context,
+              icon: Icons.edit,
+              label: 'プロフィール編集',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditAccountPage(),
+                  ),
+                );
+              },
+            ),
+            _buildOptionItem(
+              context,
+              icon: Icons.lock,
+              label: 'パスワード変更',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChangePasswordPage(),
+                  ),
+                );
+              },
+            ),
+            _buildOptionItem(
+              context,
+              icon: Icons.logout,
+              label: 'ログアウト',
+              onTap: () {
+                _showConfirmationDialog(
+                  context,
+                  'ログアウト',
+                  '本当にログアウトしますか？',
+                  () {
+                    Authentication.signOut();
+                    while (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginPage()),
+                    );
+                  },
+                );
+              },
+            ),
+            _buildOptionItem(
+              context,
+              icon: Icons.person_add,
+              label: 'アカウント追加',
+              onTap: () {
+                // Navigate to Add Account
+              },
+            ),
+            _buildOptionItem(
+              context,
+              icon: Icons.delete_forever,
+              label: 'アカウント削除',
+              onTap: () {
+                _showConfirmationDialog(
+                  context,
+                  'アカウント削除',
+                  'アカウントを削除すると元に戻せません。続けますか？',
+                  () {
+                    UserFirestore.deleteUser(myAccount.id);
+                    Authentication.deleteAuth();
+                    while (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginPage()),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOptionItem(BuildContext context,
+      {required IconData icon,
+      required String label,
+      required Function onTap}) {
+    return GestureDetector(
+      onTap: () => onTap(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16.0),
+        child: Row(
+          children: [
+            Icon(icon, color: Color(0xFF219DDD)),
+            SizedBox(width: 16),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 18,
+                color: Color(0xFF219DDD),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showConfirmationDialog(
+    BuildContext context,
+    String title,
+    String message,
+    VoidCallback onConfirm,
+  ) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: <Widget>[
+            Container(
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(255, 207, 236, 250),
+                borderRadius: BorderRadius.circular(4.0),
+              ),
+              child: TextButton(
+                child: Text('キャンセル', style: TextStyle(color: Colors.black)),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ),
+            TextButton(
+              child: Text('OK！'),
+              onPressed: () {
+                onConfirm();
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}

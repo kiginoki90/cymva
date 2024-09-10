@@ -8,8 +8,6 @@ import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/account/edit_page/edit_account_page.dart';
 import 'package:cymva/view/poat/time_line_page.dart';
 import 'package:cymva/model/account.dart';
-import 'package:cymva/view/account/follow_page.dart';
-import 'package:cymva/view/account/follower_page.dart';
 
 class AccountHeader extends StatefulWidget {
   final String userId;
@@ -27,16 +25,12 @@ class _AccountHeaderState extends State<AccountHeader> {
   Account? myAccount;
   int currentPage = 0;
   bool isFollowing = false;
-  late Future<int> _followCountFuture;
-  late Future<int> _followerCountFuture;
 
   @override
   void initState() {
     super.initState();
     _getAccount();
     _checkFollowStatus(); // フォロー状態を確認
-    _followCountFuture = _getFollowCount();
-    _followerCountFuture = _getFollowerCount();
     widget.pageController.addListener(() {
       setState(() {
         currentPage = widget.pageController.page?.round() ?? 0;
