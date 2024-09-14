@@ -10,6 +10,7 @@ class Post {
   String postId;
   String? reply;
   String? repost;
+  String? category;
 
   Post({
     this.id = '',
@@ -21,6 +22,7 @@ class Post {
     this.postId = '',
     this.reply,
     this.repost,
+    this.category,
   });
 
   // Convert to Map for Firestore
@@ -35,6 +37,7 @@ class Post {
       'post_id': postId,
       'reply': reply,
       'repost': repost,
+      'category': category,
     };
   }
 
@@ -52,6 +55,7 @@ class Post {
       postId: data['post_id'] ?? '',
       reply: data['reply'] as String?,
       repost: data['repost'] as String?,
+      category: data['category'] as String?,
     );
   }
 
@@ -66,6 +70,7 @@ class Post {
       postId: data['post_id'] ?? '',
       reply: data['reply'] as String?,
       repost: data['repost'] as String?,
+      category: data['category'] as String?,
     );
   }
 }

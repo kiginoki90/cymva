@@ -46,6 +46,7 @@ dependencies:
   flutter_signin_button: ^2.0.0
   video_player: ^2.9.1
   path_provider: ^2.1.4
+  provider: ^6.1.2
 
 dev_dependencies:
   flutter_test:

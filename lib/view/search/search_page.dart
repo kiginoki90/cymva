@@ -21,19 +21,23 @@ class _SearchPageState extends State<SearchPage> {
   List<Account> _accountSearchResults = [];
   final FavoritePost _favoritePost = FavoritePost();
   int _currentPage = 0;
-  String _lastQuery = ''; // 最後に検索したクエリを保存
+  List<String> _recentFavoritePosts = [];
+  String _lastQuery = '';
+  String? _selectedCategory;
+  final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真'];
 
   @override
   void initState() {
     super.initState();
 
-    // リアルタイムでテキストフィールドの変化を監視
     _searchController.addListener(() {
-      _lastQuery = _searchController.text; // クエリを保存
+      _lastQuery = _searchController.text;
       if (_currentPage == 0) {
-        _searchPosts(_lastQuery); // 投稿を検索
-      } else {
-        _searchAccounts(_lastQuery); // アカウントを検索
+        _searchPosts(_lastQuery);
+      } else if (_currentPage == 1) {
+        _searchAccounts(_lastQuery);
+      } else if (_currentPage == 2) {
+        _fetchRecentFavorites(_lastQuery);
       }
     });
   }
@@ -48,17 +52,27 @@ class _SearchPageState extends State<SearchPage> {
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: '検索...',
-                border: OutlineInputBorder(),
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      hintText: '検索...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.category),
+                  onPressed: () {
+                    _showCategoryDialog();
+                  },
+                ),
+              ],
             ),
           ),
-          // ナビゲーション
           _buildNavigationBar(),
-          // スワイプでページ遷移するPageView
           Expanded(
             child: PageView(
               controller: _pageController,
@@ -66,17 +80,12 @@ class _SearchPageState extends State<SearchPage> {
                 setState(() {
                   _currentPage = pageIndex;
                 });
-
-                // ページ切り替え時に再検索せず、保存されたクエリで結果を表示
-                if (_currentPage == 0 && _postSearchResults.isEmpty) {
-                  _searchPosts(_lastQuery); // 投稿を再表示
-                } else if (_currentPage == 1 && _accountSearchResults.isEmpty) {
-                  _searchAccounts(_lastQuery); // アカウントを再表示
-                }
+                _onPageChanged();
               },
               children: [
-                _buildSearchByTextPage(), // 投稿の検索結果ページ
-                _buildSearchByAccountNamePage(), // アカウント名での検索結果ページ
+                _buildSearchByTextPage(),
+                _buildSearchByAccountNamePage(),
+                _buildRecentFavoritesPage(),
               ],
             ),
           ),
@@ -86,7 +95,6 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  // 投稿の検索結果を表示するウィジェット
   Widget _buildSearchByTextPage() {
     return ListView.builder(
       itemCount: _postSearchResults.length,
@@ -103,7 +111,7 @@ class _SearchPageState extends State<SearchPage> {
               return Center(
                   child: Text('エラーが発生しました: ${accountSnapshot.error}'));
             } else if (!accountSnapshot.hasData) {
-              return Container(); // アカウント情報が取得できない場合は何も表示しない
+              return Container();
             }
 
             final postAccount = accountSnapshot.data!;
@@ -133,7 +141,6 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  // アカウント名での検索結果を表示するウィジェット
   Widget _buildSearchByAccountNamePage() {
     return ListView.builder(
       itemCount: _accountSearchResults.length,
@@ -144,18 +151,16 @@ class _SearchPageState extends State<SearchPage> {
           padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
           child: Row(
             children: [
-              // アイコンを表示
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
                 child: Image.network(
-                  account.imagePath, // アカウントのプロフィール画像パス
+                  account.imagePath,
                   width: 40,
                   height: 40,
                   fit: BoxFit.cover,
                 ),
               ),
               const SizedBox(width: 10),
-              // アカウント名とユーザーIDを表示
               Expanded(
                 child: InkWell(
                   onTap: () {
@@ -174,7 +179,7 @@ class _SearchPageState extends State<SearchPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            account.name, // アカウント名
+                            account.name,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -182,7 +187,7 @@ class _SearchPageState extends State<SearchPage> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '@${account.userId}', // ユーザーID
+                            '@${account.userId}',
                             style: const TextStyle(
                               color: Colors.grey,
                               fontSize: 16,
@@ -191,16 +196,15 @@ class _SearchPageState extends State<SearchPage> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      // 自己紹介文を最大23文字に制限
                       Text(
                         account.selfIntroduction.length > 230
                             ? '${account.selfIntroduction.substring(0, 231)}...'
-                            : account.selfIntroduction, // 23文字以下の場合はそのまま表示
+                            : account.selfIntroduction,
                         style:
                             const TextStyle(fontSize: 13, color: Colors.black),
-                        maxLines: 4, // 最大1行
-                        overflow: TextOverflow.ellipsis, // オーバーフロー時に"..."を表示
-                        softWrap: true, // 行があふれた場合の自動改行を許可
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
                       ),
                     ],
                   ),
@@ -213,7 +217,93 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  // テキストフィールドで投稿を検索する
+  Widget _buildRecentFavoritesPage() {
+    return ListView.builder(
+      itemCount: _postSearchResults.length,
+      itemBuilder: (context, index) {
+        final postDoc = _postSearchResults[index];
+        final post = Post.fromDocument(postDoc);
+
+        return FutureBuilder<Account?>(
+          future: _getPostAccount(post.postAccountId),
+          builder: (context, accountSnapshot) {
+            if (accountSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (accountSnapshot.hasError) {
+              return Center(
+                  child: Text('エラーが発生しました: ${accountSnapshot.error}'));
+            } else if (!accountSnapshot.hasData) {
+              return Container();
+            }
+
+            final postAccount = accountSnapshot.data!;
+
+            // Firestoreから直近24時間のfavorite_usersを取得してcount
+            return FutureBuilder<QuerySnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('posts')
+                  .doc(post.id)
+                  .collection('favorite_users')
+                  .where('added_at',
+                      isGreaterThanOrEqualTo:
+                          DateTime.now().subtract(Duration(hours: 24)))
+                  .get(),
+              builder: (context, favoriteUsersSnapshot) {
+                if (favoriteUsersSnapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (favoriteUsersSnapshot.hasError) {
+                  return Center(
+                      child:
+                          Text('エラーが発生しました: ${favoriteUsersSnapshot.error}'));
+                } else if (!favoriteUsersSnapshot.hasData) {
+                  return Container();
+                }
+
+                // 24時間以内に追加されたお気に入りの数を取得
+                final recentFavoriteCount =
+                    favoriteUsersSnapshot.data!.docs.length;
+
+                // PostItemWidget に recentFavoriteCount をそのまま渡す
+                return PostItemWidget(
+                  post: post,
+                  postAccount: postAccount,
+                  favoriteUsersNotifier:
+                      _favoritePost.favoriteUsersNotifiers[post.id] ??
+                          ValueNotifier<int>(recentFavoriteCount),
+                  isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
+                      .favoritePostsNotifier.value
+                      .contains(post.id)),
+                  onFavoriteToggle: () {
+                    final isFavorite = _favoritePost.favoritePostsNotifier.value
+                        .contains(post.id);
+                    _favoritePost.toggleFavorite(post.id, isFavorite);
+                  },
+                  isRetweetedNotifier: ValueNotifier<bool>(false),
+                  onRetweetToggle: () {
+                    // リツイートの状態をFirestoreに保存するロジックを追加
+                  },
+                  replyFlag: ValueNotifier<bool>(false),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _onPageChanged() {
+    if (_currentPage == 0 && _postSearchResults.isEmpty) {
+      _searchPosts(_lastQuery);
+    } else if (_currentPage == 1 && _accountSearchResults.isEmpty) {
+      _searchAccounts(_lastQuery);
+    } else if (_currentPage == 2 && _postSearchResults.isEmpty) {
+      _fetchRecentFavorites(_lastQuery);
+    }
+  }
+
+// テキストフィールドで投稿を検索する
   Future<void> _searchPosts(String query) async {
     if (query.isEmpty) {
       setState(() {
@@ -227,7 +317,7 @@ class _SearchPageState extends State<SearchPage> {
     // クエリを使って、候補となるドキュメントを取得
     final querySnapshot = await firestore.collection('posts').get();
 
-    // 取得したドキュメントに対して、文字列に `query` が含まれているかをフィルタリング
+    // 取得したドキュメントに対して、文字列に query が含まれているかをフィルタリング
     final filteredPosts = querySnapshot.docs.where((doc) {
       final content = doc['content'] as String;
       return content.contains(query);
@@ -248,10 +338,8 @@ class _SearchPageState extends State<SearchPage> {
 
     final firestore = FirebaseFirestore.instance;
 
-    // クエリを使って、候補となるドキュメントを取得
     final querySnapshot = await firestore.collection('users').get();
 
-    // 取得したドキュメントに対して、文字列に `query` が含まれているかをフィルタリング
     final filteredAccounts = querySnapshot.docs.where((doc) {
       final name = doc['name'] as String;
       return name.contains(query);
@@ -264,7 +352,6 @@ class _SearchPageState extends State<SearchPage> {
     });
   }
 
-  // 投稿のアカウント情報を取得する
   Future<Account?> _getPostAccount(String accountId) async {
     final firestore = FirebaseFirestore.instance;
 
@@ -277,7 +364,30 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
-  // ナビゲーションバーを構築する
+  Future<void> _fetchRecentFavorites(String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        _postSearchResults = [];
+      });
+      return;
+    }
+
+    final firestore = FirebaseFirestore.instance;
+
+    // クエリを使って、候補となるドキュメントを取得
+    final querySnapshot = await firestore.collection('posts').get();
+
+    // 取得したドキュメントに対して、文字列に query が含まれているかをフィルタリング
+    final filteredPosts = querySnapshot.docs.where((doc) {
+      final content = doc['content'] as String;
+      return content.contains(query);
+    }).toList();
+
+    setState(() {
+      _postSearchResults = filteredPosts;
+    });
+  }
+
   Widget _buildNavigationBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -318,8 +428,51 @@ class _SearchPageState extends State<SearchPage> {
               _pageController.jumpToPage(1);
             },
           ),
+          IconButton(
+            icon: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('人気'),
+                Container(
+                  margin: const EdgeInsets.only(top: 2),
+                  height: 2,
+                  width: 60,
+                  color: _currentPage == 2 ? Colors.blue : Colors.transparent,
+                ),
+              ],
+            ),
+            onPressed: () {
+              _pageController.jumpToPage(2);
+            },
+          ),
         ],
       ),
+    );
+  }
+
+  void _showCategoryDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('カテゴリー選択'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: categories.map((category) {
+                return ListTile(
+                  title: Text(category),
+                  onTap: () {
+                    setState(() {
+                      _selectedCategory = category;
+                    });
+                    Navigator.of(context).pop();
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      },
     );
   }
 }

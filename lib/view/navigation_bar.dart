@@ -1,5 +1,4 @@
-import 'package:cymva/view/search/search_body.dart';
-import 'package:cymva/view/time_line/post_page.dart';
+import 'package:cymva/view/post_page/post_page.dart';
 import 'package:cymva/view/search/search_page.dart';
 import 'package:cymva/view/time_line/timeline_body.dart';
 import 'package:firebase_auth/firebase_auth.dart';

@@ -24,6 +24,7 @@ class PostFirestore {
         'post_id': '',
         'reply': newPost.reply,
         'repost': newPost.repost,
+        'category': newPost.category,
       };
 
       // Firestoreに投稿を追加し、その結果からドキュメントIDを取得

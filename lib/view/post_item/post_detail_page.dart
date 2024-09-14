@@ -365,6 +365,29 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     ],
                   ),
                   Spacer(),
+                  if (widget.post.category != null &&
+                      widget.post.category!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Colors.grey,
+                            width: 1.0,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          widget.post.category!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
                   if (widget.post.postAccountId == currentUserId)
                     PopupMenuButton<String>(
                       icon: Icon(Icons.add),
@@ -402,7 +425,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
               const SizedBox(height: 10),
 
               // コンテンツ（テキスト）
-              Text(widget.post.content),
+              Text(
+                widget.post.content,
+                style: TextStyle(fontSize: 16),
+              ),
               const SizedBox(height: 10),
 
               // メディアの表示
@@ -535,66 +561,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         builder: (context, isRetweeted, child) {
                           return GestureDetector(
                             onTap: () {
-                              // 中央に表示されるポップアップを表示
-                              showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: const Text('リツイート'),
-                                    content: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        ListTile(
-                                          leading: const Icon(Icons.edit),
-                                          title: const Text('引用'),
-                                          onTap: () {
-                                            // 引用を選択した場合はRepostPageへ遷移
-                                            Navigator.pop(
-                                                context); // ポップアップを閉じる
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    RepostPage(
-                                                  post: widget
-                                                      .post, // 引用するポストのデータ
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                        ListTile(
-                                          leading: const Icon(Icons.repeat),
-                                          title: const Text('再投稿'),
-                                          onTap: () async {
-                                            Navigator.pop(
-                                                context); // ポップアップを閉じる
-
-                                            // 再投稿を行う処理（Firestoreにデータを追加）
-                                            await FirebaseFirestore.instance
-                                                .collection('posts')
-                                                .add({
-                                              'repostId':
-                                                  widget.post.postId, // 元の投稿ID
-                                              'createdAt':
-                                                  Timestamp.now(), // 投稿時間
-                                              'userId': FirebaseAuth.instance
-                                                  .currentUser!.uid, // 投稿者
-                                              'type': 'repost', // 投稿タイプ
-                                            });
-
-                                            // 再投稿完了メッセージを表示
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              const SnackBar(
-                                                  content: Text('再投稿しました')),
-                                            );
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      RepostPage(post: widget.post),
+                                ),
                               );
                             },
                             child: Icon(
