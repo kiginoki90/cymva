@@ -103,9 +103,27 @@ class FunctionUtils {
     return await tempFile.writeAsBytes(byteData);
   }
 
-  // 複数の画像を選択するメソッド
-  static Future<List<XFile>?> selectImages() async {
+// 複数の画像を選択するメソッド
+  static Future<List<XFile>?> selectImages(
+      BuildContext context, category) async {
     final List<XFile>? pickedFiles = await ImagePicker().pickMultiImage();
+
+    if (category == '漫画') {
+      if (pickedFiles != null && pickedFiles.length > 50) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('画像の選択は最大50枚までです')),
+        );
+        return pickedFiles.take(50).toList();
+      }
+    } else {
+      if (pickedFiles != null && pickedFiles.length > 4) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('画像の選択は最大4枚までです')),
+        );
+        return pickedFiles.take(4).toList(); // 最大4枚を返す
+      }
+    }
+
     return pickedFiles;
   }
 

@@ -201,20 +201,87 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(widget.post.content),
+                                if (widget.post.category == '俳句・短歌')
+                                  buildVerticalText(widget.post.content)
+                                else
+                                  Text(
+                                    widget.post.content,
+                                    style: const TextStyle(fontSize: 18),
+                                  ),
 
-                                // 複数のメディアを表示
-                                if (widget.post.mediaUrl != null &&
+                                // カテゴリーが "漫画" の場合、最初のメディアだけ表示し、残りの枚数を表示
+                                if (widget.post.category == '漫画' &&
+                                    widget.post.mediaUrl != null &&
+                                    widget.post.mediaUrl!.isNotEmpty) ...[
+                                  const SizedBox(height: 10),
+                                  Stack(
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            SlideDirectionPageRoute(
+                                              page: FullScreenImagePage(
+                                                imageUrls:
+                                                    widget.post.mediaUrl!,
+                                                initialIndex: 0,
+                                              ),
+                                              isSwipeUp: true,
+                                            ),
+                                          );
+                                        },
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                          child: Image.network(
+                                            widget.post.mediaUrl![0],
+                                            width: MediaQuery.of(context)
+                                                    .size
+                                                    .width *
+                                                0.8,
+                                            height: 200,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      ),
+                                      // メディアが複数ある場合、残りの枚数を表示
+                                      if (widget.post.mediaUrl!.length > 1)
+                                        Positioned(
+                                          bottom: 10,
+                                          left: 10,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8.0, vertical: 4.0),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  Colors.black.withOpacity(0.6),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              '+${widget.post.mediaUrl!.length - 1}', // 残りの枚数
+                                              style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ]
+                                // 漫画以外の場合、複数のメディアをグリッドで表示
+                                else if (widget.post.mediaUrl != null &&
                                     widget.post.mediaUrl!.isNotEmpty) ...[
                                   const SizedBox(height: 10),
                                   GridView.builder(
                                     physics:
-                                        const NeverScrollableScrollPhysics(), // グリッド内でのスクロールを無効に
-                                    shrinkWrap: true, // グリッドのサイズを内容に合わせる
+                                        const NeverScrollableScrollPhysics(),
+                                    shrinkWrap: true,
                                     itemCount: widget.post.mediaUrl!.length,
                                     gridDelegate:
                                         const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 2, // グリッドの列数を2に設定
+                                      crossAxisCount: 2,
                                     ),
                                     itemBuilder:
                                         (BuildContext context, int index) {
@@ -240,9 +307,9 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                             width: MediaQuery.of(context)
                                                     .size
                                                     .width *
-                                                0.4, // 画像の幅を画面に合わせる
-                                            height: 150, // 固定高さ
-                                            fit: BoxFit.cover, // 画像のフィット方法
+                                                0.4,
+                                            height: 150,
+                                            fit: BoxFit.cover,
                                           ),
                                         ),
                                       );
@@ -381,5 +448,36 @@ class _PostItemWidgetState extends State<PostItemWidget> {
             ],
           ),
         ));
+  }
+
+  Widget buildVerticalText(String content) {
+    List<String> lines = content.split('\n');
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center, // 中央寄せ
+      crossAxisAlignment: CrossAxisAlignment.start, // 上寄せ
+      children: lines
+          .map((line) {
+            List<String> characters = line.split('');
+
+            // 各文字を縦に配置
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4.0), // 行の間隔を広げる
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: characters.map((char) {
+                  return Text(
+                    char,
+                    style: const TextStyle(fontSize: 15, height: 1.1),
+                  );
+                }).toList(),
+              ),
+            );
+          })
+          .toList()
+          .reversed
+          .toList(), // 右から左に表示するため逆順に
+    );
   }
 }

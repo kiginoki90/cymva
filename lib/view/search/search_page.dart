@@ -24,7 +24,7 @@ class _SearchPageState extends State<SearchPage> {
   List<String> _recentFavoritePosts = [];
   String _lastQuery = '';
   String? _selectedCategory;
-  final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真'];
+  final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真', '俳句・短歌'];
 
   @override
   void initState() {
@@ -63,12 +63,25 @@ class _SearchPageState extends State<SearchPage> {
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.category),
-                  onPressed: () {
-                    _showCategoryDialog();
-                  },
-                ),
+                Column(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.category),
+                      onPressed: () {
+                        _showCategoryDialog();
+                      },
+                    ),
+                    if (_selectedCategory != null &&
+                        _selectedCategory!.isNotEmpty) // カテゴリーが選択されている場合
+                      Text(
+                        _selectedCategory!,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                  ],
+                )
               ],
             ),
           ),
@@ -303,9 +316,9 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
-// テキストフィールドで投稿を検索する
   Future<void> _searchPosts(String query) async {
-    if (query.isEmpty) {
+    if (query.isEmpty &&
+        (_selectedCategory == null || _selectedCategory!.isEmpty)) {
       setState(() {
         _postSearchResults = [];
       });
@@ -314,8 +327,16 @@ class _SearchPageState extends State<SearchPage> {
 
     final firestore = FirebaseFirestore.instance;
 
+    // 投稿コレクションのクエリ
+    Query queryRef = firestore.collection('posts');
+
+    // カテゴリーが選択されている場合はカテゴリーでフィルタリング
+    if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
+      queryRef = queryRef.where('category', isEqualTo: _selectedCategory);
+    }
+
     // クエリを使って、候補となるドキュメントを取得
-    final querySnapshot = await firestore.collection('posts').get();
+    final querySnapshot = await queryRef.get();
 
     // 取得したドキュメントに対して、文字列に query が含まれているかをフィルタリング
     final filteredPosts = querySnapshot.docs.where((doc) {
@@ -365,7 +386,8 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _fetchRecentFavorites(String query) async {
-    if (query.isEmpty) {
+    if (query.isEmpty &&
+        (_selectedCategory == null || _selectedCategory!.isEmpty)) {
       setState(() {
         _postSearchResults = [];
       });
@@ -374,8 +396,16 @@ class _SearchPageState extends State<SearchPage> {
 
     final firestore = FirebaseFirestore.instance;
 
+    // 投稿コレクションのクエリ
+    Query queryRef = firestore.collection('posts');
+
+    // カテゴリーが選択されている場合はカテゴリーでフィルタリング
+    if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
+      queryRef = queryRef.where('category', isEqualTo: _selectedCategory);
+    }
+
     // クエリを使って、候補となるドキュメントを取得
-    final querySnapshot = await firestore.collection('posts').get();
+    final querySnapshot = await queryRef.get();
 
     // 取得したドキュメントに対して、文字列に query が含まれているかをフィルタリング
     final filteredPosts = querySnapshot.docs.where((doc) {
@@ -450,12 +480,12 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  void _showCategoryDialog() {
+  void _showCategoryDialog() async {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (context) {
         return AlertDialog(
-          title: const Text('カテゴリー選択'),
+          title: const Text('カテゴリーの選択'),
           content: SingleChildScrollView(
             child: Column(
               children: categories.map((category) {
@@ -464,8 +494,10 @@ class _SearchPageState extends State<SearchPage> {
                   onTap: () {
                     setState(() {
                       _selectedCategory = category;
+                      _searchPosts('');
+                      _fetchRecentFavorites('');
+                      Navigator.of(context).pop();
                     });
-                    Navigator.of(context).pop();
                   },
                 );
               }).toList(),

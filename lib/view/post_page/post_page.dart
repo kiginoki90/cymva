@@ -26,11 +26,12 @@ class _PostPageState extends State<PostPage> {
   final picker = ImagePicker();
 
   String? selectedCategory;
-  final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真'];
+  final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真', '俳句・短歌'];
 
   // 画像を選択する
-  Future<void> selectImages() async {
-    final pickedFiles = await FunctionUtils.selectImages();
+  Future<void> selectImages(selectedCategory) async {
+    final pickedFiles =
+        await FunctionUtils.selectImages(context, selectedCategory);
     if (pickedFiles != null) {
       setState(() {
         images.addAll(pickedFiles);
@@ -93,7 +94,7 @@ class _PostPageState extends State<PostPage> {
                     items: categories.map((category) {
                       return DropdownMenuItem(
                         value: category,
-                        child: Text(category),
+                        child: Text(category, style: TextStyle(fontSize: 12)),
                       );
                     }).toList(),
                     onChanged: (value) {
@@ -117,15 +118,20 @@ class _PostPageState extends State<PostPage> {
                 decoration: InputDecoration(
                   hintText: 'Content',
                   filled: true,
-                  fillColor: Color.fromARGB(255, 222, 242, 251), // 背景色を水色に設定
+                  fillColor: selectedCategory == '俳句・短歌'
+                      ? Color.fromARGB(255, 255, 238, 240)
+                      : const Color.fromARGB(255, 222, 242, 251),
+
                   border: InputBorder.none, // 枠線を削除
                 ),
                 minLines: 5,
                 maxLines: null,
-                maxLength: 200,
+                maxLength:
+                    selectedCategory == '俳句・短歌' ? 40 : 200, // カテゴリーによる文字数制限
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
               ),
+
               const SizedBox(height: 20),
 
               // 選択した画像を表示する
@@ -158,7 +164,7 @@ class _PostPageState extends State<PostPage> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.image),
-                    onPressed: selectImages,
+                    onPressed: () => selectImages(selectedCategory),
                     tooltip: '画像を選択',
                   ),
                   IconButton(
