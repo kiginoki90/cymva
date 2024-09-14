@@ -1,31 +1,21 @@
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
+import 'dart:math';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:video_player/video_player.dart';
 
 class FunctionUtils {
-  // static Future<dynamic> getImageFromGallery() async {
-  //   ImagePicker picker = ImagePicker();
-
-  //   final PickedFile = await picker.pickImage(source: ImageSource.gallery);
-  //   return PickedFile;
-  //   // if (PickedFile != null) {
-  //   //   setState(() {
-  //   //     image = File(PickedFile.path);
-  //   //   });
-  //   // }
-  // }
-
+  // 複数の画像を選択するメソッド
   static Future<List<File>?> getImagesFromGallery(BuildContext context) async {
     ImagePicker picker = ImagePicker();
     final pickedFiles = await picker.pickMultiImage(); // 複数枚の画像を選択
 
-    if (pickedFiles != null && pickedFiles.isNotEmpty) {
+    if (pickedFiles.isNotEmpty) {
       return pickedFiles.map((file) => File(file.path)).toList();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -38,10 +28,10 @@ class FunctionUtils {
   // ギャラリーから画像を取得し、ファイルサイズが適切かチェック
   static Future<File?> getImageFromGallery(BuildContext context) async {
     ImagePicker picker = ImagePicker();
-    final PickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
-    if (PickedFile != null) {
-      File image = File(PickedFile.path);
+    if (pickedFile != null) {
+      File image = File(pickedFile.path);
 
       // ファイルサイズをチェック (上限: 5MB)
       final int fileSize = await image.length();
@@ -52,11 +42,9 @@ class FunctionUtils {
           SnackBar(content: Text('ファイルサイズが大きすぎます。5MB以下のファイルを選択してください。')),
         );
         final String userId = FirebaseAuth.instance.currentUser!.uid;
-        // 遷移先のユーザーIDなどのパラメータを必要に応じて設定
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) =>
-                AccountPage(userId: userId), // 適切なユーザーIDに置き換えてください
+            builder: (context) => AccountPage(userId: userId),
           ),
         );
       }
@@ -67,6 +55,7 @@ class FunctionUtils {
     }
   }
 
+  // 画像をアップロードするメソッド
   static Future<String?> uploadImage(
       String uid, File image, BuildContext context) async {
     try {
@@ -107,11 +96,43 @@ class FunctionUtils {
   }
 
   // AssetからFileに変換するヘルパーメソッド
-
   static Future<File> xFileToFile(XFile xFile) async {
     final byteData = await xFile.readAsBytes();
     final tempDir = await getTemporaryDirectory();
     final tempFile = File('${tempDir.path}/${xFile.name}');
     return await tempFile.writeAsBytes(byteData);
+  }
+
+  // 複数の画像を選択するメソッド
+  static Future<List<XFile>?> selectImages() async {
+    final List<XFile>? pickedFiles = await ImagePicker().pickMultiImage();
+    return pickedFiles;
+  }
+
+  // 画像またはビデオを選択するメソッド
+  static Future<File?> getMedia(bool isVideo) async {
+    File? pickedFile;
+    if (isVideo) {
+      final videoFile =
+          await ImagePicker().pickVideo(source: ImageSource.gallery);
+      if (videoFile != null) {
+        pickedFile = File(videoFile.path);
+      }
+    } else {
+      final imageFile =
+          await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (imageFile != null) {
+        pickedFile = File(imageFile.path);
+      }
+    }
+    return pickedFile;
+  }
+
+  // VideoPlayerControllerを取得するメソッド
+  static Future<VideoPlayerController?> getVideoController(
+      File mediaFile) async {
+    VideoPlayerController controller = VideoPlayerController.file(mediaFile);
+    await controller.initialize();
+    return controller;
   }
 }

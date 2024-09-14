@@ -4,7 +4,7 @@ import 'package:cymva/model/post.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cymva/utils/favorite_post.dart';
-import 'package:cymva/view/poat/post_item_widget.dart';
+import 'package:cymva/view/post_item/post_item_widget.dart';
 
 class FavoriteList extends StatelessWidget {
   final Account myAccount;

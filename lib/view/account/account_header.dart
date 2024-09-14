@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/account/edit_page/edit_account_page.dart';
-import 'package:cymva/view/poat/time_line_page.dart';
+import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:cymva/model/account.dart';
 
 class AccountHeader extends StatefulWidget {

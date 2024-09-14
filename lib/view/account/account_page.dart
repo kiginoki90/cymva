@@ -2,7 +2,7 @@ import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/account/favorite_list.dart';
 import 'package:cymva/view/account/image_post_list.dart';
 import 'package:cymva/view/navigation_bar.dart';
-import 'package:cymva/view/poat/time_line_page.dart';
+import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:flutter/material.dart';
 import 'post_list.dart';
 import 'package:cymva/model/account.dart';

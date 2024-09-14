@@ -1,6 +1,6 @@
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
-import 'package:cymva/view/poat/post_item_widget.dart';
+import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

@@ -1,4 +1,4 @@
-import 'package:cymva/view/poat/timeline_body.dart';
+import 'package:cymva/view/time_line/timeline_body.dart';
 import 'package:cymva/view/start_up/login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';

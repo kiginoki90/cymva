@@ -3,17 +3,18 @@ import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/divider_with_circle.dart';
 import 'package:cymva/view/navigation_bar.dart';
-import 'package:cymva/view/poat/post_item_widget.dart';
+import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:cymva/view/reply_page.dart';
 import 'package:cymva/view/repost_item.dart';
 import 'package:cymva/view/repost_list_page.dart';
 import 'package:cymva/view/repost_page.dart';
+import 'package:cymva/view/slide_direction_page_route.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:video_player/video_player.dart';
-import 'package:cymva/view/full_screen_image.dart';
+import 'package:cymva/view/post_item/full_screen_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -424,8 +425,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      crossAxisSpacing: 4,
-                      mainAxisSpacing: 4,
                     ),
                     itemBuilder: (context, index) {
                       final mediaUrl = widget.post.mediaUrl![index];
@@ -433,9 +432,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  FullScreenImagePage(imageUrl: mediaUrl),
+                            SlideDirectionPageRoute(
+                              page: FullScreenImagePage(
+                                imageUrls: widget.post.mediaUrl!,
+                                initialIndex: index,
+                              ),
+                              isSwipeUp: true,
                             ),
                           );
                         },

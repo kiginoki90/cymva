@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/view/account/edit_page/account_options_page.dart';
+import 'package:cymva/view/account/post_list.dart';
+import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/account/edit_page/edit_account_page.dart';
-import 'package:cymva/view/poat/time_line_page.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/view/account/follow_page.dart';
 import 'package:cymva/view/account/follower_page.dart';
@@ -92,7 +93,13 @@ class _AccountTopPageState extends State<AccountTopPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(myAccount!.name),
+        title: Text(
+          myAccount!.name,
+          style: TextStyle(
+              color: const Color.fromARGB(255, 255, 255, 255),
+              fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.blueGrey,
       ),
       body: NotificationListener<ScrollNotification>(
         onNotification: (ScrollNotification scrollInfo) {
@@ -119,10 +126,8 @@ class _AccountTopPageState extends State<AccountTopPage> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      // ボタンを右端に配置
                       Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.end, // ボタンを右端に揃える
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           SizedBox(
                             height: 25,
@@ -233,13 +238,23 @@ class _AccountTopPageState extends State<AccountTopPage> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: Image.network(
-                                myAccount!.imagePath,
-                                width: 70,
-                                height: 70,
-                                fit: BoxFit.cover,
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          AccountPage(userId: myAccount!.id)),
+                                );
+                              },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8.0),
+                                child: Image.network(
+                                  myAccount!.imagePath,
+                                  width: 70,
+                                  height: 70,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
                             SizedBox(width: 10),
@@ -249,7 +264,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
                                 Text(
                                   myAccount!.name,
                                   style: const TextStyle(
-                                      fontSize: 20,
+                                      fontSize: 15,
                                       fontWeight: FontWeight.bold),
                                 ),
                                 Text(

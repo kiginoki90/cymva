@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/view/account/account_page.dart';
-import 'package:cymva/view/full_screen_image.dart';
-import 'package:cymva/view/post_detail_page.dart';
+import 'package:cymva/view/post_item/full_screen_image.dart';
+import 'package:cymva/view/post_item/post_detail_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -205,9 +205,12 @@ class RepostListPage extends StatelessWidget {
                                                         MaterialPageRoute(
                                                           builder: (context) =>
                                                               FullScreenImagePage(
-                                                                  imageUrl:
-                                                                      postData[
-                                                                          'media_url']!),
+                                                            imageUrls: List<
+                                                                    String>.from(
+                                                                postData[
+                                                                    'media_url']),
+                                                            initialIndex: 0,
+                                                          ),
                                                         ),
                                                       );
                                                     },

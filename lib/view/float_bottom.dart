@@ -1,4 +1,4 @@
-import 'package:cymva/view/poat/post_page.dart';
+import 'package:cymva/view/time_line/post_page.dart';
 import 'package:flutter/material.dart';
 
 class FloatBottom extends StatefulWidget {

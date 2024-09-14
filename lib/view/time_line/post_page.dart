@@ -25,60 +25,90 @@ class _PostPageState extends State<PostPage> {
   bool isPickerActive = false;
   final picker = ImagePicker();
 
-  // 画像を選択するメソッド
+  // // 画像を選択するメソッド
+  // Future<void> selectImages() async {
+  //   setState(() {
+  //     isPickerActive = true;
+  //   });
+
+  //   final List<XFile>? pickedFiles = await picker.pickMultiImage();
+
+  //   if (!mounted) return;
+
+  //   setState(() {
+  //     if (pickedFiles != null) {
+  //       images.addAll(pickedFiles); // 選択された画像をリストに追加
+  //     }
+  //     isPickerActive = false;
+  //   });
+  // }
+
+  // Future<void> getMedia(bool isVideo) async {
+  //   if (isPickerActive) return;
+  //   setState(() {
+  //     isPickerActive = true;
+  //   });
+
+  //   File? pickedFile;
+  //   if (isVideo) {
+  //     final videoFile = await picker.pickVideo(source: ImageSource.gallery);
+  //     if (videoFile != null) {
+  //       pickedFile = File(videoFile.path);
+  //     }
+  //   } else {
+  //     // メディア選択ダイアログを表示
+  //     final imageFile = await picker.pickImage(source: ImageSource.gallery);
+  //     if (imageFile != null) {
+  //       pickedFile = File(imageFile.path);
+  //     }
+  //   }
+
+  //   setState(() {
+  //     if (pickedFile != null) {
+  //       _mediaFile = pickedFile;
+  //       this.isVideo = isVideo;
+  //       if (isVideo) {
+  //         _videoController = VideoPlayerController.file(_mediaFile!)
+  //           ..initialize().then((_) {
+  //             setState(() {});
+  //             _videoController!.play();
+  //           });
+  //       }
+  //     } else {
+  //       print('No media selected or file too large.');
+  //     }
+  //     isPickerActive = false;
+  //   });
+  // }
+
+  // 画像を選択する
   Future<void> selectImages() async {
-    setState(() {
-      isPickerActive = true;
-    });
-
-    final List<XFile>? pickedFiles = await picker.pickMultiImage();
-
-    if (!mounted) return;
-
-    setState(() {
-      if (pickedFiles != null) {
-        images.addAll(pickedFiles); // 選択された画像をリストに追加
-      }
-      isPickerActive = false;
-    });
+    final pickedFiles = await FunctionUtils.selectImages();
+    if (pickedFiles != null) {
+      setState(() {
+        images.addAll(pickedFiles);
+      });
+    }
   }
 
+// メディアを取得する
   Future<void> getMedia(bool isVideo) async {
-    if (isPickerActive) return;
-    setState(() {
-      isPickerActive = true;
-    });
-
-    File? pickedFile;
-    if (isVideo) {
-      final videoFile = await picker.pickVideo(source: ImageSource.gallery);
-      if (videoFile != null) {
-        pickedFile = File(videoFile.path);
-      }
-    } else {
-      // メディア選択ダイアログを表示
-      final imageFile = await picker.pickImage(source: ImageSource.gallery);
-      if (imageFile != null) {
-        pickedFile = File(imageFile.path);
-      }
-    }
-
-    setState(() {
-      if (pickedFile != null) {
+    File? pickedFile = await FunctionUtils.getMedia(isVideo);
+    if (pickedFile != null) {
+      setState(() {
         _mediaFile = pickedFile;
         this.isVideo = isVideo;
         if (isVideo) {
-          _videoController = VideoPlayerController.file(_mediaFile!)
-            ..initialize().then((_) {
-              setState(() {});
-              _videoController!.play();
-            });
+          // VideoControllerの初期化も非同期処理として行う
+          Future<void> initializeController() async {
+            _videoController =
+                await FunctionUtils.getVideoController(_mediaFile!);
+          }
+
+          initializeController();
         }
-      } else {
-        print('No media selected or file too large.');
-      }
-      isPickerActive = false;
-    });
+      });
+    }
   }
 
   @override

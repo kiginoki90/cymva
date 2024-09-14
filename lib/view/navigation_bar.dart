@@ -1,6 +1,7 @@
-import 'package:cymva/view/poat/post_page.dart';
-import 'package:cymva/view/poat/search_page.dart';
-import 'package:cymva/view/poat/timeline_body.dart';
+import 'package:cymva/view/search/search_body.dart';
+import 'package:cymva/view/time_line/post_page.dart';
+import 'package:cymva/view/search/search_page.dart';
+import 'package:cymva/view/time_line/timeline_body.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/view/account/account_page.dart';

@@ -2,12 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/view/reply_page.dart';
 import 'package:cymva/view/repost_item.dart';
 import 'package:cymva/view/repost_page.dart';
+import 'package:cymva/view/slide_direction_page_route.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/model/account.dart';
 import 'package:intl/intl.dart';
-import 'package:cymva/view/post_detail_page.dart';
-import 'package:cymva/view/full_screen_image.dart';
+import 'package:cymva/view/post_item/post_detail_page.dart';
+import 'package:cymva/view/post_item/full_screen_image.dart';
 import 'package:cymva/view/account/account_page.dart';
 
 class PostItemWidget extends StatefulWidget {
@@ -64,27 +65,34 @@ class _PostItemWidgetState extends State<PostItemWidget> {
 
   Future<void> _fetchRepostData() async {
     if (widget.post.repost != null && widget.post.repost!.isNotEmpty) {
-      // Fetch the original post data from Firestore
-      DocumentSnapshot repostSnapshot = await FirebaseFirestore.instance
-          .collection('posts')
-          .doc(widget.post.repost)
-          .get();
-
-      if (repostSnapshot.exists) {
-        Post repostPost = Post.fromDocument(repostSnapshot);
-        _repostPost = repostPost;
-
-        DocumentSnapshot repostAccountSnapshot = await FirebaseFirestore
-            .instance
-            .collection('users')
-            .doc(repostPost.postAccountId)
+      try {
+        // Fetch the original post data from Firestore
+        DocumentSnapshot repostSnapshot = await FirebaseFirestore.instance
+            .collection('posts')
+            .doc(widget.post.repost)
             .get();
 
-        if (repostAccountSnapshot.exists) {
-          _repostPostAccount = Account.fromDocument(repostAccountSnapshot);
-        }
+        if (repostSnapshot.exists) {
+          Post repostPost = Post.fromDocument(repostSnapshot);
+          _repostPost = repostPost;
 
-        setState(() {});
+          DocumentSnapshot repostAccountSnapshot = await FirebaseFirestore
+              .instance
+              .collection('users')
+              .doc(repostPost.postAccountId)
+              .get();
+
+          if (repostAccountSnapshot.exists) {
+            _repostPostAccount = Account.fromDocument(repostAccountSnapshot);
+          }
+
+          if (mounted) {
+            setState(() {});
+          }
+        }
+      } catch (e) {
+        // エラーハンドリング
+        print('Error fetching repost data: $e');
       }
     }
   }
@@ -201,14 +209,12 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                   const SizedBox(height: 10),
                                   GridView.builder(
                                     physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    shrinkWrap: true,
+                                        const NeverScrollableScrollPhysics(), // グリッド内でのスクロールを無効に
+                                    shrinkWrap: true, // グリッドのサイズを内容に合わせる
                                     itemCount: widget.post.mediaUrl!.length,
                                     gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 2,
-                                      crossAxisSpacing: 4,
-                                      mainAxisSpacing: 4,
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2, // グリッドの列数を2に設定
                                     ),
                                     itemBuilder:
                                         (BuildContext context, int index) {
@@ -218,25 +224,25 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                         onTap: () {
                                           Navigator.push(
                                             context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  FullScreenImagePage(
-                                                imageUrl: mediaUrl,
+                                            SlideDirectionPageRoute(
+                                              page: FullScreenImagePage(
+                                                imageUrls:
+                                                    widget.post.mediaUrl!,
+                                                initialIndex: index,
                                               ),
+                                              isSwipeUp: true,
                                             ),
                                           );
                                         },
                                         child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
                                           child: Image.network(
                                             mediaUrl,
                                             width: MediaQuery.of(context)
                                                     .size
                                                     .width *
-                                                0.45,
-                                            height: 180,
-                                            fit: BoxFit.cover,
+                                                0.4, // 画像の幅を画面に合わせる
+                                            height: 150, // 固定高さ
+                                            fit: BoxFit.cover, // 画像のフィット方法
                                           ),
                                         ),
                                       );
@@ -294,7 +300,9 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                     StreamBuilder<QuerySnapshot>(
                                       stream: FirebaseFirestore.instance
                                           .collection('posts')
-                                          .doc(widget.post.postId)
+                                          .doc(widget.post.postId.isNotEmpty
+                                              ? widget.post.postId
+                                              : widget.post.id)
                                           .collection('repost')
                                           .snapshots(),
                                       builder: (context, snapshot) {

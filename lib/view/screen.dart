@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cymva/view/account/account_page.dart';
-import 'package:cymva/view/poat/post_page.dart';
-import 'package:cymva/view/poat/time_line_page.dart';
+import 'package:cymva/view/time_line/post_page.dart';
+import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class Screen extends StatefulWidget {

@@ -1,4 +1,4 @@
-import 'package:cymva/view/poat/timeline_body.dart';
+import 'package:cymva/view/time_line/timeline_body.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/authentication.dart';

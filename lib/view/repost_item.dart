@@ -40,6 +40,7 @@ class RepostItem extends StatelessWidget {
                 repostPostAccount.name,
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
+              const SizedBox(width: 5),
               Text(
                 '@${repostPostAccount.userId}',
                 style: const TextStyle(color: Colors.grey),
@@ -48,21 +49,29 @@ class RepostItem extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           Text(repostPost.content),
-          const SizedBox(height: 5),
+          const SizedBox(height: 10),
           if (repostPost.mediaUrl != null && repostPost.mediaUrl!.isNotEmpty)
-            Wrap(
-              spacing: 8.0, // 画像間のスペース
-              children: repostPost.mediaUrl!.map((url) {
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    url,
-                    width: MediaQuery.of(context).size.width * 0.85, // 幅の調整
-                    height: 160,
-                    fit: BoxFit.cover,
+            GridView.builder(
+              physics: const NeverScrollableScrollPhysics(), // グリッド内でのスクロールを無効に
+              shrinkWrap: true, // グリッドのサイズを内容に合わせる
+              itemCount: repostPost.mediaUrl!.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2, // グリッドの列数を2に設定
+              ),
+              itemBuilder: (BuildContext context, int index) {
+                final mediaUrl = repostPost.mediaUrl![index];
+                return GestureDetector(
+                  child: ClipRRect(
+                    child: Image.network(
+                      mediaUrl,
+                      width: MediaQuery.of(context).size.width *
+                          0.4, // 画像の幅を画面に合わせる
+                      height: 150, // 固定高さ
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 );
-              }).toList(),
+              },
             ),
         ],
       ),

@@ -36,6 +36,7 @@ class AccountOptionsPage extends StatelessWidget {
                 );
               },
             ),
+            const Divider(),
             _buildOptionItem(
               context,
               icon: Icons.lock,
@@ -49,6 +50,7 @@ class AccountOptionsPage extends StatelessWidget {
                 );
               },
             ),
+            const Divider(),
             _buildOptionItem(
               context,
               icon: Icons.logout,
@@ -71,6 +73,7 @@ class AccountOptionsPage extends StatelessWidget {
                 );
               },
             ),
+            const Divider(),
             _buildOptionItem(
               context,
               icon: Icons.person_add,
@@ -79,6 +82,7 @@ class AccountOptionsPage extends StatelessWidget {
                 // Navigate to Add Account
               },
             ),
+            const Divider(),
             _buildOptionItem(
               context,
               icon: Icons.delete_forever,
@@ -102,6 +106,7 @@ class AccountOptionsPage extends StatelessWidget {
                 );
               },
             ),
+            const Divider(),
           ],
         ),
       ),
@@ -124,7 +129,7 @@ class AccountOptionsPage extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 18,
-                color: Color(0xFF219DDD),
+                color: Color.fromARGB(255, 0, 0, 0),
               ),
             ),
           ],
