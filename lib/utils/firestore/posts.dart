@@ -74,6 +74,7 @@ class PostFirestore {
           reply: data['reply'] ?? null,
           postId: data['post_id'] ?? '',
           repost: data['repost'] ?? null,
+          category: data['category'] ?? null,
         );
         postList.add(post);
       }

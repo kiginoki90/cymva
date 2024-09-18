@@ -24,11 +24,14 @@ class _SearchPageState extends State<SearchPage> {
   List<String> _recentFavoritePosts = [];
   String _lastQuery = '';
   String? _selectedCategory;
-  final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真', '俳句・短歌'];
+  final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真'];
+  final Map<String, int> _postFavoriteCounts = {};
 
   @override
   void initState() {
     super.initState();
+
+    _favoritePost.getFavoritePosts();
 
     _searchController.addListener(() {
       _lastQuery = _searchController.text;
@@ -129,12 +132,15 @@ class _SearchPageState extends State<SearchPage> {
 
             final postAccount = accountSnapshot.data!;
 
+            _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                ValueNotifier<int>(0);
+            _favoritePost.updateFavoriteUsersCount(post.id);
+
             return PostItemWidget(
               post: post,
               postAccount: postAccount,
               favoriteUsersNotifier:
-                  _favoritePost.favoriteUsersNotifiers[post.id] ??
-                      ValueNotifier<int>(0),
+                  _favoritePost.favoriteUsersNotifiers[post.id]!,
               isFavoriteNotifier: ValueNotifier<bool>(
                   _favoritePost.favoritePostsNotifier.value.contains(post.id)),
               onFavoriteToggle: () {
@@ -252,53 +258,27 @@ class _SearchPageState extends State<SearchPage> {
             final postAccount = accountSnapshot.data!;
 
             // Firestoreから直近24時間のfavorite_usersを取得してcount
-            return FutureBuilder<QuerySnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('posts')
-                  .doc(post.id)
-                  .collection('favorite_users')
-                  .where('added_at',
-                      isGreaterThanOrEqualTo:
-                          DateTime.now().subtract(Duration(hours: 24)))
-                  .get(),
-              builder: (context, favoriteUsersSnapshot) {
-                if (favoriteUsersSnapshot.connectionState ==
-                    ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                } else if (favoriteUsersSnapshot.hasError) {
-                  return Center(
-                      child:
-                          Text('エラーが発生しました: ${favoriteUsersSnapshot.error}'));
-                } else if (!favoriteUsersSnapshot.hasData) {
-                  return Container();
-                }
+            final recentFavoriteCount = _postFavoriteCounts[post.id] ?? 0;
 
-                // 24時間以内に追加されたお気に入りの数を取得
-                final recentFavoriteCount =
-                    favoriteUsersSnapshot.data!.docs.length;
-
-                // PostItemWidget に recentFavoriteCount をそのまま渡す
-                return PostItemWidget(
-                  post: post,
-                  postAccount: postAccount,
-                  favoriteUsersNotifier:
-                      _favoritePost.favoriteUsersNotifiers[post.id] ??
-                          ValueNotifier<int>(recentFavoriteCount),
-                  isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
-                      .favoritePostsNotifier.value
-                      .contains(post.id)),
-                  onFavoriteToggle: () {
-                    final isFavorite = _favoritePost.favoritePostsNotifier.value
-                        .contains(post.id);
-                    _favoritePost.toggleFavorite(post.id, isFavorite);
-                  },
-                  isRetweetedNotifier: ValueNotifier<bool>(false),
-                  onRetweetToggle: () {
-                    // リツイートの状態をFirestoreに保存するロジックを追加
-                  },
-                  replyFlag: ValueNotifier<bool>(false),
-                );
+            // PostItemWidget に recentFavoriteCount をそのまま渡す
+            return PostItemWidget(
+              post: post,
+              postAccount: postAccount,
+              favoriteUsersNotifier:
+                  _favoritePost.favoriteUsersNotifiers[post.id] ??
+                      ValueNotifier<int>(recentFavoriteCount),
+              isFavoriteNotifier: ValueNotifier<bool>(
+                  _favoritePost.favoritePostsNotifier.value.contains(post.id)),
+              onFavoriteToggle: () {
+                final isFavorite =
+                    _favoritePost.favoritePostsNotifier.value.contains(post.id);
+                _favoritePost.toggleFavorite(post.id, isFavorite);
               },
+              isRetweetedNotifier: ValueNotifier<bool>(false),
+              onRetweetToggle: () {
+                // リツイートの状態をFirestoreに保存するロジックを追加
+              },
+              replyFlag: ValueNotifier<bool>(false),
             );
           },
         );
@@ -328,7 +308,8 @@ class _SearchPageState extends State<SearchPage> {
     final firestore = FirebaseFirestore.instance;
 
     // 投稿コレクションのクエリ
-    Query queryRef = firestore.collection('posts');
+    Query queryRef =
+        firestore.collection('posts').orderBy('created_time', descending: true);
 
     // カテゴリーが選択されている場合はカテゴリーでフィルタリング
     if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
@@ -407,14 +388,40 @@ class _SearchPageState extends State<SearchPage> {
     // クエリを使って、候補となるドキュメントを取得
     final querySnapshot = await queryRef.get();
 
-    // 取得したドキュメントに対して、文字列に query が含まれているかをフィルタリング
-    final filteredPosts = querySnapshot.docs.where((doc) {
-      final content = doc['content'] as String;
-      return content.contains(query);
-    }).toList();
+    // 各投稿ごとに、過去24時間以内に追加されたお気に入りの数を取得
+    final List<DocumentSnapshot> postWithFavorites = [];
+
+    for (var doc in querySnapshot.docs) {
+      final postId = doc.id;
+
+      // 過去24時間に追加されたお気に入りの数を取得
+      final favoriteUsersSnapshot = await firestore
+          .collection('posts')
+          .doc(postId)
+          .collection('favorite_users')
+          .where('added_at',
+              isGreaterThanOrEqualTo:
+                  DateTime.now().subtract(Duration(hours: 24)))
+          .get();
+
+      final recentFavoriteCount = favoriteUsersSnapshot.size;
+
+      // お気に入り数を記録しておく
+      postWithFavorites.add(doc);
+
+      // ここでリストを追加する（後で使うため）
+      _postFavoriteCounts[postId] = recentFavoriteCount;
+    }
+
+    // お気に入りの数で降順に並べ替え
+    postWithFavorites.sort((a, b) {
+      final countA = _postFavoriteCounts[a.id] ?? 0;
+      final countB = _postFavoriteCounts[b.id] ?? 0;
+      return countB.compareTo(countA); // お気に入り数で降順
+    });
 
     setState(() {
-      _postSearchResults = filteredPosts;
+      _postSearchResults = postWithFavorites;
     });
   }
 

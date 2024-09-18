@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/utils/post_item_utils.dart';
 import 'package:cymva/view/reply_page.dart';
 import 'package:cymva/view/repost_item.dart';
 import 'package:cymva/view/repost_page.dart';
@@ -193,8 +194,37 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                     ),
                                   ],
                                 ),
-                                Text(DateFormat('yyyy/M/d')
-                                    .format(widget.post.createdTime!.toDate())),
+                                Column(
+                                  children: [
+                                    if (widget.post.category != null &&
+                                        widget.post.category!.isNotEmpty)
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 3),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                              color: Colors.grey,
+                                              width: 0.7,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            widget.post.category!,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.black,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    Text(DateFormat('yyyy/M/d').format(
+                                        widget.post.createdTime!.toDate())),
+                                  ],
+                                ),
                               ],
                             ),
                             const SizedBox(height: 5),
@@ -270,52 +300,87 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                     ],
                                   ),
                                 ]
-                                // 漫画以外の場合、複数のメディアをグリッドで表示
+                                // 漫画以外の場合、メディアの枚数に応じて表示を変更
                                 else if (widget.post.mediaUrl != null &&
                                     widget.post.mediaUrl!.isNotEmpty) ...[
                                   const SizedBox(height: 10),
-                                  GridView.builder(
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    shrinkWrap: true,
-                                    itemCount: widget.post.mediaUrl!.length,
-                                    gridDelegate:
-                                        const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 2,
-                                    ),
-                                    itemBuilder:
-                                        (BuildContext context, int index) {
-                                      final mediaUrl =
-                                          widget.post.mediaUrl![index];
-                                      return GestureDetector(
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            SlideDirectionPageRoute(
-                                              page: FullScreenImagePage(
-                                                imageUrls:
-                                                    widget.post.mediaUrl!,
-                                                initialIndex: index,
-                                              ),
-                                              isSwipeUp: true,
+
+                                  // メディアが1枚の場合
+                                  if (widget.post.mediaUrl!.length == 1) ...[
+                                    GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          SlideDirectionPageRoute(
+                                            page: FullScreenImagePage(
+                                              imageUrls: widget.post.mediaUrl!,
+                                              initialIndex: 0,
                                             ),
-                                          );
-                                        },
-                                        child: ClipRRect(
-                                          child: Image.network(
-                                            mediaUrl,
-                                            width: MediaQuery.of(context)
-                                                    .size
-                                                    .width *
-                                                0.4,
-                                            height: 150,
-                                            fit: BoxFit.cover,
+                                            isSwipeUp: true,
                                           ),
+                                        );
+                                      },
+                                      child: ClipRRect(
+                                        borderRadius:
+                                            BorderRadius.circular(8.0),
+                                        child: Image.network(
+                                          widget.post.mediaUrl![0],
+                                          width: MediaQuery.of(context)
+                                                  .size
+                                                  .width *
+                                              0.9, // 大きく表示
+                                          height: 250, // 大きめの高さ
+                                          fit: BoxFit.cover,
                                         ),
-                                      );
-                                    },
-                                  ),
-                                ],
+                                      ),
+                                    ),
+                                  ]
+
+                                  // メディアが2枚以上の場合はグリッドで表示
+                                  else ...[
+                                    GridView.builder(
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      shrinkWrap: true,
+                                      itemCount: widget.post.mediaUrl!.length,
+                                      gridDelegate:
+                                          const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                      ),
+                                      itemBuilder:
+                                          (BuildContext context, int index) {
+                                        final mediaUrl =
+                                            widget.post.mediaUrl![index];
+                                        return GestureDetector(
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              SlideDirectionPageRoute(
+                                                page: FullScreenImagePage(
+                                                  imageUrls:
+                                                      widget.post.mediaUrl!,
+                                                  initialIndex: index,
+                                                ),
+                                                isSwipeUp: true,
+                                              ),
+                                            );
+                                          },
+                                          child: ClipRRect(
+                                            child: Image.network(
+                                              mediaUrl,
+                                              width: MediaQuery.of(context)
+                                                      .size
+                                                      .width *
+                                                  0.4,
+                                              height: 150,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ]
+                                ]
                               ],
                             ),
                             if (_repostPost != null &&
@@ -448,36 +513,5 @@ class _PostItemWidgetState extends State<PostItemWidget> {
             ],
           ),
         ));
-  }
-
-  Widget buildVerticalText(String content) {
-    List<String> lines = content.split('\n');
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center, // 中央寄せ
-      crossAxisAlignment: CrossAxisAlignment.start, // 上寄せ
-      children: lines
-          .map((line) {
-            List<String> characters = line.split('');
-
-            // 各文字を縦に配置
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0), // 行の間隔を広げる
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: characters.map((char) {
-                  return Text(
-                    char,
-                    style: const TextStyle(fontSize: 15, height: 1.1),
-                  );
-                }).toList(),
-              ),
-            );
-          })
-          .toList()
-          .reversed
-          .toList(), // 右から左に表示するため逆順に
-    );
   }
 }

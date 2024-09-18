@@ -125,6 +125,7 @@ class _PostPageState extends State<PostPage> {
                   border: InputBorder.none, // 枠線を削除
                 ),
                 minLines: 5,
+
                 maxLines: null,
                 maxLength:
                     selectedCategory == '俳句・短歌' ? 40 : 200, // カテゴリーによる文字数制限

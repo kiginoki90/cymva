@@ -34,7 +34,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
     final String userId = FirebaseAuth.instance.currentUser!.uid;
 
     myAccount = await getAccount(userId);
-    setState(() {}); // 状態が変わったことを通知してUIを更新
+    setState(() {});
   }
 
   // Firestoreからアカウント情報を取得する関数

@@ -1,6 +1,7 @@
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/utils/firestore/users.dart';
+import 'package:cymva/utils/post_item_utils.dart';
 import 'package:cymva/view/divider_with_circle.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
@@ -365,85 +366,166 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     ],
                   ),
                   Spacer(),
-                  if (widget.post.category != null &&
-                      widget.post.category!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Colors.grey,
-                            width: 1.0,
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          widget.post.category!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (widget.post.postAccountId == currentUserId)
-                    PopupMenuButton<String>(
-                      icon: Icon(Icons.add),
-                      onSelected: (String value) {
-                        if (value == 'Option 1') _deletePost(context);
-                      },
-                      itemBuilder: (BuildContext context) {
-                        return [
-                          PopupMenuItem<String>(
-                            value: 'Option 1',
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (widget.post.category != null &&
+                          widget.post.category!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 7),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Colors.grey,
+                                width: 0.7,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                             child: Text(
-                              'ポストの削除',
-                              style: TextStyle(color: Colors.red),
+                              widget.post.category!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.black,
+                              ),
                             ),
                           ),
-                          PopupMenuItem<String>(
-                            value: 'Option 2',
-                            child: Text('Option 2'),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'Option 3',
-                            child: Text('Option 3'),
-                          ),
-                        ];
-                      },
-                    ),
+                        ),
+                      if (widget.post.postAccountId == currentUserId)
+                        PopupMenuButton<String>(
+                          icon: Icon(Icons.add),
+                          onSelected: (String value) {
+                            if (value == 'Option 1') _deletePost(context);
+                          },
+                          itemBuilder: (BuildContext context) {
+                            return [
+                              PopupMenuItem<String>(
+                                value: 'Option 1',
+                                child: Text(
+                                  'ポストの削除',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'Option 2',
+                                child: Text('Option 2'),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'Option 3',
+                                child: Text('Option 3'),
+                              ),
+                            ];
+                          },
+                        ),
+                    ],
+                  ),
                 ],
               ),
-              const SizedBox(height: 10),
               Text(
-                DateFormat('yyyy/M/d')
+                DateFormat('yyyy/M/d HH:mm:ss')
                     .format(widget.post.createdTime!.toDate()),
                 style: const TextStyle(color: Colors.grey),
               ),
               const SizedBox(height: 10),
 
               // コンテンツ（テキスト）
-              Text(
-                widget.post.content,
-                style: TextStyle(fontSize: 16),
-              ),
+              if (widget.post.category == '俳句・短歌')
+                buildVerticalText(widget.post.content)
+              else
+                Text(
+                  widget.post.content,
+                  style: const TextStyle(fontSize: 18),
+                ),
               const SizedBox(height: 10),
 
-              // メディアの表示
-              if (widget.post.mediaUrl != null &&
-                  widget.post.mediaUrl!.isNotEmpty)
-                if (widget.post.isVideo)
-                  AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: _videoController != null &&
-                            _videoController!.value.isInitialized
-                        ? VideoPlayer(_videoController!)
-                        : const CircularProgressIndicator(),
-                  )
-                else
-                  // 複数画像の表示
+              if (widget.post.category == '漫画' &&
+                  widget.post.mediaUrl != null &&
+                  widget.post.mediaUrl!.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Stack(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          SlideDirectionPageRoute(
+                            page: FullScreenImagePage(
+                              imageUrls: widget.post.mediaUrl!,
+                              initialIndex: 0,
+                            ),
+                            isSwipeUp: true,
+                          ),
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: Image.network(
+                          widget.post.mediaUrl![0],
+                          width: MediaQuery.of(context).size.width * 0.8,
+                          height: 200,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    // メディアが複数ある場合、残りの枚数を表示
+                    if (widget.post.mediaUrl!.length > 1)
+                      Positioned(
+                        bottom: 10,
+                        left: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0, vertical: 4.0),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '+${widget.post.mediaUrl!.length - 1}', // 残りの枚数
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ]
+              // 漫画以外の場合、メディアの枚数に応じて表示を変更
+              else if (widget.post.mediaUrl != null &&
+                  widget.post.mediaUrl!.isNotEmpty) ...[
+                const SizedBox(height: 10),
+
+                // メディアが1枚の場合
+                if (widget.post.mediaUrl!.length == 1) ...[
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        SlideDirectionPageRoute(
+                          page: FullScreenImagePage(
+                            imageUrls: widget.post.mediaUrl!,
+                            initialIndex: 0,
+                          ),
+                          isSwipeUp: true,
+                        ),
+                      );
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: Image.network(
+                        widget.post.mediaUrl![0],
+                        width: MediaQuery.of(context).size.width * 0.9, // 大きく表示
+                        height: 250, // 大きめの高さ
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                ]
+
+                // メディアが2枚以上の場合はグリッドで表示
+                else ...[
                   GridView.builder(
                     physics: const NeverScrollableScrollPhysics(),
                     shrinkWrap: true,
@@ -452,7 +534,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                     ),
-                    itemBuilder: (context, index) {
+                    itemBuilder: (BuildContext context, int index) {
                       final mediaUrl = widget.post.mediaUrl![index];
                       return GestureDetector(
                         onTap: () {
@@ -467,257 +549,264 @@ class _PostDetailPageState extends State<PostDetailPage> {
                             ),
                           );
                         },
-                        child: Container(
-                          constraints: const BoxConstraints(maxHeight: 400),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8.0),
                           child: Image.network(
                             mediaUrl,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
+                            width: MediaQuery.of(context).size.width *
+                                0.9, // 適切なサイズに調整
+                            height: MediaQuery.of(context).size.height * 0.5,
+                            fit: BoxFit.cover, // 画面のサイズに合わせて拡大
                           ),
                         ),
                       );
                     },
                   ),
-              if (_repostPost != null && _repostPostAccount != null)
+                ],
+
+                if (_repostPost != null && _repostPostAccount != null)
+                  GestureDetector(
+                    onTap: () {
+                      // タップされた RepostItem の詳細ページに遷移
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PostDetailPage(
+                            post: _repostPost!,
+                            postAccountName: _repostPostAccount!.name,
+                            postAccountUserId: _repostPostAccount!.userId,
+                            postAccountImagePath: _repostPostAccount!.imagePath,
+                            favoriteUsersNotifier: ValueNotifier<int>(0),
+                            isFavoriteNotifier: ValueNotifier<bool>(false),
+                            onFavoriteToggle: () {},
+                            isRetweetedNotifier: ValueNotifier<bool>(false),
+                            onRetweetToggle: () {},
+                            replyFlag: ValueNotifier<bool>(false),
+                          ),
+                        ),
+                      );
+                    },
+                    child: RepostItem(
+                      repostPost: _repostPost!,
+                      repostPostAccount: _repostPostAccount!,
+                    ),
+                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        ValueListenableBuilder<int>(
+                          valueListenable: widget.favoriteUsersNotifier,
+                          builder: (context, value, child) {
+                            return Text((value).toString());
+                          },
+                        ),
+                        const SizedBox(width: 5),
+                        ValueListenableBuilder<bool>(
+                          valueListenable: widget.isFavoriteNotifier,
+                          builder: (context, isFavorite, child) {
+                            return GestureDetector(
+                              onTap: () {
+                                widget.onFavoriteToggle();
+                                widget.isFavoriteNotifier.value =
+                                    !widget.isFavoriteNotifier.value;
+                              },
+                              child: Icon(
+                                isFavorite ? Icons.star : Icons.star_outline,
+                                color: isFavorite
+                                    ? Color.fromARGB(255, 255, 183, 59)
+                                    : Colors.grey,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        // リツイート数を表示
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('posts')
+                              .doc(widget.post.postId)
+                              .collection('repost')
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) {
+                              // データがない場合は0を表示
+                              return Text('0');
+                            }
+                            // repostサブコレクションのドキュメント数を表示
+                            final repostCount = snapshot.data!.docs.length;
+                            return Text(repostCount.toString());
+                          },
+                        ),
+                        ValueListenableBuilder<bool>(
+                          valueListenable: widget.isRetweetedNotifier,
+                          builder: (context, isRetweeted, child) {
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        RepostPage(post: widget.post),
+                                  ),
+                                );
+                              },
+                              child: Icon(
+                                isRetweeted
+                                    ? Icons.repeat
+                                    : Icons.repeat_outlined,
+                                color: isRetweeted ? Colors.blue : Colors.grey,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    ValueListenableBuilder<int>(
+                      valueListenable: _replyCountNotifier,
+                      builder: (context, replyCount, child) {
+                        return Row(
+                          children: [
+                            Text(replyCount.toString()),
+                            IconButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        ReplyPage(post: widget.post),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.comment),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    IconButton(
+                      onPressed: () {},
+                      icon: const Icon(Icons.share),
+                    ),
+                  ],
+                ),
                 GestureDetector(
                   onTap: () {
-                    // タップされた RepostItem の詳細ページに遷移
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => PostDetailPage(
-                          post: _repostPost!,
-                          postAccountName: _repostPostAccount!.name,
-                          postAccountUserId: _repostPostAccount!.userId,
-                          postAccountImagePath: _repostPostAccount!.imagePath,
-                          favoriteUsersNotifier: ValueNotifier<int>(0),
-                          isFavoriteNotifier: ValueNotifier<bool>(false),
-                          onFavoriteToggle: () {},
-                          isRetweetedNotifier: ValueNotifier<bool>(false),
-                          onRetweetToggle: () {},
-                          replyFlag: ValueNotifier<bool>(false),
-                        ),
+                        builder: (context) =>
+                            RepostListPage(postId: widget.post.postId),
                       ),
                     );
                   },
-                  child: RepostItem(
-                    repostPost: _repostPost!,
-                    repostPostAccount: _repostPostAccount!,
+                  child: const Padding(
+                    padding: EdgeInsets.only(top: 10),
+                    child: Text(
+                      '引用一覧 ▶️',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      ValueListenableBuilder<int>(
-                        valueListenable: widget.favoriteUsersNotifier,
-                        builder: (context, value, child) {
-                          return Text((value).toString());
-                        },
-                      ),
-                      const SizedBox(width: 5),
-                      ValueListenableBuilder<bool>(
-                        valueListenable: widget.isFavoriteNotifier,
-                        builder: (context, isFavorite, child) {
-                          return GestureDetector(
-                            onTap: () {
-                              widget.onFavoriteToggle();
-                              widget.isFavoriteNotifier.value =
-                                  !widget.isFavoriteNotifier.value;
-                            },
-                            child: Icon(
-                              isFavorite ? Icons.star : Icons.star_outline,
-                              color: isFavorite
-                                  ? Color.fromARGB(255, 255, 183, 59)
-                                  : Colors.grey,
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      // リツイート数を表示
-                      StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('posts')
-                            .doc(widget.post.postId)
-                            .collection('repost')
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData) {
-                            // データがない場合は0を表示
-                            return Text('0');
-                          }
-                          // repostサブコレクションのドキュメント数を表示
-                          final repostCount = snapshot.data!.docs.length;
-                          return Text(repostCount.toString());
-                        },
-                      ),
-                      ValueListenableBuilder<bool>(
-                        valueListenable: widget.isRetweetedNotifier,
-                        builder: (context, isRetweeted, child) {
-                          return GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      RepostPage(post: widget.post),
-                                ),
-                              );
-                            },
-                            child: Icon(
-                              isRetweeted
-                                  ? Icons.repeat
-                                  : Icons.repeat_outlined,
-                              color: isRetweeted ? Colors.blue : Colors.grey,
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  ValueListenableBuilder<int>(
-                    valueListenable: _replyCountNotifier,
-                    builder: (context, replyCount, child) {
-                      return Row(
+                const SizedBox(height: 10),
+                // FutureBuilderを使用して返信ポストを表示
+                FutureBuilder<List<Post>>(
+                  future: _replyPostsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Text('エラーが発生しました: ${snapshot.error}');
+                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return Text('返信ポストはありません。');
+                    } else {
+                      List<Post> replyPosts = snapshot.data!;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(replyCount.toString()),
-                          IconButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      ReplyPage(post: widget.post),
+                          if (replyPosts.isNotEmpty) ...[
+                            Divider(thickness: 1.0),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Text(
+                                '返信',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
                                 ),
-                              );
-                            },
-                            icon: const Icon(Icons.comment),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.share),
-                  ),
-                ],
-              ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          RepostListPage(postId: widget.post.postId),
-                    ),
-                  );
-                },
-                child: const Padding(
-                  padding: EdgeInsets.only(top: 10),
-                  child: Text(
-                    '引用一覧 ▶️',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // FutureBuilderを使用して返信ポストを表示
-              FutureBuilder<List<Post>>(
-                future: _replyPostsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Text('エラーが発生しました: ${snapshot.error}');
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return Text('返信ポストはありません。');
-                  } else {
-                    List<Post> replyPosts = snapshot.data!;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (replyPosts.isNotEmpty) ...[
-                          Divider(thickness: 1.0),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: Text(
-                              '返信',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
                               ),
                             ),
-                          ),
-                          Divider(thickness: 1.0),
-                        ],
-                        ...replyPosts.map((replyPost) {
-                          return FutureBuilder<Account?>(
-                            future:
-                                UserFirestore.getUser(replyPost.postAccountId),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return CircularProgressIndicator();
-                              } else if (snapshot.hasError ||
-                                  !snapshot.hasData) {
-                                return Text('エラーが発生しました。');
-                              } else {
-                                Account? postAccount = snapshot.data;
-                                // リツイートの状態を管理するためのValueNotifierを初期化
-                                ValueNotifier<bool> isRetweetedNotifier =
-                                    ValueNotifier<bool>(
-                                  false, // Firestoreからリツイートの状態を取得し初期化する
-                                );
-                                return PostItemWidget(
-                                  post: replyPost,
-                                  postAccount: postAccount!,
-                                  favoriteUsersNotifier:
-                                      _favoritePost.favoriteUsersNotifiers[
-                                              replyPost.postId] ??
-                                          ValueNotifier<int>(0),
-                                  isFavoriteNotifier: ValueNotifier<bool>(
-                                    _favoritePost.favoritePostsNotifier.value
-                                        .contains(replyPost.postId),
-                                  ),
-                                  onFavoriteToggle: () {
-                                    _favoritePost.toggleFavorite(
-                                      replyPost.id,
+                            Divider(thickness: 1.0),
+                          ],
+                          ...replyPosts.map((replyPost) {
+                            return FutureBuilder<Account?>(
+                              future: UserFirestore.getUser(
+                                  replyPost.postAccountId),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return CircularProgressIndicator();
+                                } else if (snapshot.hasError ||
+                                    !snapshot.hasData) {
+                                  return Text('エラーが発生しました。');
+                                } else {
+                                  Account? postAccount = snapshot.data;
+                                  // リツイートの状態を管理するためのValueNotifierを初期化
+                                  ValueNotifier<bool> isRetweetedNotifier =
+                                      ValueNotifier<bool>(
+                                    false, // Firestoreからリツイートの状態を取得し初期化する
+                                  );
+                                  return PostItemWidget(
+                                    post: replyPost,
+                                    postAccount: postAccount!,
+                                    favoriteUsersNotifier:
+                                        _favoritePost.favoriteUsersNotifiers[
+                                                replyPost.postId] ??
+                                            ValueNotifier<int>(0),
+                                    isFavoriteNotifier: ValueNotifier<bool>(
                                       _favoritePost.favoritePostsNotifier.value
                                           .contains(replyPost.postId),
-                                    );
-                                    _favoritePost.favoriteUsersNotifiers[
-                                            replyPost.postId] ??=
-                                        ValueNotifier<int>(0);
-                                    _favoritePost.updateFavoriteUsersCount(
-                                        replyPost.postId);
-                                  },
-                                  isRetweetedNotifier: isRetweetedNotifier,
-                                  onRetweetToggle: () {
-                                    bool currentState =
-                                        isRetweetedNotifier.value;
-                                    isRetweetedNotifier.value = !currentState;
-                                    // Firestoreでリツイートの情報を更新する処理
-                                  },
-                                  replyFlag: ValueNotifier<bool>(false),
-                                );
-                              }
-                            },
-                          );
-                        }).toList(),
-                      ],
-                    );
-                  }
-                },
-              ),
+                                    ),
+                                    onFavoriteToggle: () {
+                                      _favoritePost.toggleFavorite(
+                                        replyPost.id,
+                                        _favoritePost
+                                            .favoritePostsNotifier.value
+                                            .contains(replyPost.postId),
+                                      );
+                                      _favoritePost.favoriteUsersNotifiers[
+                                              replyPost.postId] ??=
+                                          ValueNotifier<int>(0);
+                                      _favoritePost.updateFavoriteUsersCount(
+                                          replyPost.postId);
+                                    },
+                                    isRetweetedNotifier: isRetweetedNotifier,
+                                    onRetweetToggle: () {
+                                      bool currentState =
+                                          isRetweetedNotifier.value;
+                                      isRetweetedNotifier.value = !currentState;
+                                      // Firestoreでリツイートの情報を更新する処理
+                                    },
+                                    replyFlag: ValueNotifier<bool>(false),
+                                  );
+                                }
+                              },
+                            );
+                          }).toList(),
+                        ],
+                      );
+                    }
+                  },
+                ),
+              ],
             ],
           ),
         ),
