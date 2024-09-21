@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/view/account/edit_page/account_options_page.dart';
-import 'package:cymva/view/account/post_list.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
-import 'package:cymva/view/account/edit_page/edit_account_page.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/view/account/follow_page.dart';
 import 'package:cymva/view/account/follower_page.dart';

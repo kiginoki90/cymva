@@ -24,6 +24,23 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
   File? image;
 
   String? errorMessage; // エラーメッセージを保持するための変数
+  int selfIntroCharCount = 0; // 自己紹介の現在の文字数
+
+  @override
+  void initState() {
+    super.initState();
+    selfIntroductionController.addListener(() {
+      setState(() {
+        selfIntroCharCount = selfIntroductionController.text.length;
+      });
+    });
+  }
+
+  // user_idの重複確認
+  Future<bool> isUserIdUnique(String userId) async {
+    var result = await UserFirestore.getUserByUserId(userId);
+    return result == null; // 結果がnullならそのuser_idはユニーク
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,17 +62,28 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                     });
                   }
                 },
-                child: CircleAvatar(
-                  foregroundImage: image == null ? null : FileImage(image!),
-                  radius: 40,
-                  child: Icon(Icons.add),
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    image: image == null
+                        ? null
+                        : DecorationImage(
+                            image: FileImage(image!),
+                            fit: BoxFit.cover,
+                          ),
+                    color: Colors.grey[300],
+                  ),
+                  child: image == null ? Icon(Icons.add) : null,
                 ),
               ),
               Container(
                 width: 300,
                 child: TextField(
                   controller: nameController,
-                  decoration: const InputDecoration(hintText: 'name'),
+                  decoration: const InputDecoration(hintText: '名前'),
+                  maxLength: 30,
                 ),
               ),
               Padding(
@@ -64,24 +92,19 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                   width: 300,
                   child: TextField(
                     controller: userIdController,
-                    decoration: InputDecoration(hintText: 'userId'),
+                    decoration: InputDecoration(hintText: 'ユーザーID'),
+                    maxLength: 30,
                   ),
                 ),
               ),
-              Container(
-                width: 300,
-                child: TextField(
-                  controller: selfIntroductionController,
-                  decoration: InputDecoration(hintText: 'selfIntroduction'),
-                ),
-              ),
+              _buildSelfIntroductionField(),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 20.0),
                 child: Container(
                   width: 300,
                   child: TextField(
                     controller: emailController,
-                    decoration: InputDecoration(hintText: 'email'),
+                    decoration: InputDecoration(hintText: 'メールアドレス'),
                   ),
                 ),
               ),
@@ -89,7 +112,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                 width: 300,
                 child: TextField(
                   controller: passController,
-                  decoration: InputDecoration(hintText: 'pass'),
+                  decoration: InputDecoration(hintText: 'パスワード'),
                 ),
               ),
               if (errorMessage != null) ...[
@@ -101,12 +124,14 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
               ],
               SizedBox(height: 30),
               ElevatedButton(
-                  onPressed: () async {
-                    if (nameController.text.isNotEmpty &&
-                        userIdController.text.isNotEmpty &&
-                        selfIntroductionController.text.isNotEmpty &&
-                        emailController.text.isNotEmpty &&
-                        passController.text.isNotEmpty) {
+                onPressed: () async {
+                  if (nameController.text.isNotEmpty &&
+                      userIdController.text.isNotEmpty &&
+                      selfIntroductionController.text.isNotEmpty &&
+                      emailController.text.isNotEmpty &&
+                      passController.text.isNotEmpty) {
+                    bool isUnique = await isUserIdUnique(userIdController.text);
+                    if (isUnique) {
                       try {
                         var result = await Authentication.signUp(
                             email: emailController.text,
@@ -125,11 +150,13 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                           if (_result == true) {
                             result.user!.sendEmailVerification();
                             Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => CheckEmailPage(
-                                        email: emailController.text,
-                                        pass: passController.text)));
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CheckEmailPage(
+                                    email: emailController.text,
+                                    pass: passController.text),
+                              ),
+                            );
                           }
                         }
                       } catch (e) {
@@ -139,15 +166,49 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       }
                     } else {
                       setState(() {
-                        errorMessage = '全ての項目を入力してください';
+                        errorMessage = 'そのユーザーIDは既に使われています';
                       });
                     }
-                  },
-                  child: Text('アカウントを作成'))
+                  } else {
+                    setState(() {
+                      errorMessage = '全ての項目を入力してください';
+                    });
+                  }
+                },
+                child: Text('アカウントを作成'),
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  // 自己紹介フィールド
+  Widget _buildSelfIntroductionField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 300,
+          child: TextField(
+            controller: selfIntroductionController,
+            maxLines: null, // 自動改行を有効にするためにmaxLinesをnullに
+            decoration: InputDecoration(
+              hintText: '自己紹介',
+              counterText: '', // デフォルトの文字カウンタを非表示に
+            ),
+            maxLength: 300, // 文字数制限300文字
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(right: 20.0),
+          child: Text(
+            '$selfIntroCharCount/300', // 現在の文字数と最大文字数を表示
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      ],
     );
   }
 }

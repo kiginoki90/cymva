@@ -1,3 +1,4 @@
+import 'package:cymva/view/account/edit_page/add_account_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
@@ -79,7 +80,12 @@ class AccountOptionsPage extends StatelessWidget {
               icon: Icons.person_add,
               label: 'アカウント追加',
               onTap: () {
-                // Navigate to Add Account
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddAccountPage(),
+                  ),
+                );
               },
             ),
             const Divider(),

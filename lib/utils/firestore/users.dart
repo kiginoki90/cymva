@@ -2,15 +2,46 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/posts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UserFirestore {
   static final _firestoreInstance = FirebaseFirestore.instance;
   static final CollectionReference users =
       _firestoreInstance.collection('users');
+  static final _userCollection = FirebaseFirestore.instance.collection('users');
+
+  // static final FirebaseFirestore _firestoreInstance =
+  //     FirebaseFirestore.instance;
+
+  // UID でアカウントを取得する
+  static Future<Account?> getAccountByUID(String uid) async {
+    var doc = await users.doc(uid).get();
+    if (doc.exists) {
+      return Account.fromDocument(doc);
+    }
+    return null;
+  }
+
+  // 現在のユーザーのメールアドレスから対応する UID を取得し、それに基づいてアカウントを取得する
+  static Future<Account?> getAccountByCurrentUserEmail() async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      // UIDを使ってFirestoreからアカウントを取得
+      return await getAccountByUID(currentUser.uid);
+    } else {
+      return null;
+    }
+  }
+
+  // 新しいユーザーをFirestoreに作成
+  static Future<void> createUser(Account account) async {
+    await _userCollection.doc(account.id).set(account.toMap());
+  }
 
   static Future<dynamic> setUser(Account newAccount) async {
     try {
       await users.doc(newAccount.id).set({
+        'parents_id': newAccount.id,
         'name': newAccount.name,
         'user_id': newAccount.userId,
         'self_introduction': newAccount.selfIntroduction,
@@ -58,6 +89,7 @@ class UserFirestore {
             documentSnapshot.data() as Map<String, dynamic>;
         Account myAccount = Account(
           id: uid,
+          parents_id: data['parents_id'] ?? '',
           name: data['name'] ?? '', // デフォルト値を空の文字列に設定
           userId: data['user_id'] ?? '',
           selfIntroduction: data['self_introduction'] ?? '',
@@ -86,7 +118,9 @@ class UserFirestore {
         'image_path': updateAccount.imagePath,
         'user_id': updateAccount.userId,
         'self_introduction': updateAccount.selfIntroduction,
-        'updated_time': Timestamp.now()
+        'updated_time': Timestamp.now(),
+        'admin': 3,
+        'key_account': false,
       });
       print('ユーザー情報の更新完了');
       return true;
@@ -125,5 +159,62 @@ class UserFirestore {
   static Future<dynamic> deleteUser(String accountId) async {
     users.doc(accountId).delete();
     PostFirestore.deletePosts(accountId);
+  }
+
+  // parents_idに基づいてアカウントの件数を取得するメソッド
+  static Future<int> getAccountCountByParentsId(String parentsId) async {
+    try {
+      // Firestoreの 'users' コレクションから、parents_idが一致するアカウントを取得
+      QuerySnapshot querySnapshot =
+          await users.where('parents_id', isEqualTo: parentsId).get();
+
+      // 一致したドキュメントの数を返す
+      return querySnapshot.docs.length;
+    } catch (e) {
+      print('Error getting account count by parents_id: $e');
+      return 0; // エラーが発生した場合は0を返す
+    }
+  }
+
+  // 追加アカウントをFirestoreに保存するメソッド
+  static Future<bool> addAdditionalAccount(Account account) async {
+    try {
+      await users.doc(account.id).set({
+        'name': account.name,
+        'user_id': account.userId,
+        'selfIntroduction': account.selfIntroduction,
+        'image_path': account.imagePath,
+        'updated_time': Timestamp.now(),
+        'admin': 3,
+        'key_account': false,
+      });
+      return true;
+    } catch (e) {
+      print('Error adding additional account: $e');
+      return false;
+    }
+  }
+
+  static Future<Account?> getUserByUserId(String userId) async {
+    var snapshot =
+        await _userCollection.where('user_id', isEqualTo: userId).get();
+    if (snapshot.docs.isNotEmpty) {
+      return Account.fromDocument(snapshot.docs.first);
+    } else {
+      return null;
+    }
+  }
+
+  // 自動IDを利用して新しいアカウントをFirestoreに追加
+  static Future<bool> addAdditionalAccountWithAutoId(Account account) async {
+    try {
+      // Firestoreが自動的に生成するIDを使用
+      var docRef = await _userCollection.add(account.toMap());
+      account.id = docRef.id; // 生成されたIDをaccountオブジェクトに反映
+      return true;
+    } catch (e) {
+      print('アカウントの追加に失敗しました: $e');
+      return false;
+    }
   }
 }

@@ -2,7 +2,6 @@ import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/utils/post_item_utils.dart';
-import 'package:cymva/view/divider_with_circle.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:cymva/view/reply_page.dart';
