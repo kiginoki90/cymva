@@ -1,3 +1,4 @@
+import 'package:cymva/view/time_line/timeline_body.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -34,10 +35,13 @@ class _CheckEmailPageState extends State<CheckEmailPage> {
                         Navigator.pop(context);
                       }
                       await UserFirestore.getUser(result.user!.uid);
-                      Navigator.pushReplacement(context,
-                          MaterialPageRoute(builder: (context) => Screen()));
+                      Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  TimeLineBody(userId: result.user!.uid)));
                     } else {
-                      print('メール認証終わっていません');
+                      print('メール認証は終わっていません');
                     }
                   }
                 },

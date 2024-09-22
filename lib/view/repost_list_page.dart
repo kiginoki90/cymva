@@ -8,8 +8,13 @@ import 'package:intl/intl.dart';
 
 class RepostListPage extends StatelessWidget {
   final String postId;
+  final String userId;
 
-  const RepostListPage({Key? key, required this.postId}) : super(key: key);
+  const RepostListPage({
+    Key? key,
+    required this.postId,
+    required this.userId,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +116,7 @@ class RepostListPage extends StatelessWidget {
                                         ValueNotifier<bool>(false),
                                     onRetweetToggle: () {},
                                     replyFlag: ValueNotifier<bool>(false),
+                                    userId: userId,
                                   ),
                                 ),
                               );

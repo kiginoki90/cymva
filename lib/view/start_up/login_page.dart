@@ -125,7 +125,8 @@ class _LoginPageState extends State<LoginPage> {
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => TimeLineBody(),
+                              builder: (context) =>
+                                  TimeLineBody(userId: result.user!.uid),
                             ),
                           );
                         } else {

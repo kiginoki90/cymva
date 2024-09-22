@@ -7,10 +7,12 @@ import 'package:cymva/view/account/account_page.dart';
 
 class NavigationBarPage extends StatefulWidget {
   final int selectedIndex;
+  final String userId; // ここでuserIdを追加
 
   const NavigationBarPage({
     super.key,
     required this.selectedIndex,
+    required this.userId, // コンストラクタにも追加
   });
 
   @override
@@ -18,8 +20,6 @@ class NavigationBarPage extends StatefulWidget {
 }
 
 class _NavigationBarPageState extends State<NavigationBarPage> {
-  final String userId = FirebaseAuth.instance.currentUser!.uid;
-
   late List<Widget> pageList;
 
   @override
@@ -27,10 +27,10 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
     super.initState();
     // 必要なデータを用意して初期化
     pageList = [
-      TimeLineBody(),
-      AccountPage(userId: userId),
-      SearchPage(),
-      PostPage()
+      TimeLineBody(userId: widget.userId),
+      AccountPage(userId: widget.userId),
+      SearchPage(userId: widget.userId),
+      PostPage(userId: widget.userId)
     ];
   }
 

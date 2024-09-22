@@ -9,7 +9,8 @@ import 'package:cymva/utils/favorite_post.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TimeLineBody extends StatefulWidget {
-  const TimeLineBody({super.key});
+  final String userId;
+  const TimeLineBody({super.key, required this.userId});
 
   @override
   State<TimeLineBody> createState() => _TimeLineBodyState();
@@ -31,9 +32,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
 
   // Firestoreからアカウント情報を取得する関数
   Future<void> _loadAccount() async {
-    final String userId = FirebaseAuth.instance.currentUser!.uid;
-
-    myAccount = await getAccount(userId);
+    myAccount = await getAccount(widget.userId);
     setState(() {});
   }
 
@@ -80,7 +79,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
               child: PageView(
                 controller: _pageController,
                 children: [
-                  TimeLinePage(),
+                  TimeLinePage(userId: widget.userId),
                   FollowPage(myAccount: myAccount!),
                 ],
               ),
@@ -88,7 +87,8 @@ class _TimeLineBodyState extends State<TimeLineBody> {
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBarPage(selectedIndex: 0),
+      bottomNavigationBar:
+          NavigationBarPage(selectedIndex: 0, userId: widget.userId),
     );
   }
 }

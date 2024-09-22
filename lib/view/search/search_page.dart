@@ -8,7 +8,8 @@ import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:cymva/utils/favorite_post.dart';
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({super.key});
+  final String userId;
+  const SearchPage({super.key, required this.userId});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -24,7 +25,7 @@ class _SearchPageState extends State<SearchPage> {
   List<String> _recentFavoritePosts = [];
   String _lastQuery = '';
   String? _selectedCategory;
-  final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真'];
+  final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真', '俳句・短歌'];
   final Map<String, int> _postFavoriteCounts = {};
 
   @override
@@ -107,7 +108,8 @@ class _SearchPageState extends State<SearchPage> {
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBarPage(selectedIndex: 2),
+      bottomNavigationBar:
+          NavigationBarPage(selectedIndex: 2, userId: widget.userId),
     );
   }
 
@@ -153,6 +155,7 @@ class _SearchPageState extends State<SearchPage> {
                 // リツイートの状態をFirestoreに保存するロジックを追加
               },
               replyFlag: ValueNotifier<bool>(false),
+              userId: widget.userId,
             );
           },
         );
@@ -279,6 +282,7 @@ class _SearchPageState extends State<SearchPage> {
                 // リツイートの状態をFirestoreに保存するロジックを追加
               },
               replyFlag: ValueNotifier<bool>(false),
+              userId: widget.userId,
             );
           },
         );

@@ -90,6 +90,7 @@ class FollowPage extends StatelessWidget {
                           // Firestoreでリツイートの情報を更新する処理
                         },
                         replyFlag: ValueNotifier<bool>(false),
+                        userId: myAccount.id,
                       );
                     },
                   );

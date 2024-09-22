@@ -1,61 +1,63 @@
-import 'package:flutter/material.dart';
-import 'package:cymva/view/account/account_page.dart';
-import 'package:cymva/view/post_page/post_page.dart';
-import 'package:cymva/view/time_line/time_line_page.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:flutter/material.dart';
+// import 'package:cymva/view/account/account_page.dart';
+// import 'package:cymva/view/post_page/post_page.dart';
+// import 'package:cymva/view/time_line/time_line_page.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
 
-class Screen extends StatefulWidget {
-  const Screen({super.key});
+// class Screen extends StatefulWidget {
+//   const Screen({super.key});
 
-  @override
-  State<Screen> createState() => _ScreenState();
-}
+//   @override
+//   State<Screen> createState() => _ScreenState();
+// }
 
-class _ScreenState extends State<Screen> {
-  int selectedIndex = 0;
-  final String userId = FirebaseAuth.instance.currentUser!.uid;
+// class _ScreenState extends State<Screen> {
+//   int selectedIndex = 0;
+//   final String userId = FirebaseAuth.instance.currentUser!.uid;
 
-  late final List<Widget> pageList;
+//   late final List<Widget> pageList;
 
-  @override
-  void initState() {
-    super.initState();
-    pageList = [
-      const TimeLinePage(),
-      AccountPage(userId: userId),
-    ];
-  }
+//   @override
+//   void initState() {
+//     super.initState();
+//     pageList = [
+//       const TimeLinePage(),
+//       AccountPage(userId: userId),
+//     ];
+//   }
 
-  void _navigateToAccountPage(String userId) {
-    setState(() {
-      selectedIndex = 1; // アカウントページのインデックス
-    });
-  }
+//   void _navigateToAccountPage(String userId) {
+//     setState(() {
+//       selectedIndex = 1; // アカウントページのインデックス
+//     });
+//   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: pageList[selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: ''),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.perm_identity_outlined), label: '')
-        ],
-        currentIndex: selectedIndex,
-        onTap: (index) {
-          setState(() {
-            selectedIndex = index;
-          });
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(context,
-              MaterialPageRoute(builder: (context) => const PostPage()));
-        },
-        child: const Icon(Icons.chat_bubble_outline),
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       body: pageList[selectedIndex],
+//       bottomNavigationBar: BottomNavigationBar(
+//         items: const [
+//           BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: ''),
+//           BottomNavigationBarItem(
+//               icon: Icon(Icons.perm_identity_outlined), label: '')
+//         ],
+//         currentIndex: selectedIndex,
+//         onTap: (index) {
+//           setState(() {
+//             selectedIndex = index;
+//           });
+//         },
+//       ),
+//       floatingActionButton: FloatingActionButton(
+//         onPressed: () {
+//           Navigator.push(
+//               context,
+//               MaterialPageRoute(
+//                   builder: (context) => const PostPage(userId: userId)));
+//         },
+//         child: const Icon(Icons.chat_bubble_outline),
+//       ),
+//     );
+//   }
+// }

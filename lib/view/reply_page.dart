@@ -8,9 +8,11 @@ import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ReplyPage extends StatefulWidget {
+  final String userId;
   final Post post;
 
-  const ReplyPage({Key? key, required this.post}) : super(key: key);
+  const ReplyPage({Key? key, required this.userId, required this.post})
+      : super(key: key);
 
   @override
   State<ReplyPage> createState() => _ReplyPageState();
@@ -61,12 +63,11 @@ class _ReplyPageState extends State<ReplyPage> {
 
       // メディアが選択されている場合、Firebase Storageにアップロードする
       if (_mediaFiles.isNotEmpty) {
-        final String userId = FirebaseAuth.instance.currentUser!.uid;
         mediaUrls = [];
 
         for (var file in _mediaFiles) {
           String? uploadedMediaUrl =
-              await FunctionUtils.uploadImage(userId, file, context);
+              await FunctionUtils.uploadImage(widget.userId, file, context);
 
           if (uploadedMediaUrl != null) {
             mediaUrls.add(uploadedMediaUrl);
@@ -77,7 +78,7 @@ class _ReplyPageState extends State<ReplyPage> {
       // Firestoreに返信情報を追加する処理を実装
       Post replyPost = Post(
         content: _replyController.text,
-        postAccountId: FirebaseAuth.instance.currentUser!.uid,
+        postAccountId: widget.userId,
         mediaUrl: mediaUrls,
         reply: widget.post.id,
       );

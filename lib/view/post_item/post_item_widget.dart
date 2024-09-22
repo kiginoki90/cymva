@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/utils/post_item_utils.dart';
+import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:cymva/view/reply_page.dart';
 import 'package:cymva/view/repost_item.dart';
 import 'package:cymva/view/repost_page.dart';
@@ -21,6 +22,7 @@ class PostItemWidget extends StatefulWidget {
   final VoidCallback onFavoriteToggle;
   final VoidCallback onRetweetToggle;
   final ValueNotifier<bool> replyFlag;
+  final String userId;
 
   const PostItemWidget({
     required this.post,
@@ -31,6 +33,7 @@ class PostItemWidget extends StatefulWidget {
     required this.isRetweetedNotifier,
     required this.onRetweetToggle,
     required this.replyFlag,
+    required this.userId,
     Key? key,
   }) : super(key: key);
 
@@ -122,6 +125,7 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                 isRetweetedNotifier: widget.isRetweetedNotifier,
                 onRetweetToggle: widget.onRetweetToggle,
                 replyFlag: widget.replyFlag,
+                userId: widget.userId,
               ),
             ),
           );
@@ -229,158 +233,25 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                             ),
                             const SizedBox(height: 5),
                             Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (widget.post.category == '俳句・短歌')
+                                    buildVerticalText(widget.post.content)
+                                  else
+                                    Text(
+                                      widget.post.content,
+                                      style: const TextStyle(fontSize: 18),
+                                    ),
+                                ]),
+                            //メディアの表示
+                            Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (widget.post.category == '俳句・短歌')
-                                  buildVerticalText(widget.post.content)
-                                else
-                                  Text(
-                                    widget.post.content,
-                                    style: const TextStyle(fontSize: 18),
-                                  ),
-
-                                // カテゴリーが "漫画" の場合、最初のメディアだけ表示し、残りの枚数を表示
-                                if (widget.post.category == '漫画' &&
-                                    widget.post.mediaUrl != null &&
-                                    widget.post.mediaUrl!.isNotEmpty) ...[
-                                  const SizedBox(height: 10),
-                                  Stack(
-                                    children: [
-                                      GestureDetector(
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            SlideDirectionPageRoute(
-                                              page: FullScreenImagePage(
-                                                imageUrls:
-                                                    widget.post.mediaUrl!,
-                                                initialIndex: 0,
-                                              ),
-                                              isSwipeUp: true,
-                                            ),
-                                          );
-                                        },
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(8.0),
-                                          child: Image.network(
-                                            widget.post.mediaUrl![0],
-                                            width: MediaQuery.of(context)
-                                                    .size
-                                                    .width *
-                                                0.8,
-                                            height: 200,
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                      ),
-                                      // メディアが複数ある場合、残りの枚数を表示
-                                      if (widget.post.mediaUrl!.length > 1)
-                                        Positioned(
-                                          bottom: 10,
-                                          left: 10,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8.0, vertical: 4.0),
-                                            decoration: BoxDecoration(
-                                              color:
-                                                  Colors.black.withOpacity(0.6),
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
-                                            child: Text(
-                                              '+${widget.post.mediaUrl!.length - 1}', // 残りの枚数
-                                              style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ]
-                                // 漫画以外の場合、メディアの枚数に応じて表示を変更
-                                else if (widget.post.mediaUrl != null &&
-                                    widget.post.mediaUrl!.isNotEmpty) ...[
-                                  const SizedBox(height: 10),
-
-                                  // メディアが1枚の場合
-                                  if (widget.post.mediaUrl!.length == 1) ...[
-                                    GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          SlideDirectionPageRoute(
-                                            page: FullScreenImagePage(
-                                              imageUrls: widget.post.mediaUrl!,
-                                              initialIndex: 0,
-                                            ),
-                                            isSwipeUp: true,
-                                          ),
-                                        );
-                                      },
-                                      child: ClipRRect(
-                                        borderRadius:
-                                            BorderRadius.circular(8.0),
-                                        child: Image.network(
-                                          widget.post.mediaUrl![0],
-                                          width: MediaQuery.of(context)
-                                                  .size
-                                                  .width *
-                                              0.9, // 大きく表示
-                                          height: 250, // 大きめの高さ
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                    ),
-                                  ]
-
-                                  // メディアが2枚以上の場合はグリッドで表示
-                                  else ...[
-                                    GridView.builder(
-                                      physics:
-                                          const NeverScrollableScrollPhysics(),
-                                      shrinkWrap: true,
-                                      itemCount: widget.post.mediaUrl!.length,
-                                      gridDelegate:
-                                          const SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2,
-                                      ),
-                                      itemBuilder:
-                                          (BuildContext context, int index) {
-                                        final mediaUrl =
-                                            widget.post.mediaUrl![index];
-                                        return GestureDetector(
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              SlideDirectionPageRoute(
-                                                page: FullScreenImagePage(
-                                                  imageUrls:
-                                                      widget.post.mediaUrl!,
-                                                  initialIndex: index,
-                                                ),
-                                                isSwipeUp: true,
-                                              ),
-                                            );
-                                          },
-                                          child: ClipRRect(
-                                            child: Image.network(
-                                              mediaUrl,
-                                              width: MediaQuery.of(context)
-                                                      .size
-                                                      .width *
-                                                  0.4,
-                                              height: 150,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ]
-                                ]
+                                const SizedBox(height: 10),
+                                MediaDisplayWidget(
+                                  mediaUrl: widget.post.mediaUrl,
+                                  category: widget.post.category ?? '',
+                                ),
                               ],
                             ),
                             if (_repostPost != null &&
@@ -487,7 +358,9 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                               context,
                                               MaterialPageRoute(
                                                 builder: (context) => ReplyPage(
-                                                    post: widget.post),
+                                                  post: widget.post,
+                                                  userId: widget.userId,
+                                                ),
                                               ),
                                             );
                                           },

@@ -6,9 +6,14 @@ import 'package:cymva/model/post.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cymva/utils/firestore/users.dart';
+import 'package:flutter/widgets.dart';
 
 class TimeLinePage extends StatefulWidget {
-  const TimeLinePage({super.key});
+  final String userId;
+  const TimeLinePage({
+    super.key,
+    required this.userId,
+  });
 
   @override
   State<TimeLinePage> createState() => _TimeLineState();
@@ -99,6 +104,7 @@ class _TimeLineState extends State<TimeLinePage> {
                                   // Firestoreでリツイートの情報を更新する処理
                                 },
                                 replyFlag: ValueNotifier<bool>(false),
+                                userId: widget.userId,
                               );
                             },
                           );

@@ -15,7 +15,7 @@ void main() async {
 
   Widget initialScreen;
   if (user != null && user.emailVerified) {
-    initialScreen = const TimeLineBody(); // ログイン済みかつメール認証済みならタイムラインへ
+    initialScreen = TimeLineBody(userId: user.uid); // ログイン済みかつメール認証済みならタイムラインへ
   } else {
     initialScreen = const LoginPage(); // それ以外ならログインページへ
   }

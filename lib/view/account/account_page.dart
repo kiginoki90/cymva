@@ -19,12 +19,12 @@ class AccountPage extends StatefulWidget {
 
 class _AccountPageState extends State<AccountPage> {
   Account? myAccount;
-  late PageController _pageController; // PageControllerの追加
+  late PageController _pageController;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(); // PageControllerの初期化
+    _pageController = PageController();
     _getAccount();
   }
 
@@ -37,7 +37,8 @@ class _AccountPageState extends State<AccountPage> {
       );
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => TimeLinePage()),
+        MaterialPageRoute(
+            builder: (context) => TimeLinePage(userId: widget.userId)),
       );
     } else {
       setState(() {
@@ -48,7 +49,7 @@ class _AccountPageState extends State<AccountPage> {
 
   @override
   void dispose() {
-    _pageController.dispose(); // PageControllerの破棄
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -81,7 +82,10 @@ class _AccountPageState extends State<AccountPage> {
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
+      bottomNavigationBar: NavigationBarPage(
+        selectedIndex: 1,
+        userId: myAccount!.id,
+      ),
     );
   }
 }

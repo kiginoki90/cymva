@@ -59,7 +59,6 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
             SafeArea(
               child: Column(
                 children: [
-                  // ステータスバーを避けるためのエリアに配置
                   Row(
                     children: [
                       IconButton(

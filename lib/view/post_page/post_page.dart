@@ -10,7 +10,8 @@ import 'package:cymva/utils/function_utils.dart';
 import 'package:video_player/video_player.dart';
 
 class PostPage extends StatefulWidget {
-  const PostPage({super.key});
+  final String userId;
+  const PostPage({super.key, required this.userId});
 
   @override
   State<PostPage> createState() => _PostPageState();
@@ -179,15 +180,13 @@ class _PostPageState extends State<PostPage> {
                           images.isNotEmpty) {
                         // 複数の画像をアップロードする処理
                         List<String> mediaUrls = [];
-                        final String userId =
-                            FirebaseAuth.instance.currentUser!.uid;
 
                         for (var xFile in images) {
                           File file = File(xFile.path);
 
                           // 画像をそれぞれアップロード
                           String? mediaUrl = await FunctionUtils.uploadImage(
-                              userId, file, context);
+                              widget.userId, file, context);
 
                           // mediaUrlがnullでない場合のみリストに追加
                           if (mediaUrl != null) {
@@ -197,7 +196,7 @@ class _PostPageState extends State<PostPage> {
 
                         Post newPost = Post(
                           content: contentController.text,
-                          postAccountId: FirebaseAuth.instance.currentUser!.uid,
+                          postAccountId: widget.userId,
                           mediaUrl: mediaUrls,
                           isVideo: false,
                           category: selectedCategory,
@@ -211,9 +210,8 @@ class _PostPageState extends State<PostPage> {
                           );
                           Navigator.of(context).pushReplacement(
                             MaterialPageRoute(
-                              builder: (context) => AccountPage(
-                                  userId:
-                                      FirebaseAuth.instance.currentUser!.uid),
+                              builder: (context) =>
+                                  AccountPage(userId: widget.userId),
                             ),
                           );
                         } else {
@@ -232,7 +230,10 @@ class _PostPageState extends State<PostPage> {
           ),
         ),
       ),
-      bottomNavigationBar: NavigationBarPage(selectedIndex: 3),
+      bottomNavigationBar: NavigationBarPage(
+        selectedIndex: 3,
+        userId: widget.userId,
+      ),
     );
   }
 }

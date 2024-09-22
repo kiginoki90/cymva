@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/view/account/edit_page/account_options_page.dart';
 import 'package:cymva/view/account/edit_page/account_top_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
-import 'package:cymva/view/account/edit_page/edit_account_page.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:cymva/model/account.dart';
 
@@ -60,8 +60,10 @@ class _AccountHeaderState extends State<AccountHeader> {
     if (account == null) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('ユーザー情報が取得できませんでした')));
-      Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (context) => const TimeLinePage()));
+      Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (context) => TimeLinePage(userId: widget.userId)));
     } else {
       setState(() {
         myAccount = account;
@@ -152,7 +154,8 @@ class _AccountHeaderState extends State<AccountHeader> {
                               var result = await Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) => EditAccountPage()));
+                                      builder: (context) =>
+                                          AccountOptionsPage()));
                               if (result == true) {
                                 setState(() {
                                   myAccount = Authentication.myAccount!;

@@ -41,7 +41,10 @@ class FunctionUtils {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('ファイルサイズが大きすぎます。5MB以下のファイルを選択してください。')),
         );
+
+        //OK
         final String userId = FirebaseAuth.instance.currentUser!.uid;
+
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) => AccountPage(userId: userId),

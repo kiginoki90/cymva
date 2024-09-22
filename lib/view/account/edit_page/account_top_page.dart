@@ -27,6 +27,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
   late Future<int> _followCountFuture;
   late Future<int> _followerCountFuture;
   double previousScrollOffset = 0.0; // スクロールの前回のオフセット
+  List<Account> siblingAccounts = [];
 
   @override
   void initState() {
@@ -54,17 +55,48 @@ class _AccountTopPageState extends State<AccountTopPage> {
     }
   }
 
+  // 同じparents_idを持つアカウントを取得
+  Future<void> _getSiblingAccounts(String parentsId) async {
+    try {
+      QuerySnapshot querySnapshot = await UserFirestore.users
+          .where('parents_id', isEqualTo: parentsId)
+          .get();
+
+      List<Account> accounts = querySnapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        return Account(
+          id: doc.id,
+          name: data['name'],
+          userId: data['user_id'],
+          selfIntroduction: data['self_introduction'] ?? '',
+          imagePath: data['image_path'] ?? '',
+          parents_id: data['parents_id'],
+        );
+      }).toList();
+
+      setState(() {
+        siblingAccounts = accounts;
+      });
+    } catch (e) {
+      print('同じparents_idを持つアカウントの取得に失敗しました: $e');
+    }
+  }
+
   Future<void> _getAccount() async {
     final Account? account = await UserFirestore.getUser(widget.userId);
     if (account == null) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('ユーザー情報が取得できませんでした')));
-      Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (context) => const TimeLinePage()));
+      Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (context) => TimeLinePage(userId: widget.userId)));
     } else {
       setState(() {
         myAccount = account;
       });
+      // 同じparents_idを持つアカウントを取得
+      await _getSiblingAccounts(account.parents_id);
     }
   }
 
@@ -119,13 +151,13 @@ class _AccountTopPageState extends State<AccountTopPage> {
             Container(
               padding: const EdgeInsets.only(right: 15, left: 15, top: 20),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           SizedBox(
                             height: 25,
@@ -257,7 +289,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
                             ),
                             SizedBox(width: 10),
                             Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Text(
                                   myAccount!.name,
@@ -354,7 +386,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
                   Padding(
                     padding: const EdgeInsets.all(8.15),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Text(myAccount?.selfIntroduction ?? '自己紹介がありません'),
                       ],
@@ -362,6 +394,46 @@ class _AccountTopPageState extends State<AccountTopPage> {
                   )
                 ],
               ),
+            ),
+            SizedBox(height: 30),
+            FutureBuilder<QuerySnapshot>(
+              future: UserFirestore.users
+                  .where('parents_id', isEqualTo: myAccount!.parents_id)
+                  .get(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return CircularProgressIndicator();
+                }
+                if (snapshot.hasError || !snapshot.hasData) {
+                  return SizedBox.shrink();
+                }
+
+                final accounts = snapshot.data!.docs;
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: accounts.map((account) {
+                    final Account userAccount = Account.fromDocument(account);
+
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  AccountPage(userId: userAccount.id)),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: CircleAvatar(
+                          backgroundImage: NetworkImage(userAccount.imagePath),
+                          radius: 20,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
             ),
           ],
         ),

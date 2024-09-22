@@ -65,7 +65,9 @@ class _AddAccountPageState extends State<AddAccountPage> {
               SizedBox(height: 30),
               GestureDetector(
                 onTap: () async {
-                  var result = await FunctionUtils.getImageFromGallery(context);
+                  var result = await FunctionUtils.getImageFromGallery(
+                    context,
+                  );
                   if (result != null) {
                     setState(() {
                       image = File(result.path);

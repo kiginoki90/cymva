@@ -176,25 +176,6 @@ class UserFirestore {
     }
   }
 
-  // 追加アカウントをFirestoreに保存するメソッド
-  static Future<bool> addAdditionalAccount(Account account) async {
-    try {
-      await users.doc(account.id).set({
-        'name': account.name,
-        'user_id': account.userId,
-        'selfIntroduction': account.selfIntroduction,
-        'image_path': account.imagePath,
-        'updated_time': Timestamp.now(),
-        'admin': 3,
-        'key_account': false,
-      });
-      return true;
-    } catch (e) {
-      print('Error adding additional account: $e');
-      return false;
-    }
-  }
-
   static Future<Account?> getUserByUserId(String userId) async {
     var snapshot =
         await _userCollection.where('user_id', isEqualTo: userId).get();
