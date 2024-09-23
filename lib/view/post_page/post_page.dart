@@ -211,7 +211,7 @@ class _PostPageState extends State<PostPage> {
                           Navigator.of(context).pushReplacement(
                             MaterialPageRoute(
                               builder: (context) =>
-                                  AccountPage(userId: widget.userId),
+                                  AccountPage(postUserId: widget.userId),
                             ),
                           );
                         } else {
@@ -230,10 +230,7 @@ class _PostPageState extends State<PostPage> {
           ),
         ),
       ),
-      bottomNavigationBar: NavigationBarPage(
-        selectedIndex: 3,
-        userId: widget.userId,
-      ),
+      bottomNavigationBar: NavigationBarPage(selectedIndex: 3),
     );
   }
 }

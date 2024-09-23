@@ -4,15 +4,14 @@ import 'package:cymva/view/time_line/timeline_body.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/view/account/account_page.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class NavigationBarPage extends StatefulWidget {
   final int selectedIndex;
-  final String userId; // ここでuserIdを追加
 
   const NavigationBarPage({
     super.key,
     required this.selectedIndex,
-    required this.userId, // コンストラクタにも追加
   });
 
   @override
@@ -20,25 +19,37 @@ class NavigationBarPage extends StatefulWidget {
 }
 
 class _NavigationBarPageState extends State<NavigationBarPage> {
-  late List<Widget> pageList;
+  List<Widget>? pageList;
+  String? userId;
+  final FlutterSecureStorage storage = FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
-    // 必要なデータを用意して初期化
-    pageList = [
-      TimeLineBody(userId: widget.userId),
-      AccountPage(userId: widget.userId),
-      SearchPage(userId: widget.userId),
-      PostPage(userId: widget.userId)
-    ];
+    _loadUserId();
+  }
+
+  Future<void> _loadUserId() async {
+    userId = await storage.read(key: 'account_id') ??
+        FirebaseAuth.instance.currentUser?.uid;
+
+    // userIdが取得できたらpageListを初期化
+    setState(() {
+      pageList = [
+        TimeLineBody(userId: userId!),
+        AccountPage(postUserId: userId!),
+        SearchPage(userId: userId!),
+        PostPage(userId: userId!),
+      ];
+    });
   }
 
   void _handleItemTapped(int index) {
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation1, animation2) => pageList[index],
+        pageBuilder: (context, animation1, animation2) =>
+            pageList![index], // nullチェック
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
       ),
@@ -47,6 +58,10 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (pageList == null) {
+      return Center(child: CircularProgressIndicator()); // ローディング中の表示
+    }
+
     return BottomNavigationBar(
       items: const [
         BottomNavigationBarItem(

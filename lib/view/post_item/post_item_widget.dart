@@ -161,7 +161,7 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => AccountPage(
-                                  userId: widget.post.postAccountId),
+                                  postUserId: widget.post.postAccountId),
                             ),
                           );
                         },

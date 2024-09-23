@@ -47,7 +47,7 @@ class FunctionUtils {
 
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => AccountPage(userId: userId),
+            builder: (context) => AccountPage(postUserId: userId),
           ),
         );
       }

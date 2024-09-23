@@ -8,13 +8,14 @@ import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:cymva/model/account.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AccountHeader extends StatefulWidget {
-  final String userId;
+  final String postUserId;
   final PageController pageController;
 
   const AccountHeader(
-      {Key? key, required this.userId, required this.pageController})
+      {Key? key, required this.postUserId, required this.pageController})
       : super(key: key);
 
   @override
@@ -23,14 +24,18 @@ class AccountHeader extends StatefulWidget {
 
 class _AccountHeaderState extends State<AccountHeader> {
   Account? myAccount;
+  Account? postAccount;
   int currentPage = 0;
   bool isFollowing = false;
+  final FlutterSecureStorage storage = FlutterSecureStorage();
+  String? userId;
 
   @override
   void initState() {
     super.initState();
     _getAccount();
-    _checkFollowStatus(); // フォロー状態を確認
+    _getPostAccount();
+    _checkFollowStatus();
     widget.pageController.addListener(() {
       setState(() {
         currentPage = widget.pageController.page?.round() ?? 0;
@@ -45,7 +50,7 @@ class _AccountHeaderState extends State<AccountHeader> {
       var followDoc = await UserFirestore.users
           .doc(currentUserId)
           .collection('follow')
-          .doc(widget.userId)
+          .doc(widget.postUserId)
           .get();
       setState(() {
         isFollowing = followDoc.exists;
@@ -56,33 +61,34 @@ class _AccountHeaderState extends State<AccountHeader> {
   }
 
   Future<void> _getAccount() async {
-    final Account? account = await UserFirestore.getUser(widget.userId);
-    if (account == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('ユーザー情報が取得できませんでした')));
-      Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (context) => TimeLinePage(userId: widget.userId)));
-    } else {
-      setState(() {
-        myAccount = account;
-      });
+    userId = await storage.read(key: 'account_id') ??
+        FirebaseAuth.instance.currentUser?.uid;
+
+    // ここでログインしている自分のアカウント情報を取得
+    myAccount = await UserFirestore.getUser(userId!);
+
+    setState(() {});
+  }
+
+  Future<void> _getPostAccount() async {
+    try {
+      DocumentSnapshot<Map<String, dynamic>> postUser = await FirebaseFirestore
+          .instance
+          .collection('users')
+          .doc(widget.postUserId)
+          .get();
+
+      if (postUser.exists) {
+        setState(() {
+          // fromDocumentを使用して、ドキュメントからAccountオブジェクトを生成
+          postAccount = Account.fromDocument(postUser);
+        });
+      } else {
+        print("ユーザードキュメントが見つかりませんでした");
+      }
+    } catch (e) {
+      print("Firestoreからアカウントを取得する際にエラーが発生しました: $e");
     }
-  }
-
-  Future<int> _getFollowCount() async {
-    final followCollection =
-        UserFirestore.users.doc(widget.userId).collection('follow');
-    final followDocs = await followCollection.get();
-    return followDocs.size;
-  }
-
-  Future<int> _getFollowerCount() async {
-    final followersCollection =
-        UserFirestore.users.doc(widget.userId).collection('followers');
-    final followerDocs = await followersCollection.get();
-    return followerDocs.size;
   }
 
   @override
@@ -91,7 +97,6 @@ class _AccountHeaderState extends State<AccountHeader> {
       // myAccountがnullの場合の表示
       return Center(child: CircularProgressIndicator());
     }
-    final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
 
     return Column(
       children: [
@@ -110,7 +115,8 @@ class _AccountHeaderState extends State<AccountHeader> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => AccountTopPage(
-                            userId: currentUserId,
+                            postAccountId: postAccount!.id,
+                            userId: userId!,
                           ),
                         ),
                       );
@@ -120,7 +126,7 @@ class _AccountHeaderState extends State<AccountHeader> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8.0),
                           child: Image.network(
-                            myAccount!.imagePath,
+                            postAccount!.imagePath,
                             width: 50,
                             height: 50,
                             fit: BoxFit.cover,
@@ -131,12 +137,12 @@ class _AccountHeaderState extends State<AccountHeader> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              myAccount!.name,
+                              postAccount!.name,
                               style: const TextStyle(
                                   fontSize: 20, fontWeight: FontWeight.bold),
                             ),
                             Text(
-                              '@${myAccount!.userId}',
+                              '@${postAccount!.userId}',
                               style: const TextStyle(color: Colors.grey),
                             ),
                           ],
@@ -146,24 +152,25 @@ class _AccountHeaderState extends State<AccountHeader> {
                   ),
                   Column(
                     children: [
-                      SizedBox(
-                        height: 25,
-                        width: 110,
-                        child: OutlinedButton(
-                            onPressed: () async {
-                              var result = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) =>
-                                          AccountOptionsPage()));
-                              if (result == true) {
-                                setState(() {
-                                  myAccount = Authentication.myAccount!;
-                                });
-                              }
-                            },
-                            child: const Text('編集')),
-                      ),
+                      if (userId == widget.postUserId)
+                        SizedBox(
+                          height: 25,
+                          width: 110,
+                          child: OutlinedButton(
+                              onPressed: () async {
+                                var result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            AccountOptionsPage()));
+                                if (result == true) {
+                                  setState(() {
+                                    myAccount = Authentication.myAccount!;
+                                  });
+                                }
+                              },
+                              child: const Text('編集')),
+                        ),
                       SizedBox(
                         height: 10,
                       ),
@@ -172,7 +179,7 @@ class _AccountHeaderState extends State<AccountHeader> {
                         width: 120,
                         child: OutlinedButton(
                           onPressed: () async {
-                            if (currentUserId == widget.userId) {
+                            if (userId == widget.postUserId) {
                               // ログインしているアカウントのIDとこのページのアカウントIDが一致する場合
                               // 「施錠」ボタンの処理
                             } else {
@@ -180,15 +187,15 @@ class _AccountHeaderState extends State<AccountHeader> {
                                 if (isFollowing) {
                                   // フォロー中の場合、フォローを解除する
                                   await UserFirestore.users
-                                      .doc(currentUserId)
+                                      .doc(userId)
                                       .collection('follow')
-                                      .doc(widget.userId)
+                                      .doc(widget.postUserId)
                                       .delete();
 
                                   await UserFirestore.users
-                                      .doc(widget.userId)
+                                      .doc(widget.postUserId)
                                       .collection('followers')
-                                      .doc(currentUserId)
+                                      .doc(userId)
                                       .delete();
 
                                   setState(() {
@@ -199,15 +206,15 @@ class _AccountHeaderState extends State<AccountHeader> {
                                 } else {
                                   // フォローしていない場合、フォローする
                                   await UserFirestore.users
-                                      .doc(currentUserId)
+                                      .doc(userId)
                                       .collection('follow')
-                                      .doc(widget.userId)
+                                      .doc(widget.postUserId)
                                       .set({'followed_at': Timestamp.now()});
 
                                   await UserFirestore.users
-                                      .doc(widget.userId)
+                                      .doc(widget.postUserId)
                                       .collection('followers')
-                                      .doc(currentUserId)
+                                      .doc(userId)
                                       .set({'followed_at': Timestamp.now()});
 
                                   setState(() {
@@ -231,11 +238,12 @@ class _AccountHeaderState extends State<AccountHeader> {
                             ),
                           ),
                           child: Text(
-                            currentUserId == widget.userId
+                            userId == widget.postUserId
                                 ? '施錠'
                                 : (isFollowing ? 'フォロー中' : 'フォロー'),
                             style: TextStyle(
                               color: isFollowing ? Colors.white : Colors.black,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),

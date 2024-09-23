@@ -1,3 +1,4 @@
+import 'package:cymva/model/account.dart';
 import 'package:cymva/view/time_line/timeline_body.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/start_up/create_account_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -16,7 +18,9 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   TextEditingController emailController = TextEditingController();
   TextEditingController passController = TextEditingController();
-  String? errorMessage; // エラーメッセージを保存する変数
+  String? errorMessage;
+  // Flutter Secure Storageのインスタンスを作成
+  final storage = const FlutterSecureStorage();
 
   Future<void> _sendPasswordResetEmail() async {
     String email = emailController.text;
@@ -36,6 +40,17 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         errorMessage = 'メールの送信に失敗しました: $e';
       });
+    }
+  }
+
+  Future<void> _saveAccountToStorage(Account account) async {
+    try {
+      // セキュアストレージにアカウント情報を保存
+      await storage.write(key: 'account_id', value: account.id);
+      await storage.write(key: 'account_name', value: account.name);
+      print('アカウント情報が保存されました: ${account.id}');
+    } catch (e) {
+      print('アカウント情報の保存に失敗しました: $e');
     }
   }
 
@@ -111,7 +126,11 @@ class _LoginPageState extends State<LoginPage> {
               SizedBox(height: 70),
               ElevatedButton(
                 onPressed: () async {
+                  // 既存のユーザー情報をリセット
+                  Authentication.myAccount = null;
+
                   try {
+                    // 新しいログインの試行
                     var result = await Authentication.emailSinIn(
                       email: emailController.text,
                       pass: passController.text,
@@ -122,6 +141,7 @@ class _LoginPageState extends State<LoginPage> {
                         var _result =
                             await UserFirestore.getUser(result.user!.uid);
                         if (_result != null) {
+                          await _saveAccountToStorage(_result);
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(

@@ -137,7 +137,8 @@ class RepostListPage extends StatelessWidget {
                                             context,
                                             MaterialPageRoute(
                                               builder: (context) => AccountPage(
-                                                  userId: userData['user_id']),
+                                                  postUserId:
+                                                      userData['user_id']),
                                             ),
                                           );
                                         },

@@ -336,8 +336,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              AccountPage(userId: widget.post.postAccountId),
+                          builder: (context) => AccountPage(
+                              postUserId: widget.post.postAccountId),
                         ),
                       );
                     },
@@ -699,10 +699,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
           ),
         ),
       ),
-      bottomNavigationBar: NavigationBarPage(
-        selectedIndex: 0,
-        userId: widget.userId,
-      ),
+      bottomNavigationBar: NavigationBarPage(selectedIndex: 0),
     );
   }
 }

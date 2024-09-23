@@ -10,11 +10,16 @@ import 'package:cymva/model/account.dart';
 import 'package:cymva/view/account/follow_page.dart';
 import 'package:cymva/view/account/follower_page.dart';
 import 'package:cymva/view/account/account_page.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 //アカウント詳細ページ
 class AccountTopPage extends StatefulWidget {
+  final String postAccountId;
   final String userId;
-  const AccountTopPage({Key? key, required this.userId}) : super(key: key);
+  final storage = FlutterSecureStorage();
+
+  AccountTopPage({Key? key, required this.postAccountId, required this.userId})
+      : super(key: key);
 
   @override
   State<AccountTopPage> createState() => _AccountTopPageState();
@@ -45,7 +50,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
       var followDoc = await UserFirestore.users
           .doc(currentUserId)
           .collection('follow')
-          .doc(widget.userId)
+          .doc(widget.postAccountId)
           .get();
       setState(() {
         isFollowing = followDoc.exists;
@@ -83,14 +88,15 @@ class _AccountTopPageState extends State<AccountTopPage> {
   }
 
   Future<void> _getAccount() async {
-    final Account? account = await UserFirestore.getUser(widget.userId);
+    final Account? account = await UserFirestore.getUser(widget.postAccountId);
     if (account == null) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('ユーザー情報が取得できませんでした')));
       Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-              builder: (context) => TimeLinePage(userId: widget.userId)));
+              builder: (context) =>
+                  TimeLinePage(userId: widget.postAccountId)));
     } else {
       setState(() {
         myAccount = account;
@@ -102,14 +108,14 @@ class _AccountTopPageState extends State<AccountTopPage> {
 
   Future<int> _getFollowCount() async {
     final followCollection =
-        UserFirestore.users.doc(widget.userId).collection('follow');
+        UserFirestore.users.doc(widget.postAccountId).collection('follow');
     final followDocs = await followCollection.get();
     return followDocs.size;
   }
 
   Future<int> _getFollowerCount() async {
     final followersCollection =
-        UserFirestore.users.doc(widget.userId).collection('followers');
+        UserFirestore.users.doc(widget.postAccountId).collection('followers');
     final followerDocs = await followersCollection.get();
     return followerDocs.size;
   }
@@ -139,7 +145,8 @@ class _AccountTopPageState extends State<AccountTopPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => AccountPage(userId: currentUserId)),
+                    builder: (context) =>
+                        AccountPage(postUserId: currentUserId)),
               );
             }
             previousScrollOffset = scrollInfo.metrics.pixels; // スクロール位置を更新
@@ -159,32 +166,33 @@ class _AccountTopPageState extends State<AccountTopPage> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          SizedBox(
-                            height: 25,
-                            width: 110,
-                            child: OutlinedButton(
-                              onPressed: () async {
-                                var result = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) =>
-                                            AccountOptionsPage()));
-                                if (result == true) {
-                                  setState(() {
-                                    myAccount = Authentication.myAccount!;
-                                  });
-                                }
-                              },
-                              child: const Text('編集'),
+                          if (widget.userId == widget.postAccountId)
+                            SizedBox(
+                              height: 25,
+                              width: 110,
+                              child: OutlinedButton(
+                                onPressed: () async {
+                                  var result = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              AccountOptionsPage()));
+                                  if (result == true) {
+                                    setState(() {
+                                      myAccount = Authentication.myAccount!;
+                                    });
+                                  }
+                                },
+                                child: const Text('編集'),
+                              ),
                             ),
-                          ),
                           SizedBox(height: 10), // ボタン間のスペース
                           SizedBox(
                             height: 25,
                             width: 120,
                             child: OutlinedButton(
                               onPressed: () async {
-                                if (currentUserId == widget.userId) {
+                                if (widget.userId == widget.postAccountId) {
                                   // 自身のアカウント
                                 } else {
                                   try {
@@ -192,11 +200,11 @@ class _AccountTopPageState extends State<AccountTopPage> {
                                       await UserFirestore.users
                                           .doc(currentUserId)
                                           .collection('follow')
-                                          .doc(widget.userId)
+                                          .doc(widget.postAccountId)
                                           .delete();
 
                                       await UserFirestore.users
-                                          .doc(widget.userId)
+                                          .doc(widget.postAccountId)
                                           .collection('followers')
                                           .doc(currentUserId)
                                           .delete();
@@ -212,12 +220,12 @@ class _AccountTopPageState extends State<AccountTopPage> {
                                       await UserFirestore.users
                                           .doc(currentUserId)
                                           .collection('follow')
-                                          .doc(widget.userId)
+                                          .doc(widget.postAccountId)
                                           .set(
                                               {'followed_at': Timestamp.now()});
 
                                       await UserFirestore.users
-                                          .doc(widget.userId)
+                                          .doc(widget.postAccountId)
                                           .collection('followers')
                                           .doc(currentUserId)
                                           .set(
@@ -248,12 +256,13 @@ class _AccountTopPageState extends State<AccountTopPage> {
                                 ),
                               ),
                               child: Text(
-                                currentUserId == widget.userId
+                                widget.userId == widget.postAccountId
                                     ? '施錠'
                                     : (isFollowing ? 'フォロー中' : 'フォロー'),
                                 style: TextStyle(
                                   color:
                                       isFollowing ? Colors.white : Colors.black,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
@@ -273,8 +282,8 @@ class _AccountTopPageState extends State<AccountTopPage> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) =>
-                                          AccountPage(userId: myAccount!.id)),
+                                      builder: (context) => AccountPage(
+                                          postUserId: myAccount!.id)),
                                 );
                               },
                               child: ClipRRect(
@@ -326,8 +335,8 @@ class _AccountTopPageState extends State<AccountTopPage> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) =>
-                                          FollowPage(userId: widget.userId),
+                                      builder: (context) => FollowPage(
+                                          userId: widget.postAccountId),
                                     ),
                                   );
                                 },
@@ -360,8 +369,8 @@ class _AccountTopPageState extends State<AccountTopPage> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) =>
-                                          FollowerPage(userId: widget.userId),
+                                      builder: (context) => FollowerPage(
+                                          userId: widget.postAccountId),
                                     ),
                                   );
                                 },
@@ -396,48 +405,70 @@ class _AccountTopPageState extends State<AccountTopPage> {
               ),
             ),
             SizedBox(height: 30),
-            FutureBuilder<QuerySnapshot>(
-              future: UserFirestore.users
-                  .where('parents_id', isEqualTo: myAccount!.parents_id)
-                  .get(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return CircularProgressIndicator();
-                }
-                if (snapshot.hasError || !snapshot.hasData) {
-                  return SizedBox.shrink();
-                }
+            if (widget.userId == widget.postAccountId)
+              FutureBuilder<QuerySnapshot>(
+                future: UserFirestore.users
+                    .where('parents_id', isEqualTo: myAccount!.parents_id)
+                    .get(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return CircularProgressIndicator();
+                  }
+                  if (snapshot.hasError || !snapshot.hasData) {
+                    return SizedBox.shrink();
+                  }
 
-                final accounts = snapshot.data!.docs;
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: accounts.map((account) {
-                    final Account userAccount = Account.fromDocument(account);
+                  final accounts = snapshot.data!.docs;
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: accounts.map((account) {
+                      final Account userAccount = Account.fromDocument(account);
 
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>
-                                  AccountPage(userId: userAccount.id)),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: CircleAvatar(
-                          backgroundImage: NetworkImage(userAccount.imagePath),
-                          radius: 20,
+                      return GestureDetector(
+                        onTap: () async {
+                          await onAccountChanged(userAccount); // アカウント切り替え処理を追加
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: CircleAvatar(
+                            backgroundImage:
+                                NetworkImage(userAccount.imagePath),
+                            radius: 20,
+                          ),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
+                      );
+                    }).toList(),
+                  );
+                },
+              )
           ],
         ),
       ),
     );
+  }
+
+  Future<void> onAccountChanged(Account newAccount) async {
+    try {
+      // 新しいアカウントの情報をセキュアストレージに保存
+      await widget.storage.write(key: 'account_id', value: newAccount.id);
+      await widget.storage.write(key: 'account_name', value: newAccount.name);
+
+      // 状態を更新して画面をリロード
+      setState(() {
+        myAccount = newAccount; // 現在のアカウントを切り替え
+      });
+
+      print('アカウントが切り替えられました: ${newAccount.name}');
+
+      // 必要に応じて新しいアカウントページに遷移
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AccountPage(postUserId: newAccount.id),
+        ),
+      );
+    } catch (e) {
+      print('アカウント切り替えに失敗しました: $e');
+    }
   }
 }

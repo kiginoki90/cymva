@@ -87,8 +87,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
           ],
         ),
       ),
-      bottomNavigationBar:
-          NavigationBarPage(selectedIndex: 0, userId: widget.userId),
+      bottomNavigationBar: NavigationBarPage(selectedIndex: 0),
     );
   }
 }

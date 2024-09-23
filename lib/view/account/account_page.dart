@@ -9,9 +9,9 @@ import 'package:cymva/model/account.dart';
 import 'package:cymva/view/account/account_header.dart';
 
 class AccountPage extends StatefulWidget {
-  final String userId;
+  final String postUserId;
 
-  const AccountPage({Key? key, required this.userId}) : super(key: key);
+  const AccountPage({Key? key, required this.postUserId}) : super(key: key);
 
   @override
   _AccountPageState createState() => _AccountPageState();
@@ -29,7 +29,7 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   Future<void> _getAccount() async {
-    final Account? account = await UserFirestore.getUser(widget.userId);
+    final Account? account = await UserFirestore.getUser(widget.postUserId);
     print(account);
     if (account == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -38,7 +38,7 @@ class _AccountPageState extends State<AccountPage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-            builder: (context) => TimeLinePage(userId: widget.userId)),
+            builder: (context) => TimeLinePage(userId: widget.postUserId)),
       );
     } else {
       setState(() {
@@ -66,7 +66,7 @@ class _AccountPageState extends State<AccountPage> {
         child: Column(
           children: [
             AccountHeader(
-              userId: widget.userId,
+              postUserId: widget.postUserId,
               pageController: _pageController, // pageControllerを渡す
             ),
             Expanded(
@@ -82,10 +82,7 @@ class _AccountPageState extends State<AccountPage> {
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBarPage(
-        selectedIndex: 1,
-        userId: myAccount!.id,
-      ),
+      bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
     );
   }
 }

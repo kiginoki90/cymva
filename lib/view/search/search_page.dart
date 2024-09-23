@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/account/edit_page/account_top_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:flutter/material.dart';
@@ -108,8 +109,7 @@ class _SearchPageState extends State<SearchPage> {
           ),
         ],
       ),
-      bottomNavigationBar:
-          NavigationBarPage(selectedIndex: 2, userId: widget.userId),
+      bottomNavigationBar: NavigationBarPage(selectedIndex: 2),
     );
   }
 
@@ -189,8 +189,8 @@ class _SearchPageState extends State<SearchPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => AccountTopPage(
-                          userId: account.id,
+                        builder: (context) => AccountPage(
+                          postUserId: account.id,
                         ),
                       ),
                     );

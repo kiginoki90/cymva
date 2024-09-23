@@ -22,6 +22,10 @@ class Authentication {
   static Future<dynamic> emailSinIn(
       {required String email, required String pass}) async {
     try {
+      // 以前の認証情報をリセット
+      currentFirebaseUser = null;
+
+      // 新しいサインイン
       final UserCredential _result = await _firebaseAuth
           .signInWithEmailAndPassword(email: email, password: pass);
       currentFirebaseUser = _result.user;

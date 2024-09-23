@@ -6,9 +6,11 @@ import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/account/edit_page/change_password_page.dart';
 import 'package:cymva/view/account/edit_page/edit_account_page.dart';
 import 'package:cymva/view/start_up/login_page.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AccountOptionsPage extends StatelessWidget {
   Account myAccount = Authentication.myAccount!;
+  final storage = const FlutterSecureStorage();
 
   @override
   Widget build(BuildContext context) {
@@ -61,15 +63,24 @@ class AccountOptionsPage extends StatelessWidget {
                   context,
                   'ログアウト',
                   '本当にログアウトしますか？',
-                  () {
-                    Authentication.signOut();
-                    while (Navigator.canPop(context)) {
-                      Navigator.pop(context);
+                  () async {
+                    try {
+                      // Firebaseからサインアウト
+                      await Authentication.signOut();
+
+                      // ストレージからアカウント情報を削除
+                      await storage.delete(key: 'account_id');
+                      await storage.delete(key: 'account_name');
+
+                      // ナビゲーションスタックを全て削除してLoginPageへ遷移
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (context) => LoginPage()),
+                        (Route<dynamic> route) => false, // 全てのルートを削除
+                      );
+                    } catch (e) {
+                      print('ログアウト処理中にエラーが発生しました: $e');
+                      // エラーハンドリング (必要に応じて)
                     }
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => LoginPage()),
-                    );
                   },
                 );
               },
