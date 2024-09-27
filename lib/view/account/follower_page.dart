@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/view/account/user_profile_page.dart';
 
@@ -10,7 +11,7 @@ class FollowerPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('フォロワー')),
+      appBar: AppBar(title: const Text('フォロワー')),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
@@ -19,15 +20,18 @@ class FollowerPage extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text('エラー'));
+            return const Center(child: Text('エラー'));
           }
           final followerDocs = snapshot.data?.docs ?? [];
 
-          return ListView(
-            children: followerDocs.map((followerDoc) {
+          return ListView.separated(
+            itemCount: followerDocs.length,
+            separatorBuilder: (context, index) => const Divider(),
+            itemBuilder: (context, index) {
+              final followerDoc = followerDocs[index];
               final followerId = followerDoc.id;
 
               // フォロワーのユーザーデータを取得
@@ -38,10 +42,10 @@ class FollowerPage extends StatelessWidget {
                     .get(),
                 builder: (context, userSnapshot) {
                   if (userSnapshot.connectionState == ConnectionState.waiting) {
-                    return Center(child: CircularProgressIndicator());
+                    return const Center(child: CircularProgressIndicator());
                   }
                   if (userSnapshot.hasError) {
-                    return Center(child: Text('エラー'));
+                    return const Center(child: Text('エラー'));
                   }
 
                   final userData =
@@ -49,30 +53,88 @@ class FollowerPage extends StatelessWidget {
 
                   // userDataがnullまたは空の場合はスキップ
                   if (userData == null || userData.isEmpty) {
-                    return SizedBox.shrink(); // 空のウィジェットを返す
+                    return const SizedBox.shrink(); // 空のウィジェットを返す
                   }
 
-                  print('Follower data: $userData'); // フォロワーデータをコンソールに出力
-
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundImage: NetworkImage(userData['image_path']),
-                    ),
-                    title: Text(userData['name']),
-                    subtitle: Text('@${userData['user_id']}'),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              UserProfilePage(userId: followerId),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 8.0, horizontal: 16.0),
+                    child: Row(
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AccountPage(
+                                    postUserId: userData['parents_id']),
+                              ),
+                            );
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: Image.network(
+                              userData['image_path'],
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
-                      );
-                    },
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AccountPage(
+                                      postUserId: userData['parents_id']),
+                                ),
+                              );
+                            },
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      userData['name'],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '@${userData['user_id']}',
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  userData['self_introduction'] ?? '',
+                                  style: const TextStyle(
+                                      fontSize: 13, color: Colors.black),
+                                  maxLines: 2, // 最大2行まで表示
+                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: true,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 },
               );
-            }).toList(),
+            },
           );
         },
       ),

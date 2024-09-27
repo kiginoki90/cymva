@@ -6,7 +6,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
-import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:cymva/model/account.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 

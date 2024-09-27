@@ -19,11 +19,11 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
   final PageController _pageController = PageController();
-  List<DocumentSnapshot> _postSearchResults = [];
+  List<DocumentSnapshot> _postSearchResults = []; // コンテンツ検索結果用
+  List<DocumentSnapshot> _recentFavoritesResults = []; // 人気検索結果用
   List<Account> _accountSearchResults = [];
   final FavoritePost _favoritePost = FavoritePost();
   int _currentPage = 0;
-  List<String> _recentFavoritePosts = [];
   String _lastQuery = '';
   String? _selectedCategory;
   final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真', '俳句・短歌'];
@@ -51,45 +51,51 @@ class _SearchPageState extends State<SearchPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('検索'),
+        title: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                decoration: const InputDecoration(
+                  hintText: '検索...',
+                  border: InputBorder.none,
+                  filled: true, // 背景色を有効にする
+                  fillColor: Colors.white, // 背景色
+                  hintStyle: TextStyle(
+                      color: Color.fromARGB(179, 131, 128, 128)), // ヒントのスタイル
+                ),
+                style: const TextStyle(color: Colors.black), // テキストの色
+                onSubmitted: (query) {
+                  if (_currentPage == 0) {
+                    _searchPosts(query);
+                  } else if (_currentPage == 1) {
+                    _searchAccounts(query);
+                  } else if (_currentPage == 2) {
+                    _fetchRecentFavorites(query);
+                  }
+                },
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.category),
+              onPressed: () {
+                _showCategoryDialog();
+              },
+            ),
+            if (_selectedCategory != null && _selectedCategory!.isNotEmpty)
+              Text(
+                _selectedCategory!,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+          ],
+        ),
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: const InputDecoration(
-                      hintText: '検索...',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                Column(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.category),
-                      onPressed: () {
-                        _showCategoryDialog();
-                      },
-                    ),
-                    if (_selectedCategory != null &&
-                        _selectedCategory!.isNotEmpty) // カテゴリーが選択されている場合
-                      Text(
-                        _selectedCategory!,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                  ],
-                )
-              ],
-            ),
-          ),
           _buildNavigationBar(),
           Expanded(
             child: PageView(
@@ -114,6 +120,9 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget _buildSearchByTextPage() {
+    if (_postSearchResults.isEmpty) {
+      return const Center(child: Text('検索結果がありません'));
+    }
     return ListView.builder(
       itemCount: _postSearchResults.length,
       itemBuilder: (context, index) {
@@ -218,15 +227,20 @@ class _SearchPageState extends State<SearchPage> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        account.selfIntroduction.length > 230
-                            ? '${account.selfIntroduction.substring(0, 231)}...'
-                            : account.selfIntroduction,
-                        style:
-                            const TextStyle(fontSize: 13, color: Colors.black),
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
-                        softWrap: true,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            account.selfIntroduction.length > 230
+                                ? '${account.selfIntroduction.substring(0, 231)}...'
+                                : account.selfIntroduction,
+                            style: const TextStyle(
+                                fontSize: 13, color: Colors.black),
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: true,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -240,10 +254,14 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget _buildRecentFavoritesPage() {
+    if (_recentFavoritesResults.isEmpty) {
+      return const Center(child: Text('検索結果がありません'));
+    }
+
     return ListView.builder(
-      itemCount: _postSearchResults.length,
+      itemCount: _recentFavoritesResults.length,
       itemBuilder: (context, index) {
-        final postDoc = _postSearchResults[index];
+        final postDoc = _recentFavoritesResults[index];
         final post = Post.fromDocument(postDoc);
 
         return FutureBuilder<Account?>(
@@ -295,7 +313,7 @@ class _SearchPageState extends State<SearchPage> {
       _searchPosts(_lastQuery);
     } else if (_currentPage == 1 && _accountSearchResults.isEmpty) {
       _searchAccounts(_lastQuery);
-    } else if (_currentPage == 2 && _postSearchResults.isEmpty) {
+    } else if (_currentPage == 2 && _recentFavoritesResults.isEmpty) {
       _fetchRecentFavorites(_lastQuery);
     }
   }
@@ -371,62 +389,63 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _fetchRecentFavorites(String query) async {
-    if (query.isEmpty &&
-        (_selectedCategory == null || _selectedCategory!.isEmpty)) {
-      setState(() {
-        _postSearchResults = [];
-      });
-      return;
-    }
-
     final firestore = FirebaseFirestore.instance;
-
-    // 投稿コレクションのクエリ
     Query queryRef = firestore.collection('posts');
 
-    // カテゴリーが選択されている場合はカテゴリーでフィルタリング
+    // カテゴリーが選択されている場合は、カテゴリーでフィルタリング
     if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
       queryRef = queryRef.where('category', isEqualTo: _selectedCategory);
     }
 
-    // クエリを使って、候補となるドキュメントを取得
-    final querySnapshot = await queryRef.get();
+    try {
+      final querySnapshot = await queryRef.get();
 
-    // 各投稿ごとに、過去24時間以内に追加されたお気に入りの数を取得
-    final List<DocumentSnapshot> postWithFavorites = [];
+      final List<DocumentSnapshot> postWithFavorites = [];
 
-    for (var doc in querySnapshot.docs) {
-      final postId = doc.id;
+      // 各投稿に対してFutureのリストを作成
+      final futures = querySnapshot.docs.map((doc) async {
+        final postId = doc.id;
 
-      // 過去24時間に追加されたお気に入りの数を取得
-      final favoriteUsersSnapshot = await firestore
-          .collection('posts')
-          .doc(postId)
-          .collection('favorite_users')
-          .where('added_at',
-              isGreaterThanOrEqualTo:
-                  DateTime.now().subtract(Duration(hours: 24)))
-          .get();
+        // お気に入りユーザーを取得
+        final favoriteUsersSnapshot = await firestore
+            .collection('posts')
+            .doc(postId)
+            .collection('favorite_users')
+            .where('added_at',
+                isGreaterThanOrEqualTo:
+                    DateTime.now().subtract(Duration(hours: 24)))
+            .get();
 
-      final recentFavoriteCount = favoriteUsersSnapshot.size;
+        final recentFavoriteCount = favoriteUsersSnapshot.size;
 
-      // お気に入り数を記録しておく
-      postWithFavorites.add(doc);
+        // 投稿の内容がクエリに含まれているかをチェック
+        final content = doc['content'] as String;
+        if (query.isNotEmpty && !content.contains(query)) {
+          return; // 条件に合わない投稿は無視
+        }
 
-      // ここでリストを追加する（後で使うため）
-      _postFavoriteCounts[postId] = recentFavoriteCount;
+        // お気に入り数を記録しておく
+        postWithFavorites.add(doc);
+        _postFavoriteCounts[postId] = recentFavoriteCount;
+      });
+
+      // すべてのFutureが完了するのを待つ
+      await Future.wait(futures);
+
+      // お気に入りの数で降順に並べ替え
+      postWithFavorites.sort((a, b) {
+        final countA = _postFavoriteCounts[a.id] ?? 0;
+        final countB = _postFavoriteCounts[b.id] ?? 0;
+        return countB.compareTo(countA);
+      });
+
+      setState(() {
+        _recentFavoritesResults = postWithFavorites;
+      });
+    } catch (error) {
+      // エラーハンドリング
+      print('Error fetching recent favorites: $error');
     }
-
-    // お気に入りの数で降順に並べ替え
-    postWithFavorites.sort((a, b) {
-      final countA = _postFavoriteCounts[a.id] ?? 0;
-      final countB = _postFavoriteCounts[b.id] ?? 0;
-      return countB.compareTo(countA); // お気に入り数で降順
-    });
-
-    setState(() {
-      _postSearchResults = postWithFavorites;
-    });
   }
 
   Widget _buildNavigationBar() {
@@ -505,8 +524,8 @@ class _SearchPageState extends State<SearchPage> {
                   onTap: () {
                     setState(() {
                       _selectedCategory = category;
-                      _searchPosts('');
-                      _fetchRecentFavorites('');
+                      _searchPosts(_lastQuery); // クエリを保持して検索
+                      _fetchRecentFavorites(_lastQuery); // クエリを保持して検索
                       Navigator.of(context).pop();
                     });
                   },

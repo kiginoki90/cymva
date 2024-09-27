@@ -52,7 +52,7 @@ class PostFirestore {
     }
   }
 
-  static Future<List<Post>?> getPostsFromIds(List<String> ids) async {
+  static Future<List<Post>> getPostsFromIds(List<String> ids) async {
     List<Post> postList = [];
     try {
       for (String id in ids) {
@@ -82,7 +82,7 @@ class PostFirestore {
       return postList;
     } on FirebaseException catch (e) {
       print('投稿取得エラー: $e');
-      return null;
+      return []; // エラーが発生した場合でも空のリストを返す
     }
   }
 

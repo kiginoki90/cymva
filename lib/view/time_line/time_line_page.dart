@@ -23,6 +23,20 @@ class _TimeLineState extends State<TimeLinePage> {
   late Future<List<String>>? _favoritePostsFuture;
   final FavoritePost _favoritePost = FavoritePost();
 
+  Future<List<QueryDocumentSnapshot>> _fetchPosts() async {
+    final querySnapshot = await PostFirestore.posts
+        .orderBy('created_time', descending: true)
+        .get();
+    return querySnapshot.docs;
+  }
+
+  Future<void> _refreshPosts() async {
+    setState(() {
+      // FutureBuilderを再度トリガーするために空のsetStateを使う
+    });
+    await Future.delayed(const Duration(seconds: 1));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -32,22 +46,20 @@ class _TimeLineState extends State<TimeLinePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        //Firestoreからポストデータをリアルタイムで取得
-        child: StreamBuilder<QuerySnapshot>(
-          stream: PostFirestore.posts
-              .orderBy('created_time', descending: true)
-              .snapshots(),
+      body: RefreshIndicator(
+        onRefresh: _refreshPosts, // スクロールで更新するためのリフレッシュ機能
+        child: FutureBuilder<List<QueryDocumentSnapshot>>(
+          future: _fetchPosts(),
           builder: (context, postSnapshot) {
             if (postSnapshot.hasData) {
               List<String> postAccountIds = [];
-              postSnapshot.data!.docs.forEach((doc) {
+              postSnapshot.data!.forEach((doc) {
                 Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
                 if (!postAccountIds.contains(data['post_account_id'])) {
                   postAccountIds.add(data['post_account_id']);
                 }
               });
-              //投稿に関するユーザー情報を取得
+
               return FutureBuilder<Map<String, Account>?>(
                 future: UserFirestore.getPostUserMap(postAccountIds),
                 builder: (context, userSnapshot) {
@@ -60,11 +72,10 @@ class _TimeLineState extends State<TimeLinePage> {
                                 ConnectionState.done &&
                             favoriteSnapshot.hasData) {
                           return ListView.builder(
-                            itemCount: postSnapshot.data!.docs.length,
+                            itemCount: postSnapshot.data!.length,
                             itemBuilder: (context, index) {
-                              // Post クラスのインスタンスを作成するために fromDocument を使用
-                              Post post = Post.fromDocument(
-                                  postSnapshot.data!.docs[index]);
+                              Post post =
+                                  Post.fromDocument(postSnapshot.data![index]);
 
                               Account postAccount =
                                   userSnapshot.data![post.postAccountId]!;
@@ -73,11 +84,8 @@ class _TimeLineState extends State<TimeLinePage> {
                                   ValueNotifier<int>(0);
                               _favoritePost.updateFavoriteUsersCount(post.id);
 
-                              // リツイートの状態を管理するためのValueNotifierを初期化
                               ValueNotifier<bool> isRetweetedNotifier =
-                                  ValueNotifier<bool>(
-                                false, // Firestoreからリツイートの状態を取得し初期化する
-                              );
+                                  ValueNotifier<bool>(false);
 
                               return PostItemWidget(
                                 post: post,
@@ -94,14 +102,10 @@ class _TimeLineState extends State<TimeLinePage> {
                                   _favoritePost.favoritePostsNotifier.value
                                       .contains(post.id),
                                 ),
-                                // リツイートの状態を渡す
                                 isRetweetedNotifier: isRetweetedNotifier,
-                                // リツイートの状態をトグルする処理
                                 onRetweetToggle: () {
-                                  // ここにリツイートの状態をFirestoreに保存するロジックを追加する
                                   bool currentState = isRetweetedNotifier.value;
                                   isRetweetedNotifier.value = !currentState;
-                                  // Firestoreでリツイートの情報を更新する処理
                                 },
                                 replyFlag: ValueNotifier<bool>(false),
                                 userId: widget.userId,

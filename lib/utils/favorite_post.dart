@@ -1,14 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class FavoritePost {
   final ValueNotifier<Set<String>> favoritePostsNotifier =
       ValueNotifier<Set<String>>({});
   final Map<String, ValueNotifier<int>> favoriteUsersNotifiers = {};
+  final FlutterSecureStorage storage = FlutterSecureStorage();
+  String? userId;
 
   Future<List<String>> getFavoritePosts() async {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
+    userId = await storage.read(key: 'account_id') ??
+        FirebaseAuth.instance.currentUser?.uid;
+
     if (userId == null) return [];
 
     final favoritePostsSnapshot = await FirebaseFirestore.instance
@@ -24,7 +29,9 @@ class FavoritePost {
   }
 
   Future<void> toggleFavorite(String postId, bool isFavorite) async {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
+    userId = await storage.read(key: 'account_id') ??
+        FirebaseAuth.instance.currentUser?.uid;
+
     if (userId == null) return;
 
     final favoritePostsCollection = FirebaseFirestore.instance

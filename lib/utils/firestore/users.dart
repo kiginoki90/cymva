@@ -198,4 +198,32 @@ class UserFirestore {
       return false;
     }
   }
+
+  // 複数のUIDから対応するユーザー情報を取得
+  static Future<Map<String, Account>> getUsersByIds(List<String> ids) async {
+    Map<String, Account> accounts = {};
+    try {
+      // 各UIDに対応するドキュメントを順次取得
+      for (String id in ids) {
+        DocumentSnapshot doc = await users.doc(id).get();
+        if (doc.exists) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          Account account = Account(
+            id: id,
+            name: data['name'] ?? '',
+            userId: data['user_id'] ?? '',
+            imagePath: data['image_path'] ?? '',
+            selfIntroduction: data['self_introduction'] ?? '',
+            createdTime: data['created_time'] as Timestamp?,
+            updatedTime: data['updated_time'] as Timestamp?,
+          );
+          accounts[id] = account; // IDをキーとしてマップに追加
+        }
+      }
+      return accounts;
+    } catch (e) {
+      print('Error getting users by IDs: $e');
+      return {}; // エラー時は空のマップを返す
+    }
+  }
 }
