@@ -74,17 +74,13 @@ class PostList extends StatelessWidget {
                                   isFavorite,
                                 );
                               },
-                              // リツイートの状態を渡す
                               isRetweetedNotifier: isRetweetedNotifier,
-                              // リツイートの状態をトグルする処理
                               onRetweetToggle: () {
-                                // ここにリツイートの状態をFirestoreに保存するロジックを追加する
                                 bool currentState = isRetweetedNotifier.value;
                                 isRetweetedNotifier.value = !currentState;
-                                // Firestoreでリツイートの情報を更新する処理
                               },
                               replyFlag: ValueNotifier<bool>(false),
-                              userId: myAccount.userId,
+                              userId: myAccount.id,
                             );
                           },
                         );

@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/view/account/account_page.dart';
-import 'package:cymva/view/account/edit_page/account_top_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
@@ -123,6 +122,7 @@ class _SearchPageState extends State<SearchPage> {
     if (_postSearchResults.isEmpty) {
       return const Center(child: Text('検索結果がありません'));
     }
+
     return ListView.builder(
       itemCount: _postSearchResults.length,
       itemBuilder: (context, index) {
@@ -143,6 +143,12 @@ class _SearchPageState extends State<SearchPage> {
 
             final postAccount = accountSnapshot.data!;
 
+            // lock_accountがtrueの場合はスルーする
+            if (postAccount.lockAccount && postAccount.id != widget.userId) {
+              return Container(); // スキップして何も表示しない
+            }
+
+            // フォロワー数の処理
             _favoritePost.favoriteUsersNotifiers[post.id] ??=
                 ValueNotifier<int>(0);
             _favoritePost.updateFavoriteUsersCount(post.id);
@@ -182,13 +188,25 @@ class _SearchPageState extends State<SearchPage> {
           padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
           child: Row(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  account.imagePath,
-                  width: 40,
-                  height: 40,
-                  fit: BoxFit.cover,
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AccountPage(
+                        postUserId: account.id,
+                      ),
+                    ),
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8.0),
+                  child: Image.network(
+                    account.imagePath,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -205,42 +223,41 @@ class _SearchPageState extends State<SearchPage> {
                     );
                   },
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            account.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                          Flexible(
+                            child: Text(
+                              account.name.length > 25
+                                  ? '${account.name.substring(0, 25)}...' // 25文字を超える場合は切り捨てて「...」を追加
+                                  : account.name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            '@${account.userId}',
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 16,
+                          Flexible(
+                            child: Text(
+                              '@${account.userId.length > 25 ? '${account.userId.substring(0, 25)}...' : account.userId}',
+                              style: const TextStyle(color: Colors.grey),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            account.selfIntroduction.length > 230
-                                ? '${account.selfIntroduction.substring(0, 231)}...'
-                                : account.selfIntroduction,
-                            style: const TextStyle(
-                                fontSize: 13, color: Colors.black),
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
-                            softWrap: true,
-                          ),
-                        ],
+                      Text(
+                        account.selfIntroduction,
+                        style:
+                            const TextStyle(fontSize: 13, color: Colors.black),
+                        maxLines: 2, // 最大2行に設定
+                        overflow: TextOverflow.ellipsis, // 省略記号を表示
+                        softWrap: true,
                       ),
                     ],
                   ),
@@ -280,6 +297,11 @@ class _SearchPageState extends State<SearchPage> {
 
             // Firestoreから直近24時間のfavorite_usersを取得してcount
             final recentFavoriteCount = _postFavoriteCounts[post.id] ?? 0;
+
+            // lock_accountがtrueの場合はスルーする
+            if (postAccount.lockAccount && postAccount.id != widget.userId) {
+              return Container();
+            }
 
             // PostItemWidget に recentFavoriteCount をそのまま渡す
             return PostItemWidget(
@@ -451,61 +473,63 @@ class _SearchPageState extends State<SearchPage> {
   Widget _buildNavigationBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          IconButton(
-            icon: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('コンテンツ'),
-                Container(
-                  margin: const EdgeInsets.only(top: 2),
-                  height: 2,
-                  width: 60,
-                  color: _currentPage == 0 ? Colors.blue : Colors.transparent,
-                ),
-              ],
+      child: SingleChildScrollView(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            IconButton(
+              icon: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('コンテンツ'),
+                  Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    height: 2,
+                    width: 60,
+                    color: _currentPage == 0 ? Colors.blue : Colors.transparent,
+                  ),
+                ],
+              ),
+              onPressed: () {
+                _pageController.jumpToPage(0);
+              },
             ),
-            onPressed: () {
-              _pageController.jumpToPage(0);
-            },
-          ),
-          IconButton(
-            icon: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('アカウント'),
-                Container(
-                  margin: const EdgeInsets.only(top: 2),
-                  height: 2,
-                  width: 60,
-                  color: _currentPage == 1 ? Colors.blue : Colors.transparent,
-                ),
-              ],
+            IconButton(
+              icon: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('アカウント'),
+                  Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    height: 2,
+                    width: 60,
+                    color: _currentPage == 1 ? Colors.blue : Colors.transparent,
+                  ),
+                ],
+              ),
+              onPressed: () {
+                _pageController.jumpToPage(1);
+              },
             ),
-            onPressed: () {
-              _pageController.jumpToPage(1);
-            },
-          ),
-          IconButton(
-            icon: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('人気'),
-                Container(
-                  margin: const EdgeInsets.only(top: 2),
-                  height: 2,
-                  width: 60,
-                  color: _currentPage == 2 ? Colors.blue : Colors.transparent,
-                ),
-              ],
+            IconButton(
+              icon: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('人気'),
+                  Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    height: 2,
+                    width: 60,
+                    color: _currentPage == 2 ? Colors.blue : Colors.transparent,
+                  ),
+                ],
+              ),
+              onPressed: () {
+                _pageController.jumpToPage(2);
+              },
             ),
-            onPressed: () {
-              _pageController.jumpToPage(2);
-            },
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -524,8 +548,8 @@ class _SearchPageState extends State<SearchPage> {
                   onTap: () {
                     setState(() {
                       _selectedCategory = category;
-                      _searchPosts(_lastQuery); // クエリを保持して検索
-                      _fetchRecentFavorites(_lastQuery); // クエリを保持して検索
+                      _searchPosts(_lastQuery);
+                      _fetchRecentFavorites(_lastQuery);
                       Navigator.of(context).pop();
                     });
                   },

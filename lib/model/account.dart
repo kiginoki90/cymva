@@ -9,16 +9,19 @@ class Account {
   String userId;
   Timestamp? createdTime;
   Timestamp? updatedTime;
+  bool lockAccount;
 
-  Account(
-      {this.id = '',
-      this.name = '',
-      this.parents_id = '',
-      this.imagePath = '',
-      this.selfIntroduction = '',
-      this.userId = '',
-      this.createdTime,
-      this.updatedTime});
+  Account({
+    this.id = '',
+    this.name = '',
+    this.parents_id = '',
+    this.imagePath = '',
+    this.selfIntroduction = '',
+    this.userId = '',
+    this.createdTime,
+    this.updatedTime,
+    this.lockAccount = false,
+  });
 
   factory Account.fromDocument(DocumentSnapshot doc) {
     return Account(
@@ -30,6 +33,7 @@ class Account {
       userId: doc['user_id'],
       createdTime: doc['created_time'],
       updatedTime: doc['updated_time'],
+      lockAccount: doc['lock_account'],
     );
   }
 
@@ -43,6 +47,7 @@ class Account {
       'user_id': userId,
       'created_time': createdTime,
       'updated_time': updatedTime,
+      'lock_account': lockAccount,
     };
   }
 }

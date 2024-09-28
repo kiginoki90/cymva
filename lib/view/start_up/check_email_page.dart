@@ -1,12 +1,9 @@
 import 'package:cymva/view/time_line/timeline_body.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/utils/widget_utils.dart';
-import 'package:cymva/view/screen.dart';
 
 class CheckEmailPage extends StatefulWidget {
   final String email;

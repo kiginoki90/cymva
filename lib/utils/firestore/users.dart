@@ -9,9 +9,8 @@ class UserFirestore {
   static final CollectionReference users =
       _firestoreInstance.collection('users');
   static final _userCollection = FirebaseFirestore.instance.collection('users');
-
-  // static final FirebaseFirestore _firestoreInstance =
-  //     FirebaseFirestore.instance;
+  static final CollectionReference _users =
+      _firestoreInstance.collection('users');
 
   // UID でアカウントを取得する
   static Future<Account?> getAccountByUID(String uid) async {
@@ -48,6 +47,7 @@ class UserFirestore {
         'image_path': newAccount.imagePath,
         'created_time': Timestamp.now(),
         'updated_time': Timestamp.now(),
+        'lock_account': false,
       });
 
       // Add subcollections with an empty document
@@ -96,6 +96,7 @@ class UserFirestore {
           imagePath: data['image_path'] ?? '',
           createdTime: data['created_time'] as Timestamp?,
           updatedTime: data['updated_time'] as Timestamp?,
+          lockAccount: data['lock_account'] ?? '',
         );
         // 作成したオブジェクトをmyAccountに保存
         Authentication.myAccount = myAccount;
@@ -120,7 +121,7 @@ class UserFirestore {
         'self_introduction': updateAccount.selfIntroduction,
         'updated_time': Timestamp.now(),
         'admin': 3,
-        'key_account': false,
+        'lock_account': updateAccount.lockAccount,
       });
       print('ユーザー情報の更新完了');
       return true;
@@ -145,6 +146,7 @@ class UserFirestore {
           selfIntroduction: data['self_introduction'],
           createdTime: data['creaated_time'],
           updatedTime: data['uodated_time'],
+          lockAccount: data['lock_account'],
         );
         map[accountId] = postAccount;
       });
@@ -216,6 +218,7 @@ class UserFirestore {
             selfIntroduction: data['self_introduction'] ?? '',
             createdTime: data['created_time'] as Timestamp?,
             updatedTime: data['updated_time'] as Timestamp?,
+            lockAccount: data['lock_account'] ?? '',
           );
           accounts[id] = account; // IDをキーとしてマップに追加
         }
@@ -224,6 +227,17 @@ class UserFirestore {
     } catch (e) {
       print('Error getting users by IDs: $e');
       return {}; // エラー時は空のマップを返す
+    }
+  }
+
+  static Future<void> updateLockAccount(String userId, bool isPrivate) async {
+    try {
+      await _users.doc(userId).update({
+        'lock_account': isPrivate, // lock_account フィールドを更新
+      });
+      print('lock_account updated successfully');
+    } catch (e) {
+      print('Error updating lock_account: $e');
     }
   }
 }

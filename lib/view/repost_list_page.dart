@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/post_item/full_screen_image.dart';
+import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:cymva/view/post_item/post_detail_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -172,15 +173,24 @@ class RepostListPage extends StatelessWidget {
                                                       CrossAxisAlignment.start,
                                                   children: [
                                                     Text(
-                                                      userData['name'], // 名前
+                                                      userData['name'].length >
+                                                              25
+                                                          ? '${userData['name'].substring(0, 25)}...'
+                                                          : userData['name'],
                                                       style: const TextStyle(
                                                           fontWeight:
                                                               FontWeight.bold),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      maxLines: 1,
                                                     ),
                                                     Text(
-                                                      '@${userData['user_id']}', // ユーザーID
+                                                      '@${userData['user_id'].length > 25 ? '${userData['user_id'].substring(0, 25)}...' : userData['user_id']}',
                                                       style: const TextStyle(
                                                           color: Colors.grey),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      maxLines: 1,
                                                     ),
                                                   ],
                                                 ),
@@ -204,38 +214,25 @@ class RepostListPage extends StatelessWidget {
                                                 // メディア（画像）がある場合に表示
                                                 if (postData['media_url'] !=
                                                     null) ...[
-                                                  const SizedBox(height: 10),
-                                                  GestureDetector(
-                                                    onTap: () {
-                                                      Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (context) =>
-                                                              FullScreenImagePage(
-                                                            imageUrls: List<
-                                                                    String>.from(
-                                                                postData[
-                                                                    'media_url']),
-                                                            initialIndex: 0,
-                                                          ),
-                                                        ),
-                                                      );
-                                                    },
-                                                    child: ClipRRect(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              8),
-                                                      child: Image.network(
-                                                        postData['media_url']!,
-                                                        width: MediaQuery.of(
-                                                                    context)
-                                                                .size
-                                                                .width *
-                                                            0.9,
-                                                        height: 180,
-                                                        fit: BoxFit.cover,
+                                                  Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      MediaDisplayWidget(
+                                                        // 'media_url'がList<dynamic>型の場合、List<String>に変換する
+                                                        mediaUrl: (postData[
+                                                                    'media_url']
+                                                                as List<
+                                                                    dynamic>)
+                                                            .map((url) =>
+                                                                url.toString())
+                                                            .toList(),
+                                                        category: postData[
+                                                                'category'] ??
+                                                            '',
                                                       ),
-                                                    ),
+                                                    ],
                                                   ),
                                                 ],
                                               ],

@@ -9,8 +9,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class RepostPage extends StatefulWidget {
   final Post post;
+  final String userId;
 
-  const RepostPage({Key? key, required this.post}) : super(key: key);
+  const RepostPage({Key? key, required this.post, required this.userId})
+      : super(key: key);
 
   @override
   State<RepostPage> createState() => _RepostPageState();
@@ -110,10 +112,13 @@ class _RepostPageState extends State<RepostPage> {
                             children: [
                               if (_postAccountName != null)
                                 Text(
-                                  _postAccountName!,
+                                  _postAccountName!.length > 25
+                                      ? '${_postAccountName!.substring(0, 25)}...'
+                                      : _postAccountName!,
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15),
+                                      fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
                                 ),
                               if (_postAccountId != null)
                                 Text(
@@ -211,14 +216,12 @@ class _RepostPageState extends State<RepostPage> {
 
                     // メディアが選択されている場合、Firebase Storageにアップロードする
                     if (_mediaFiles.isNotEmpty) {
-                      final String userId =
-                          FirebaseAuth.instance.currentUser!.uid;
                       mediaUrls = [];
 
                       for (var file in _mediaFiles) {
                         String? uploadedMediaUrl =
                             await FunctionUtils.uploadImage(
-                                userId, file, context);
+                                widget.userId, file, context);
 
                         if (uploadedMediaUrl != null) {
                           mediaUrls.add(uploadedMediaUrl);
@@ -229,8 +232,8 @@ class _RepostPageState extends State<RepostPage> {
                     // Firestoreに再投稿情報を追加する処理を実装
                     Post rePost = Post(
                       content: _retweetController.text,
-                      postAccountId: FirebaseAuth.instance.currentUser!.uid,
-                      mediaUrl: mediaUrls, // 修正: リストを渡す
+                      postAccountId: widget.userId,
+                      mediaUrl: mediaUrls,
                       repost: widget.post.id,
                     );
 
@@ -241,7 +244,7 @@ class _RepostPageState extends State<RepostPage> {
                       final rePostCollectionRef = FirebaseFirestore.instance
                           .collection('posts')
                           .doc(widget.post.postId != null &&
-                                  widget.post.postId!.isNotEmpty
+                                  widget.post.postId.isNotEmpty
                               ? widget.post.postId
                               : widget.post.id)
                           .collection('repost');

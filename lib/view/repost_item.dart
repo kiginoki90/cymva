@@ -35,15 +35,28 @@ class RepostItem extends StatelessWidget {
                   fit: BoxFit.cover,
                 ),
               ),
-              const SizedBox(width: 10),
-              Text(
-                repostPostAccount.name,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
               const SizedBox(width: 5),
-              Text(
-                '@${repostPostAccount.userId}',
-                style: const TextStyle(color: Colors.grey),
+              Expanded(
+                // Expandedを追加して、テキストが横幅を調整できるようにする
+                child: RichText(
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1, // 最大1行に設定
+                  text: TextSpan(
+                    style:
+                        const TextStyle(color: Colors.black), // テキストのデフォルトスタイル
+                    children: [
+                      TextSpan(
+                        text: repostPostAccount.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const TextSpan(text: ' '), // スペースを追加
+                      TextSpan(
+                        text: '@${repostPostAccount.userId}',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -52,7 +65,7 @@ class RepostItem extends StatelessWidget {
           const SizedBox(height: 10),
           if (repostPost.mediaUrl != null && repostPost.mediaUrl!.isNotEmpty)
             GridView.builder(
-              physics: const NeverScrollableScrollPhysics(), // グリッド内でのスクロールを無効に
+              physics: const NeverScrollableScrollPhysics(),
               shrinkWrap: true, // グリッドのサイズを内容に合わせる
               itemCount: repostPost.mediaUrl!.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

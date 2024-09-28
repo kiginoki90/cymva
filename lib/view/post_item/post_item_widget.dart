@@ -1,16 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/utils/post_item_utils.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
+import 'package:cymva/view/post_item/post_visibility_widget.dart';
 import 'package:cymva/view/reply_page.dart';
-import 'package:cymva/view/repost_item.dart';
 import 'package:cymva/view/repost_page.dart';
-import 'package:cymva/view/slide_direction_page_route.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/model/account.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/view/post_item/post_detail_page.dart';
-import 'package:cymva/view/post_item/full_screen_image.dart';
 import 'package:cymva/view/account/account_page.dart';
 
 class PostItemWidget extends StatefulWidget {
@@ -186,15 +184,35 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      widget.postAccount.name,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold),
+                                    Row(
+                                      children: [
+                                        if (widget.postAccount.lockAccount)
+                                          const Padding(
+                                            padding: const EdgeInsets.only(
+                                                right: 4.0),
+                                            child: const Icon(
+                                              Icons.lock, // 南京錠のアイコン
+                                              size: 16, // アイコンのサイズ
+                                              color: Colors.grey, // アイコンの色
+                                            ),
+                                          ),
+                                        Text(
+                                          widget.postAccount.name.length > 25
+                                              ? '${widget.postAccount.name.substring(0, 25)}...' // 15文字を超える場合は切り捨てて「...」を追加
+                                              : widget.postAccount.name,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
+                                        ),
+                                      ],
                                     ),
                                     Text(
-                                      '@${widget.postAccount.userId}',
+                                      '@${widget.postAccount.userId.length > 25 ? '${widget.postAccount.userId.substring(0, 25)}...' : widget.postAccount.userId}',
                                       style:
                                           const TextStyle(color: Colors.grey),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
                                     ),
                                   ],
                                 ),
@@ -243,7 +261,6 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                       style: const TextStyle(fontSize: 18),
                                     ),
                                 ]),
-                            //メディアの表示
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -256,9 +273,11 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                             ),
                             if (_repostPost != null &&
                                 _repostPostAccount != null)
-                              RepostItem(
+                              //引用の表示
+                              PostVisibilityWidget(
+                                postAccount: _repostPostAccount!,
+                                userId: widget.userId,
                                 repostPost: _repostPost!,
-                                repostPostAccount: _repostPostAccount!,
                               ),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -328,7 +347,8 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                               MaterialPageRoute(
                                                 builder: (context) =>
                                                     RepostPage(
-                                                        post: widget.post),
+                                                        post: widget.post,
+                                                        userId: widget.userId),
                                               ),
                                             );
                                           },

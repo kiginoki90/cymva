@@ -72,6 +72,10 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
             icon: Icon(Icons.perm_identity_outlined), label: ''),
         BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
         BottomNavigationBarItem(
+          icon: Icon(Icons.notifications_outlined),
+          label: '',
+        ),
+        BottomNavigationBarItem(
             icon: Icon(Icons.chat_bubble_outline), label: ''),
       ],
       currentIndex: widget.selectedIndex,

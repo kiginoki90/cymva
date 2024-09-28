@@ -71,11 +71,20 @@ class _TimeLineState extends State<TimeLinePage> {
                         if (favoriteSnapshot.connectionState ==
                                 ConnectionState.done &&
                             favoriteSnapshot.hasData) {
+                          // 投稿をフィルタリング
+                          List<Post> visiblePosts = postSnapshot.data!
+                              .map((doc) => Post.fromDocument(doc))
+                              .where((post) {
+                            Account postAccount =
+                                userSnapshot.data![post.postAccountId]!;
+                            return !postAccount
+                                .lockAccount; // lockAccountがfalseのもののみ
+                          }).toList();
+
                           return ListView.builder(
-                            itemCount: postSnapshot.data!.length,
+                            itemCount: visiblePosts.length, // フィルタリング後のアイテム数
                             itemBuilder: (context, index) {
-                              Post post =
-                                  Post.fromDocument(postSnapshot.data![index]);
+                              Post post = visiblePosts[index];
 
                               Account postAccount =
                                   userSnapshot.data![post.postAccountId]!;

@@ -3,7 +3,6 @@ import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/time_line/follow_page.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:cymva/view/time_line/timeline_header.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

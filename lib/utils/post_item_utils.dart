@@ -13,7 +13,7 @@ Widget buildVerticalText(String content) {
 
           // 各文字を縦に配置
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0), // 行の間隔を広げる
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,

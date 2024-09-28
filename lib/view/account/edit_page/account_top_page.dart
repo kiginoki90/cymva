@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/view/account/edit_page/account_options_page.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
@@ -31,7 +30,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
   bool isFollowing = false;
   late Future<int> _followCountFuture;
   late Future<int> _followerCountFuture;
-  double previousScrollOffset = 0.0; // スクロールの前回のオフセット
+  double previousScrollOffset = 0.0;
   List<Account> siblingAccounts = [];
 
   @override
@@ -44,11 +43,9 @@ class _AccountTopPageState extends State<AccountTopPage> {
   }
 
   Future<void> _checkFollowStatus() async {
-    final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
-
     try {
       var followDoc = await UserFirestore.users
-          .doc(currentUserId)
+          .doc(widget.userId)
           .collection('follow')
           .doc(widget.postAccountId)
           .get();
@@ -76,6 +73,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
           selfIntroduction: data['self_introduction'] ?? '',
           imagePath: data['image_path'] ?? '',
           parents_id: data['parents_id'],
+          lockAccount: data['lock_account'] ?? '',
         );
       }).toList();
 
@@ -125,7 +123,6 @@ class _AccountTopPageState extends State<AccountTopPage> {
     if (myAccount == null) {
       return Center(child: CircularProgressIndicator());
     }
-    final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
       appBar: AppBar(
@@ -146,7 +143,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
                 context,
                 MaterialPageRoute(
                     builder: (context) =>
-                        AccountPage(postUserId: currentUserId)),
+                        AccountPage(postUserId: widget.userId)),
               );
             }
             previousScrollOffset = scrollInfo.metrics.pixels; // スクロール位置を更新
@@ -198,7 +195,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
                                   try {
                                     if (isFollowing) {
                                       await UserFirestore.users
-                                          .doc(currentUserId)
+                                          .doc(widget.userId)
                                           .collection('follow')
                                           .doc(widget.postAccountId)
                                           .delete();
@@ -206,7 +203,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
                                       await UserFirestore.users
                                           .doc(widget.postAccountId)
                                           .collection('followers')
-                                          .doc(currentUserId)
+                                          .doc(widget.userId)
                                           .delete();
 
                                       setState(() {
@@ -218,7 +215,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
                                       print('フォローを解除しました');
                                     } else {
                                       await UserFirestore.users
-                                          .doc(currentUserId)
+                                          .doc(widget.userId)
                                           .collection('follow')
                                           .doc(widget.postAccountId)
                                           .set(
@@ -227,7 +224,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
                                       await UserFirestore.users
                                           .doc(widget.postAccountId)
                                           .collection('followers')
-                                          .doc(currentUserId)
+                                          .doc(widget.userId)
                                           .set(
                                               {'followed_at': Timestamp.now()});
 

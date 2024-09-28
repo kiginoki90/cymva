@@ -79,7 +79,6 @@ class AccountOptionsPage extends StatelessWidget {
                       );
                     } catch (e) {
                       print('ログアウト処理中にエラーが発生しました: $e');
-                      // エラーハンドリング (必要に応じて)
                     }
                   },
                 );

@@ -9,15 +9,12 @@ import 'package:cymva/view/reply_page.dart';
 import 'package:cymva/view/repost_item.dart';
 import 'package:cymva/view/repost_list_page.dart';
 import 'package:cymva/view/repost_page.dart';
-import 'package:cymva/view/slide_direction_page_route.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:video_player/video_player.dart';
-import 'package:cymva/view/post_item/full_screen_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class PostDetailPage extends StatefulWidget {
   final Post post;
@@ -356,12 +353,18 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.postAccountName,
+                        widget.postAccountName.length > 25
+                            ? '${widget.postAccountName.substring(0, 25)}...'
+                            : widget.postAccountName,
                         style: const TextStyle(fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                       Text(
-                        '@${widget.postAccountUserId}',
+                        '@${widget.postAccountUserId.length > 25 ? '${widget.postAccountUserId.substring(0, 25)}...' : widget.postAccountUserId}',
                         style: const TextStyle(color: Colors.grey),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                     ],
                   ),
@@ -536,8 +539,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) =>
-                                      RepostPage(post: widget.post),
+                                  builder: (context) => RepostPage(
+                                      post: widget.post, userId: widget.userId),
                                 ),
                               );
                             },
