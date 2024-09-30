@@ -1,6 +1,6 @@
 import 'package:cymva/model/account.dart';
 import 'package:cymva/view/navigation_bar.dart';
-import 'package:cymva/view/time_line/follow_page.dart';
+import 'package:cymva/view/time_line/follow_timeline_page.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:cymva/view/time_line/timeline_header.dart';
 import 'package:flutter/material.dart';
@@ -79,7 +79,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                 controller: _pageController,
                 children: [
                   TimeLinePage(userId: widget.userId),
-                  FollowPage(myAccount: myAccount!),
+                  FollowTimelinePage(),
                 ],
               ),
             ),

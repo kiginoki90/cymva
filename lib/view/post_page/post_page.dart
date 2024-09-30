@@ -229,7 +229,7 @@ class _PostPageState extends State<PostPage> {
           ),
         ),
       ),
-      bottomNavigationBar: NavigationBarPage(selectedIndex: 3),
+      bottomNavigationBar: NavigationBarPage(selectedIndex: 4),
     );
   }
 }

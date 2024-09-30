@@ -345,8 +345,9 @@ class _AccountHeaderState extends State<AccountHeader> {
     // follow_messageをtrueとしてメッセージを追加
     await messageCollection.add({
       'created_time': currentTime,
-      'follow_message': true,
+      'message_type': 1,
       'request_user': myAccount!.id,
+      'request_userId': myAccount!.userId,
     });
 
     // フォロー状態は変更しない（依頼のみ）

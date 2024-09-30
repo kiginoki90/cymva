@@ -90,7 +90,7 @@ class UserFirestore {
         Account myAccount = Account(
           id: uid,
           parents_id: data['parents_id'] ?? '',
-          name: data['name'] ?? '', // デフォルト値を空の文字列に設定
+          name: data['name'] ?? '',
           userId: data['user_id'] ?? '',
           selfIntroduction: data['self_introduction'] ?? '',
           imagePath: data['image_path'] ?? '',

@@ -1,3 +1,4 @@
+import 'package:cymva/view/message/messes_page.dart';
 import 'package:cymva/view/post_page/post_page.dart';
 import 'package:cymva/view/search/search_page.dart';
 import 'package:cymva/view/time_line/timeline_body.dart';
@@ -39,6 +40,7 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
         TimeLineBody(userId: userId!),
         AccountPage(postUserId: userId!),
         SearchPage(userId: userId!),
+        MessesPage(userId: userId!),
         PostPage(userId: userId!),
       ];
     });

@@ -38,7 +38,7 @@ class PostVisibilityWidget extends StatelessWidget {
         final isFollowing = snapshot.data!;
         final isOwner = userId == postAccount.id;
 
-        if ((postAccount.lockAccount && !isFollowing) || !isOwner) {
+        if (postAccount.lockAccount && !isFollowing && !isOwner) {
           return Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20.0),

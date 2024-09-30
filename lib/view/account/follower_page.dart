@@ -97,22 +97,26 @@ class FollowerPage extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        userData['name'],
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
+                                      Expanded(
+                                        child: Text(
+                                          userData['name'],
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                       const SizedBox(width: 4),
-                                      Text(
-                                        '@${userData['user_id']}',
-                                        style: const TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 16,
+                                      Expanded(
+                                        child: Text(
+                                          '@${userData['user_id']}',
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 16,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ],

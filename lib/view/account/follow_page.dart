@@ -58,10 +58,31 @@ class FollowPage extends StatelessWidget {
                   return Padding(
                     padding: const EdgeInsets.symmetric(
                         vertical: 8.0, horizontal: 16.0),
-                    child: SingleChildScrollView(
-                      child: Row(
-                        children: [
-                          InkWell(
+                    child: Row(
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    AccountPage(postUserId: followId),
+                              ),
+                            );
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: Image.network(
+                              userData['image_path'],
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: InkWell(
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -71,67 +92,47 @@ class FollowPage extends StatelessWidget {
                                 ),
                               );
                             },
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: Image.network(
-                                userData['image_path'],
-                                width: 40,
-                                height: 40,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => AccountPage(
-                                        postUserId: userData['parents_id']),
-                                  ),
-                                );
-                              },
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
                                         userData['name'],
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
                                         ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      const SizedBox(width: 4),
-                                      Text(
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
                                         '@${userData['user_id']}',
                                         style: const TextStyle(
                                           color: Colors.grey,
                                           fontSize: 16,
                                         ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    userData['self_introduction'] ?? '',
-                                    style: const TextStyle(
-                                        fontSize: 13, color: Colors.black),
-                                    maxLines: 2, // 最大2行まで表示
-                                    overflow: TextOverflow.ellipsis,
-                                    softWrap: true,
-                                  ),
-                                ],
-                              ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  userData['self_introduction'] ?? '',
+                                  style: const TextStyle(
+                                      fontSize: 13, color: Colors.black),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   );
                 },
