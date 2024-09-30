@@ -5,11 +5,13 @@ import 'package:cymva/utils/post_item_utils.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
+import 'package:cymva/view/post_item/show_report_Dialog.dart';
 import 'package:cymva/view/reply_page.dart';
 import 'package:cymva/view/repost_item.dart';
 import 'package:cymva/view/repost_list_page.dart';
 import 'package:cymva/view/repost_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/view/account/account_page.dart';
@@ -53,11 +55,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
   Future<Post?>? _replyToPostFuture;
   final FavoritePost _favoritePost = FavoritePost();
   final ValueNotifier<int> _replyCountNotifier = ValueNotifier<int>(0);
-  // final ScrollController _scrollController = ScrollController();
   final GlobalKey _userRowKey = GlobalKey();
+  final FlutterSecureStorage storage = FlutterSecureStorage();
   Post? _repostPost;
   Account? _repostPostAccount;
   VideoPlayerController? _videoController;
+  Future<String?>? _myIdFuture;
 
   @override
   void initState() {
@@ -72,6 +75,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
     _fetchRepostDetails();
     _fetchReplyCount();
+    _myIdFuture = _getMyAccountId();
+  }
+
+  Future<String?> _getMyAccountId() async {
+    return await storage.read(key: 'account_id');
   }
 
   void _fetchReplyCount() {
@@ -229,11 +237,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
       body: Padding(
         padding: const EdgeInsets.all(10.0),
         child: SingleChildScrollView(
-          // controller: _scrollController,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 返信元の投稿を表示するためのFutureBuilder
               if (_replyToPostFuture != null)
                 FutureBuilder<Post?>(
                   future: _replyToPostFuture,
@@ -395,7 +401,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                             ),
                           ),
                         ),
-                      if (widget.post.postAccountId == widget.userId)
+                      if (widget.post.postAccountId == _myIdFuture)
                         PopupMenuButton<String>(
                           icon: Icon(Icons.add),
                           onSelected: (String value) {
@@ -420,6 +426,22 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               ),
                             ];
                           },
+                        )
+                      else // 投稿者が自分ではない場合に報告ボタンを表示
+                        Padding(
+                          padding: const EdgeInsets.only(right: 7),
+                          child: IconButton(
+                            icon: Icon(Icons.more_vert, color: Colors.grey),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return ShowReportDialog(
+                                      postId: widget.post.postId);
+                                },
+                              );
+                            },
+                          ),
                         ),
                     ],
                   ),
