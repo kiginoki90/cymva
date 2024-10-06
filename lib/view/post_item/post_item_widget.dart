@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/utils/post_item_utils.dart';
+import 'package:cymva/view/post_item/link_text.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:cymva/view/post_item/post_visibility_widget.dart';
 import 'package:cymva/view/reply_page.dart';
@@ -256,10 +257,7 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                   if (widget.post.category == '俳句・短歌')
                                     buildVerticalText(widget.post.content)
                                   else
-                                    Text(
-                                      widget.post.content,
-                                      style: const TextStyle(fontSize: 18),
-                                    ),
+                                    LinkText(text: widget.post.content),
                                 ]),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,

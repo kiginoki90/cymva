@@ -1,17 +1,19 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/utils/follow_service.dart';
 import 'package:cymva/view/account/edit_page/account_options_page.dart';
+import 'package:cymva/view/account/follow_page.dart';
+import 'package:cymva/view/account/follower_page.dart';
+import 'package:cymva/view/admin/admin_page.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/model/account.dart';
-import 'package:cymva/view/account/follow_page.dart';
-import 'package:cymva/view/account/follower_page.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-//アカウント詳細ページ
+// アカウント詳細ページ
 class AccountTopPage extends StatefulWidget {
   final String postAccountId;
   final String userId;
@@ -32,32 +34,44 @@ class _AccountTopPageState extends State<AccountTopPage> {
   late Future<int> _followerCountFuture;
   double previousScrollOffset = 0.0;
   List<Account> siblingAccounts = [];
+  Account? postAccount;
+  final FollowService followService = FollowService();
 
   @override
   void initState() {
     super.initState();
-    _getAccount();
-    _checkFollowStatus();
     _followCountFuture = _getFollowCount();
     _followerCountFuture = _getFollowerCount();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    await followService.initialize();
+    await _getAccount();
+    await _checkFollowStatus();
+    await _getPostAccount();
+    await _getFollowCount();
+    await _getFollowerCount();
   }
 
   Future<void> _checkFollowStatus() async {
-    try {
-      var followDoc = await UserFirestore.users
-          .doc(widget.userId)
-          .collection('follow')
-          .doc(widget.postAccountId)
-          .get();
+    isFollowing = await followService.checkFollowStatus(widget.postAccountId);
+    setState(() {});
+  }
+
+  Future<void> _getPostAccount() async {
+    final postUserSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.postAccountId)
+        .get();
+
+    if (postUserSnapshot.exists) {
       setState(() {
-        isFollowing = followDoc.exists;
+        postAccount = Account.fromDocument(postUserSnapshot);
       });
-    } catch (e) {
-      print('フォロー状態の確認に失敗しました: $e');
     }
   }
 
-  // 同じparents_idを持つアカウントを取得
   Future<void> _getSiblingAccounts(String parentsId) async {
     try {
       QuerySnapshot querySnapshot = await UserFirestore.users
@@ -99,7 +113,6 @@ class _AccountTopPageState extends State<AccountTopPage> {
       setState(() {
         myAccount = account;
       });
-      // 同じparents_idを持つアカウントを取得
       await _getSiblingAccounts(account.parents_id);
     }
   }
@@ -152,295 +165,305 @@ class _AccountTopPageState extends State<AccountTopPage> {
         },
         child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.only(right: 15, left: 15, top: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          if (widget.userId == widget.postAccountId)
-                            SizedBox(
-                              height: 25,
-                              width: 110,
-                              child: OutlinedButton(
-                                onPressed: () async {
-                                  var result = await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) =>
-                                              AccountOptionsPage()));
-                                  if (result == true) {
-                                    setState(() {
-                                      myAccount = Authentication.myAccount!;
-                                    });
-                                  }
-                                },
-                                child: const Text('編集'),
-                              ),
-                            ),
-                          SizedBox(height: 10), // ボタン間のスペース
-                          SizedBox(
-                            height: 25,
-                            width: 120,
-                            child: OutlinedButton(
-                              onPressed: () async {
-                                if (widget.userId == widget.postAccountId) {
-                                  // 自身のアカウント
-                                } else {
-                                  try {
-                                    if (isFollowing) {
-                                      await UserFirestore.users
-                                          .doc(widget.userId)
-                                          .collection('follow')
-                                          .doc(widget.postAccountId)
-                                          .delete();
+            _buildHeader(),
+            SizedBox(height: 30),
+            if (widget.userId == widget.postAccountId) _buildSiblingAccounts(),
+          ],
+        ),
+      ),
+    );
+  }
 
-                                      await UserFirestore.users
-                                          .doc(widget.postAccountId)
-                                          .collection('followers')
-                                          .doc(widget.userId)
-                                          .delete();
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.only(right: 15, left: 15),
+      child: Column(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: _buildAccountOptions(),
+              ),
+              if (widget.userId != widget.postAccountId)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: _buildFollowButton(),
+                ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(height: 20),
+              _buildAccountDetails(),
+              SizedBox(height: 10),
+              _buildSelfIntroduction(),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-                                      setState(() {
-                                        isFollowing = false;
-                                        _followerCountFuture =
-                                            _getFollowerCount();
-                                      });
-
-                                      print('フォローを解除しました');
-                                    } else {
-                                      await UserFirestore.users
-                                          .doc(widget.userId)
-                                          .collection('follow')
-                                          .doc(widget.postAccountId)
-                                          .set(
-                                              {'followed_at': Timestamp.now()});
-
-                                      await UserFirestore.users
-                                          .doc(widget.postAccountId)
-                                          .collection('followers')
-                                          .doc(widget.userId)
-                                          .set(
-                                              {'followed_at': Timestamp.now()});
-
-                                      setState(() {
-                                        isFollowing = true;
-                                        _followerCountFuture =
-                                            _getFollowerCount();
-                                      });
-
-                                      print('フォローしました');
-                                    }
-                                  } catch (e) {
-                                    print('フォロー処理に失敗しました: $e');
-                                  }
-                                }
-                              },
-                              style: OutlinedButton.styleFrom(
-                                backgroundColor:
-                                    isFollowing ? Colors.blue : Colors.white,
-                                side: BorderSide(
-                                    color: isFollowing
-                                        ? Colors.blue
-                                        : Colors.grey),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(0),
-                                ),
-                              ),
-                              child: Text(
-                                widget.userId == widget.postAccountId
-                                    ? '施錠'
-                                    : (isFollowing ? 'フォロー中' : 'フォロー'),
-                                style: TextStyle(
-                                  color:
-                                      isFollowing ? Colors.white : Colors.black,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 20), // ボタンとアイコンの間にスペースを追加
-
-                      // アイコンを中央に配置
-                      Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => AccountPage(
-                                          postUserId: myAccount!.id)),
-                                );
-                              },
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8.0),
-                                child: Image.network(
-                                  myAccount!.imagePath,
-                                  width: 70,
-                                  height: 70,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Text(
-                                  myAccount!.name,
-                                  style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  '@${myAccount!.userId}',
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          FutureBuilder<int>(
-                            future: _followCountFuture,
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return CircularProgressIndicator();
-                              }
-                              if (snapshot.hasError) {
-                                return Text('エラー');
-                              }
-                              final followCount = snapshot.data ?? 0;
-                              return GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => FollowPage(
-                                          userId: widget.postAccountId),
-                                    ),
-                                  );
-                                },
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      'フォロー: $followCount',
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                          FutureBuilder<int>(
-                            future: _followerCountFuture,
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return CircularProgressIndicator();
-                              }
-                              if (snapshot.hasError) {
-                                return Text('エラー');
-                              }
-                              final followerCount = snapshot.data ?? 0;
-                              return GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => FollowerPage(
-                                          userId: widget.postAccountId),
-                                    ),
-                                  );
-                                },
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      'フォロワー: $followerCount',
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
+  Widget _buildAccountOptions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (widget.userId != widget.postAccountId)
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_horiz),
+            onSelected: (String value) {},
+            itemBuilder: (BuildContext context) {
+              return [
+                PopupMenuItem<String>(
+                  value: 'Option 1',
+                  child: Text(
+                    'ブロック',
+                    style: TextStyle(color: Colors.black),
                   ),
-                  SizedBox(height: 15),
-                  Padding(
-                    padding: const EdgeInsets.all(8.15),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(myAccount?.selfIntroduction ?? '自己紹介がありません'),
-                      ],
-                    ),
-                  )
-                ],
+                ),
+              ];
+            },
+          ),
+        if (widget.userId == widget.postAccountId)
+          Column(
+            children: [
+              SizedBox(height: 20),
+              SizedBox(
+                height: 25,
+                width: 110,
+                child: OutlinedButton(
+                  onPressed: () async {
+                    var result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => AccountOptionsPage()));
+                    if (result == true) {
+                      setState(() {
+                        myAccount = Authentication.myAccount!;
+                      });
+                    }
+                  },
+                  child: const Text('編集'),
+                ),
+              ),
+              SizedBox(height: 20),
+              SizedBox(
+                height: 25,
+                width: 110,
+                child: TextButton(
+                  onPressed: () async {
+                    var result = await Navigator.push(context,
+                        MaterialPageRoute(builder: (context) => AdminPage()));
+                  },
+                  child: const Text(''),
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildFollowButton() {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          border: Border.all(color: isFollowing ? Colors.blue : Colors.grey),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: GestureDetector(
+          onTap: () {
+            // lock_accountがtrueの場合はポップアップを出す
+            if (postAccount?.lockAccount ?? false) {
+              showFollowDialog();
+            } else {
+              toggleFollowStatus();
+            }
+          },
+          child: Text(
+            isFollowing ? 'フォロー中' : 'フォロー',
+            style: TextStyle(
+              color: isFollowing ? Colors.blue : Colors.black,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccountDetails() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) =>
+                        AccountPage(postUserId: myAccount!.id)),
+              );
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8.0),
+              child: Image.network(
+                myAccount!.imagePath,
+                width: 70,
+                height: 70,
+                fit: BoxFit.cover,
               ),
             ),
-            SizedBox(height: 30),
-            if (widget.userId == widget.postAccountId)
-              FutureBuilder<QuerySnapshot>(
-                future: UserFirestore.users
-                    .where('parents_id', isEqualTo: myAccount!.parents_id)
-                    .get(),
+          ),
+          SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                myAccount!.name,
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                '@${myAccount!.userId}',
+                style: const TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              FutureBuilder<int>(
+                future: _followCountFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return CircularProgressIndicator();
                   }
-                  if (snapshot.hasError || !snapshot.hasData) {
-                    return SizedBox.shrink();
-                  }
-
-                  final accounts = snapshot.data!.docs;
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: accounts.map((account) {
-                      final Account userAccount = Account.fromDocument(account);
-
-                      return GestureDetector(
-                        onTap: () async {
-                          await onAccountChanged(userAccount); // アカウント切り替え処理を追加
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                          child: CircleAvatar(
-                            backgroundImage:
-                                NetworkImage(userAccount.imagePath),
-                            radius: 20,
-                          ),
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              FollowPage(userId: widget.postAccountId),
                         ),
                       );
-                    }).toList(),
+                    },
+                    child: Column(
+                      children: [
+                        Text(
+                          'フォロー: ${snapshot.data ?? 0}',
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                      ],
+                    ),
                   );
                 },
-              )
-          ],
-        ),
+              ),
+              SizedBox(width: 20),
+              FutureBuilder<int>(
+                future: _followerCountFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return CircularProgressIndicator();
+                  }
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              FollowerPage(userId: widget.postAccountId),
+                        ),
+                      );
+                    },
+                    child: Column(
+                      children: [
+                        Text(
+                          'フォロワー: ${snapshot.data ?? 0}',
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          )
+        ],
       ),
+    );
+  }
+
+  Widget _buildSelfIntroduction() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Text(
+        myAccount!.selfIntroduction.isNotEmpty
+            ? myAccount!.selfIntroduction
+            : '自己紹介は設定されていません',
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
+      ),
+    );
+  }
+
+  Widget _buildSiblingAccounts() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: siblingAccounts.map((sibling) {
+        return GestureDetector(
+          onTap: () async {
+            await onAccountChanged(sibling); // アカウント切り替え処理を追加
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: CircleAvatar(
+              backgroundImage: NetworkImage(sibling.imagePath),
+              radius: 20, // アイコンのサイズ
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Future<void> toggleFollowStatus() async {
+    await followService.toggleFollowStatus(widget.postAccountId);
+    _checkFollowStatus();
+  }
+
+  void showFollowDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('このアカウントは非公開です'),
+          content: Text('フォローリクエストを送信しますか？'),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await followService.handleFollowRequest(
+                    widget.postAccountId, myAccount!);
+              },
+              child: Text('送信'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('キャンセル'),
+            ),
+          ],
+        );
+      },
     );
   }
 

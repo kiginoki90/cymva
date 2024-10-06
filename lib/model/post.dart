@@ -11,6 +11,7 @@ class Post {
   String? reply;
   String? repost;
   String? category;
+  bool hide;
 
   Post({
     this.id = '',
@@ -23,27 +24,28 @@ class Post {
     this.reply,
     this.repost,
     this.category,
+    this.hide = false,
   });
 
-  // Convert to Map for Firestore
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'content': content,
-      'post_account_id': postAccountId, // Fixed key
+      'post_account_id': postAccountId,
       'created_time': createdTime ?? FieldValue.serverTimestamp(),
-      'media_url': mediaUrl ?? [], // Ensure default empty list
+      'media_url': mediaUrl ?? [],
       'is_video': isVideo,
       'post_id': postId,
       'reply': reply,
       'repost': repost,
       'category': category,
+      'hide': hide,
     };
   }
 
   // FirestoreドキュメントからPostを作成
   factory Post.fromDocument(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>; // Data extraction
+    final data = doc.data() as Map<String, dynamic>;
 
     return Post(
       id: doc.id,
@@ -56,6 +58,7 @@ class Post {
       reply: data['reply'] as String?,
       repost: data['repost'] as String?,
       category: data['category'] as String?,
+      hide: data.containsKey('hide') ? data['hide'] as bool : false,
     );
   }
 
@@ -71,6 +74,7 @@ class Post {
       reply: data['reply'] as String?,
       repost: data['repost'] as String?,
       category: data['category'] as String?,
+      hide: data.containsKey('hide') ? data['hide'] as bool : false,
     );
   }
 }

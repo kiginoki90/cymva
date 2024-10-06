@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +28,7 @@ class _PostPageState extends State<PostPage> {
 
   String? selectedCategory;
   final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真', '俳句・短歌'];
+  String? userProfileImageUrl;
 
   // 画像を選択する
   Future<void> selectImages(selectedCategory) async {
@@ -36,6 +38,30 @@ class _PostPageState extends State<PostPage> {
       setState(() {
         images.addAll(pickedFiles);
       });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchUserProfileImage(); // プロフィール画像の取得を初期化時に呼び出し
+  }
+
+  // Firestoreからユーザーのプロフィール画像を取得
+  Future<void> fetchUserProfileImage() async {
+    try {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .get();
+
+      if (userDoc.exists) {
+        setState(() {
+          userProfileImageUrl = userDoc['image_path']; // Firestoreのフィールド名に合わせる
+        });
+      }
+    } catch (e) {
+      print('プロフィール画像の取得中にエラーが発生しました: $e');
     }
   }
 
@@ -73,6 +99,22 @@ class _PostPageState extends State<PostPage> {
         title: const Text('新規投稿'),
         elevation: 2,
         iconTheme: const IconThemeData(color: Colors.black),
+        actions: [
+          // プロフィール画像を右端に表示
+          if (userProfileImageUrl != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: Image.network(
+                  userProfileImageUrl!,
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -116,13 +158,12 @@ class _PostPageState extends State<PostPage> {
               TextField(
                 controller: contentController,
                 decoration: InputDecoration(
-                  hintText: 'Content',
+                  hintText: 'Conent',
                   filled: true,
                   fillColor: selectedCategory == '俳句・短歌'
                       ? Color.fromARGB(255, 255, 238, 240)
                       : const Color.fromARGB(255, 222, 242, 251),
-
-                  border: InputBorder.none, // 枠線を削除
+                  border: InputBorder.none,
                 ),
                 minLines: 5,
 

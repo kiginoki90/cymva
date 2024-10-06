@@ -40,6 +40,7 @@ class UserFirestore {
   static Future<dynamic> setUser(Account newAccount) async {
     try {
       await users.doc(newAccount.id).set({
+        'admin': 3,
         'parents_id': newAccount.id,
         'name': newAccount.name,
         'user_id': newAccount.userId,
@@ -88,6 +89,7 @@ class UserFirestore {
         Map<String, dynamic> data =
             documentSnapshot.data() as Map<String, dynamic>;
         Account myAccount = Account(
+          admin: data['admin'] ?? 3,
           id: uid,
           parents_id: data['parents_id'] ?? '',
           name: data['name'] ?? '',
@@ -211,6 +213,7 @@ class UserFirestore {
         if (doc.exists) {
           Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
           Account account = Account(
+            admin: data['admin'] ?? 3,
             id: id,
             name: data['name'] ?? '',
             userId: data['user_id'] ?? '',

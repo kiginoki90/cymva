@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class Account {
+  int admin;
   String id;
   String parents_id;
   String name;
@@ -12,6 +14,7 @@ class Account {
   bool lockAccount;
 
   Account({
+    this.admin = 3,
     this.id = '',
     this.name = '',
     this.parents_id = '',
@@ -25,6 +28,7 @@ class Account {
 
   factory Account.fromDocument(DocumentSnapshot doc) {
     return Account(
+      admin: doc['admin'],
       id: doc.id, // ドキュメントIDをidフィールドにセット
       parents_id: doc['parents_id'],
       name: doc['name'],
@@ -40,6 +44,7 @@ class Account {
   // Firestoreに保存するためのMapに変換するメソッド
   Map<String, dynamic> toMap() {
     return {
+      'admin': admin,
       'parents_id': parents_id,
       'name': name,
       'image_path': imagePath,

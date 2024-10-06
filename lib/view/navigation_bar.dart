@@ -50,8 +50,7 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation1, animation2) =>
-            pageList![index], // nullチェック
+        pageBuilder: (context, animation1, animation2) => pageList![index],
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
       ),

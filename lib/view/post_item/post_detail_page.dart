@@ -3,6 +3,7 @@ import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/utils/post_item_utils.dart';
 import 'package:cymva/view/navigation_bar.dart';
+import 'package:cymva/view/post_item/link_text.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:cymva/view/post_item/show_report_Dialog.dart';
@@ -232,7 +233,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ポストの詳細'),
+        title: const Text('投稿の詳細'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(10.0),
@@ -263,7 +264,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
                             return Text('エラーが発生しました。');
                           } else {
                             Account? postAccount = snapshot.data;
-
                             // リツイートの状態を管理するためのValueNotifierを初期化
                             ValueNotifier<bool> isRetweetedNotifier =
                                 ValueNotifier<bool>(
@@ -401,7 +401,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                             ),
                           ),
                         ),
-                      if (widget.post.postAccountId == _myIdFuture)
+                      if (widget.post.postAccountId == widget.userId)
                         PopupMenuButton<String>(
                           icon: Icon(Icons.add),
                           onSelected: (String value) {
@@ -416,32 +416,51 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                   style: TextStyle(color: Colors.red),
                                 ),
                               ),
-                              PopupMenuItem<String>(
-                                value: 'Option 2',
-                                child: Text('Option 2'),
-                              ),
-                              PopupMenuItem<String>(
-                                value: 'Option 3',
-                                child: Text('Option 3'),
-                              ),
+                              // PopupMenuItem<String>(
+                              //   value: 'Option 2',
+                              //   child: Text('Option 2'),
+                              // ),
+                              // PopupMenuItem<String>(
+                              //   value: 'Option 3',
+                              //   child: Text('Option 3'),
+                              // ),
                             ];
                           },
                         )
                       else // 投稿者が自分ではない場合に報告ボタンを表示
-                        Padding(
-                          padding: const EdgeInsets.only(right: 7),
-                          child: IconButton(
-                            icon: Icon(Icons.more_vert, color: Colors.grey),
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return ShowReportDialog(
-                                      postId: widget.post.postId);
-                                },
+                        PopupMenuButton<String>(
+                          icon: Icon(Icons.more_vert, color: Colors.grey),
+                          onSelected: (String value) {
+                            if (value == '投稿の報告') {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ShowReportDialog(
+                                      postId: widget.post.postId),
+                                ),
                               );
-                            },
-                          ),
+                            } else if (value == 'Option 2') {
+                            } else if (value == 'Option 3') {}
+                          },
+                          itemBuilder: (BuildContext context) {
+                            return [
+                              PopupMenuItem<String>(
+                                value: '投稿の報告',
+                                child: Text(
+                                  '投稿の報告',
+                                  style: TextStyle(color: Colors.blue),
+                                ),
+                              ),
+                              // PopupMenuItem<String>(
+                              //   value: 'Option 2',
+                              //   child: Text('Option 2'),
+                              // ),
+                              // PopupMenuItem<String>(
+                              //   value: 'Option 3',
+                              //   child: Text('Option 3'),
+                              // ),
+                            ];
+                          },
                         ),
                     ],
                   ),
@@ -458,10 +477,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
               if (widget.post.category == '俳句・短歌')
                 buildVerticalText(widget.post.content)
               else
-                Text(
-                  widget.post.content,
-                  style: const TextStyle(fontSize: 18),
-                ),
+                LinkText(text: widget.post.content),
               const SizedBox(height: 10),
 
               Column(
@@ -640,7 +656,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   } else if (snapshot.hasError) {
                     return Text('エラーが発生しました: ${snapshot.error}');
                   } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return Text('返信ポストはありません。');
+                    return Text('返信はありません');
                   } else {
                     List<Post> replyPosts = snapshot.data!;
                     return Column(

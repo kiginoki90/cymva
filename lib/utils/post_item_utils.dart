@@ -5,8 +5,8 @@ Widget buildVerticalText(String content) {
   List<String> lines = content.split('\n');
 
   return Row(
-    mainAxisAlignment: MainAxisAlignment.center, // 中央寄せ
-    crossAxisAlignment: CrossAxisAlignment.start, // 上寄せ
+    mainAxisAlignment: MainAxisAlignment.center,
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: lines
         .map((line) {
           List<String> characters = line.split('');

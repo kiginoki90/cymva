@@ -20,7 +20,7 @@ class AccountPage extends StatefulWidget {
 }
 
 class _AccountPageState extends State<AccountPage> {
-  Account? homeAccount;
+  Account? postAccount;
   late PageController _pageController;
   String? userId;
   final FlutterSecureStorage storage = FlutterSecureStorage();
@@ -52,7 +52,7 @@ class _AccountPageState extends State<AccountPage> {
       );
     } else {
       setState(() {
-        homeAccount = account;
+        postAccount = account;
       });
     }
   }
@@ -65,12 +65,12 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   // myAccountのfollowサブコレクションにhomeAccountのIDが存在するかチェックするメソッド
-  Future<bool> _isFollowing(String myAccountId, String homeAccountId) async {
+  Future<bool> _isFollowing(String myAccountId, String postAccountId) async {
     final followSnapshot = await FirebaseFirestore.instance
         .collection('users')
         .doc(myAccountId)
         .collection('follow')
-        .doc(homeAccountId)
+        .doc(postAccountId)
         .get();
 
     return followSnapshot.exists; // 存在する場合はtrueを返す
@@ -84,7 +84,7 @@ class _AccountPageState extends State<AccountPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (homeAccount == null) {
+    if (postAccount == null) {
       return Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
@@ -112,7 +112,7 @@ class _AccountPageState extends State<AccountPage> {
 
         // follow状態をチェックするFutureBuilder
         return FutureBuilder<bool>(
-          future: _isFollowing(myAccount.id, homeAccount!.id),
+          future: _isFollowing(myAccount.id, postAccount!.id),
           builder: (context, followSnapshot) {
             if (followSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -121,8 +121,8 @@ class _AccountPageState extends State<AccountPage> {
             final isFollowing = followSnapshot.data ?? false;
 
             // ページ遷移の条件をチェック
-            if (homeAccount!.lockAccount &&
-                homeAccount!.id != myAccount.id &&
+            if (postAccount!.lockAccount &&
+                postAccount!.id != myAccount.id &&
                 !isFollowing) {
               // 条件が満たされている場合、別のウィジェットを表示
               return Scaffold(
@@ -161,9 +161,10 @@ class _AccountPageState extends State<AccountPage> {
                       child: PageView(
                         controller: _pageController,
                         children: [
-                          PostList(myAccount: homeAccount!),
-                          ImagePostList(myAccount: homeAccount!),
-                          FavoriteList(myAccount: homeAccount!)
+                          PostList(
+                              postAccount: postAccount!, myAccount: myAccount!),
+                          ImagePostList(myAccount: postAccount!),
+                          FavoriteList(myAccount: postAccount!)
                         ],
                       ),
                     ),

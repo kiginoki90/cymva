@@ -8,9 +8,11 @@ import 'package:cymva/view/post_item/post_item_widget.dart';
 
 class PostList extends StatelessWidget {
   final Account myAccount;
+  final Account postAccount;
   final FavoritePost _favoritePost = FavoritePost(); //お気に入り機能のインスタンス
 
-  PostList({Key? key, required this.myAccount}) : super(key: key);
+  PostList({Key? key, required this.myAccount, required this.postAccount})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +21,7 @@ class PostList extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
-          .doc(myAccount.id)
+          .doc(postAccount.id)
           .collection('my_posts')
           .orderBy('created_time', descending: true)
           .snapshots(),
@@ -63,7 +65,7 @@ class PostList extends StatelessWidget {
 
                             return PostItemWidget(
                               post: post,
-                              postAccount: myAccount,
+                              postAccount: postAccount,
                               favoriteUsersNotifier: _favoritePost
                                   .favoriteUsersNotifiers[post.id]!,
                               isFavoriteNotifier:
