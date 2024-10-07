@@ -9,7 +9,8 @@ import 'package:cymva/utils/favorite_post.dart';
 
 class SearchPage extends StatefulWidget {
   final String userId;
-  const SearchPage({super.key, required this.userId});
+  final String? initialHashtag;
+  const SearchPage({super.key, required this.userId, this.initialHashtag});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -32,10 +33,21 @@ class _SearchPageState extends State<SearchPage> {
   void initState() {
     super.initState();
 
-    _favoritePost.getFavoritePosts();
+    if (widget.initialHashtag != null) {
+      _searchController.text = widget.initialHashtag!;
+
+      if (_currentPage == 0) {
+        _searchPosts(_searchController.text);
+      } else if (_currentPage == 1) {
+        _searchAccounts(_searchController.text);
+      } else if (_currentPage == 2) {
+        _fetchRecentFavorites(_searchController.text);
+      }
+    }
 
     _searchController.addListener(() {
       _lastQuery = _searchController.text;
+
       if (_currentPage == 0) {
         _searchPosts(_lastQuery);
       } else if (_currentPage == 1) {
@@ -44,6 +56,8 @@ class _SearchPageState extends State<SearchPage> {
         _fetchRecentFavorites(_lastQuery);
       }
     });
+
+    _favoritePost.getFavoritePosts();
   }
 
   @override
@@ -331,6 +345,8 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   void _onPageChanged() {
+    _lastQuery = _searchController.text;
+
     if (_currentPage == 0 && _postSearchResults.isEmpty) {
       _searchPosts(_lastQuery);
     } else if (_currentPage == 1 && _accountSearchResults.isEmpty) {

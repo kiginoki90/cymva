@@ -29,6 +29,7 @@ class _PostPageState extends State<PostPage> {
   String? selectedCategory;
   final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真', '俳句・短歌'];
   String? userProfileImageUrl;
+  bool isPosting = false;
 
   // 画像を選択する
   Future<void> selectImages(selectedCategory) async {
@@ -74,12 +75,10 @@ class _PostPageState extends State<PostPage> {
         this.isVideo = isVideo;
         if (isVideo) {
           // VideoControllerの初期化も非同期処理として行う
-          Future<void> initializeController() async {
-            _videoController =
-                await FunctionUtils.getVideoController(_mediaFile!);
-          }
-
-          initializeController();
+          _videoController = VideoPlayerController.file(_mediaFile!)
+            ..initialize().then((_) {
+              setState(() {});
+            });
         }
       });
     }
@@ -215,53 +214,73 @@ class _PostPageState extends State<PostPage> {
                     tooltip: 'ビデオを選択',
                   ),
                   ElevatedButton(
-                    onPressed: () async {
-                      if (contentController.text.isNotEmpty ||
-                          images.isNotEmpty) {
-                        // 複数の画像をアップロードする処理
-                        List<String> mediaUrls = [];
+                    onPressed: isPosting
+                        ? null // 投稿中の場合はボタンを無効化
+                        : () async {
+                            if (contentController.text.isNotEmpty ||
+                                images.isNotEmpty ||
+                                _mediaFile != null) {
+                              setState(() {
+                                isPosting = true; // 投稿中に設定
+                              });
 
-                        for (var xFile in images) {
-                          File file = File(xFile.path);
+                              List<String> mediaUrls = [];
 
-                          // 画像をそれぞれアップロード
-                          String? mediaUrl = await FunctionUtils.uploadImage(
-                              widget.userId, file, context);
+                              // 画像ファイルのアップロード処理
+                              for (var xFile in images) {
+                                File file = File(xFile.path);
+                                String? mediaUrl =
+                                    await FunctionUtils.uploadImage(
+                                        widget.userId, file, context);
+                                if (mediaUrl != null) {
+                                  mediaUrls.add(mediaUrl);
+                                }
+                              }
 
-                          // mediaUrlがnullでない場合のみリストに追加
-                          if (mediaUrl != null) {
-                            mediaUrls.add(mediaUrl);
-                          }
-                        }
+                              // 動画ファイルのアップロード処理
+                              String? videoUrl;
+                              if (_mediaFile != null && isVideo) {
+                                videoUrl = await FunctionUtils.uploadVideo(
+                                    widget.userId, _mediaFile!, context);
+                                if (videoUrl != null) {
+                                  mediaUrls.add(videoUrl); // 動画のURLもメディアリストに追加
+                                }
+                              }
 
-                        Post newPost = Post(
-                          content: contentController.text,
-                          postAccountId: widget.userId,
-                          mediaUrl: mediaUrls,
-                          isVideo: false,
-                          category: selectedCategory,
-                        );
+                              Post newPost = Post(
+                                content: contentController.text,
+                                postAccountId: widget.userId,
+                                mediaUrl: mediaUrls,
+                                isVideo: isVideo, // 動画投稿かどうかを判定
+                                category: selectedCategory,
+                              );
 
-                        var result = await PostFirestore.addPost(newPost);
+                              var result = await PostFirestore.addPost(newPost);
 
-                        if (result != null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('投稿が完了しました')),
-                          );
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  AccountPage(postUserId: widget.userId),
-                            ),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('投稿に失敗しました')),
-                          );
-                        }
-                      }
-                    },
-                    child: const Text('投稿'),
+                              setState(() {
+                                isPosting = false; // 投稿処理が完了したらフラグを解除
+                              });
+
+                              if (result != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('投稿が完了しました')),
+                                );
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        AccountPage(postUserId: widget.userId),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('投稿に失敗しました')),
+                                );
+                              }
+                            }
+                          },
+                    child: isPosting
+                        ? CircularProgressIndicator() // 投稿中はローディングインジケーターを表示
+                        : const Text('投稿'),
                   ),
                   const SizedBox(width: 20),
                 ],

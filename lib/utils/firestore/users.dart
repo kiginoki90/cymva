@@ -119,10 +119,8 @@ class UserFirestore {
       await users.doc(updateAccount.id).update({
         'name': updateAccount.name,
         'image_path': updateAccount.imagePath,
-        'user_id': updateAccount.userId,
         'self_introduction': updateAccount.selfIntroduction,
         'updated_time': Timestamp.now(),
-        'admin': 3,
         'lock_account': updateAccount.lockAccount,
       });
       print('ユーザー情報の更新完了');

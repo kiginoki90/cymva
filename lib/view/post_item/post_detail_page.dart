@@ -359,15 +359,15 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.postAccountName.length > 25
-                            ? '${widget.postAccountName.substring(0, 25)}...'
+                        widget.postAccountName.length > 15
+                            ? '${widget.postAccountName.substring(0, 15)}...'
                             : widget.postAccountName,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
                       Text(
-                        '@${widget.postAccountUserId.length > 25 ? '${widget.postAccountUserId.substring(0, 25)}...' : widget.postAccountUserId}',
+                        '@${widget.postAccountUserId.length > 20 ? '${widget.postAccountUserId.substring(0, 20)}...' : widget.postAccountUserId}',
                         style: const TextStyle(color: Colors.grey),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
@@ -477,7 +477,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
               if (widget.post.category == '俳句・短歌')
                 buildVerticalText(widget.post.content)
               else
-                LinkText(text: widget.post.content),
+                LinkText(text: widget.post.content, userId: widget.userId),
               const SizedBox(height: 10),
 
               Column(

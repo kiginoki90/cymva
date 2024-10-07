@@ -198,8 +198,8 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                             ),
                                           ),
                                         Text(
-                                          widget.postAccount.name.length > 25
-                                              ? '${widget.postAccount.name.substring(0, 25)}...' // 15文字を超える場合は切り捨てて「...」を追加
+                                          widget.postAccount.name.length > 13
+                                              ? '${widget.postAccount.name.substring(0, 13)}...' // 15文字を超える場合は切り捨てて「...」を追加
                                               : widget.postAccount.name,
                                           style: const TextStyle(
                                               fontWeight: FontWeight.bold),
@@ -257,7 +257,9 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                   if (widget.post.category == '俳句・短歌')
                                     buildVerticalText(widget.post.content)
                                   else
-                                    LinkText(text: widget.post.content),
+                                    LinkText(
+                                        text: widget.post.content,
+                                        userId: widget.userId),
                                 ]),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,

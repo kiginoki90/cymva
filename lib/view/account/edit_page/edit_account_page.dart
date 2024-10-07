@@ -100,13 +100,13 @@ class _EditAccountPageState extends State<EditAccountPage> {
               hintText: 'Enter your name',
               description: '名前を15字以内で記入してください',
             ),
-            SizedBox(height: 20),
-            _buildTextField(
-              controller: userIdController,
-              label: 'ユーザーID',
-              hintText: 'Enter your user ID',
-              description: 'ユーザーIDを20字以内で入力してください。',
-            ),
+            // SizedBox(height: 20),
+            // _buildTextField(
+            //   controller: userIdController,
+            //   label: 'ユーザーID',
+            //   hintText: 'Enter your user ID',
+            //   description: 'ユーザーIDを20字以内で入力してください。',
+            // ),
             SizedBox(height: 20),
             _buildTextField(
               controller: selfIntroductionController,

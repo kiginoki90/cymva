@@ -125,8 +125,8 @@ class _AccountHeaderState extends State<AccountHeader> {
                                 ),
                               ),
                             Text(
-                              postAccount!.name.length > 25
-                                  ? '${postAccount!.name.substring(0, 25)}...'
+                              postAccount!.name.length > 12
+                                  ? '${postAccount!.name.substring(0, 12)}...'
                                   : postAccount!.name,
                               style:
                                   const TextStyle(fontWeight: FontWeight.bold),
@@ -136,7 +136,7 @@ class _AccountHeaderState extends State<AccountHeader> {
                           ],
                         ),
                         Text(
-                          '@${postAccount!.userId.length > 25 ? '${postAccount!.userId.substring(0, 25)}...' : postAccount!.userId}',
+                          '@${postAccount!.userId.length > 20 ? '${postAccount!.userId.substring(0, 20)}...' : postAccount!.userId}',
                           style: const TextStyle(color: Colors.grey),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,

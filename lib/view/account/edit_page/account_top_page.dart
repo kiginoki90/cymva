@@ -72,6 +72,23 @@ class _AccountTopPageState extends State<AccountTopPage> {
     }
   }
 
+  Future<void> _getAccount() async {
+    final Account? account = await UserFirestore.getUser(widget.userId);
+    if (account == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('ユーザー情報が取得できませんでした')));
+      Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (context) => TimeLinePage(userId: widget.userId)));
+    } else {
+      setState(() {
+        myAccount = account;
+      });
+      await _getSiblingAccounts(account.parents_id);
+    }
+  }
+
   Future<void> _getSiblingAccounts(String parentsId) async {
     try {
       QuerySnapshot querySnapshot = await UserFirestore.users
@@ -99,24 +116,6 @@ class _AccountTopPageState extends State<AccountTopPage> {
     }
   }
 
-  Future<void> _getAccount() async {
-    final Account? account = await UserFirestore.getUser(widget.postAccountId);
-    if (account == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('ユーザー情報が取得できませんでした')));
-      Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (context) =>
-                  TimeLinePage(userId: widget.postAccountId)));
-    } else {
-      setState(() {
-        myAccount = account;
-      });
-      await _getSiblingAccounts(account.parents_id);
-    }
-  }
-
   Future<int> _getFollowCount() async {
     final followCollection =
         UserFirestore.users.doc(widget.postAccountId).collection('follow');
@@ -133,14 +132,14 @@ class _AccountTopPageState extends State<AccountTopPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (myAccount == null) {
+    if (postAccount == null) {
       return Center(child: CircularProgressIndicator());
     }
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          myAccount!.name,
+          postAccount!.name,
           style: TextStyle(
               color: const Color.fromARGB(255, 255, 255, 255),
               fontWeight: FontWeight.bold),
@@ -240,27 +239,33 @@ class _AccountTopPageState extends State<AccountTopPage> {
                         context,
                         MaterialPageRoute(
                             builder: (context) => AccountOptionsPage()));
-                    if (result == true) {
-                      setState(() {
-                        myAccount = Authentication.myAccount!;
-                      });
-                    }
+                    // if (result == true) {
+                    //   setState(() {
+                    //     myAccount = Authentication.myAccount!;
+                    //   });
+                    // }
                   },
                   child: const Text('編集'),
                 ),
               ),
               SizedBox(height: 20),
-              SizedBox(
-                height: 25,
-                width: 110,
-                child: TextButton(
-                  onPressed: () async {
-                    var result = await Navigator.push(context,
-                        MaterialPageRoute(builder: (context) => AdminPage()));
-                  },
-                  child: const Text(''),
+              if (myAccount?.admin == 1)
+                SizedBox(
+                  height: 25,
+                  width: 110,
+                  child: TextButton(
+                    onPressed: () async {
+                      var result = await Navigator.push(context,
+                          MaterialPageRoute(builder: (context) => AdminPage()));
+                      // if (result == true) {
+                      //   setState(() {
+                      //     myAccount = Authentication.myAccount!;
+                      //   });
+                      // }
+                    },
+                    child: const Text('1'),
+                  ),
                 ),
-              ),
             ],
           ),
       ],
@@ -308,13 +313,13 @@ class _AccountTopPageState extends State<AccountTopPage> {
                 context,
                 MaterialPageRoute(
                     builder: (context) =>
-                        AccountPage(postUserId: myAccount!.id)),
+                        AccountPage(postUserId: postAccount!.id)),
               );
             },
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8.0),
               child: Image.network(
-                myAccount!.imagePath,
+                postAccount!.imagePath,
                 width: 70,
                 height: 70,
                 fit: BoxFit.cover,
@@ -326,12 +331,12 @@ class _AccountTopPageState extends State<AccountTopPage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
-                myAccount!.name,
+                postAccount!.name,
                 style:
                     const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
               Text(
-                '@${myAccount!.userId}',
+                '@${postAccount!.userId}',
                 style: const TextStyle(color: Colors.grey),
               ),
             ],
@@ -405,9 +410,9 @@ class _AccountTopPageState extends State<AccountTopPage> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Text(
-        myAccount!.selfIntroduction.isNotEmpty
-            ? myAccount!.selfIntroduction
-            : '自己紹介は設定されていません',
+        postAccount!.selfIntroduction.isNotEmpty
+            ? postAccount!.selfIntroduction
+            : '',
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 12, color: Colors.grey),
       ),
@@ -451,7 +456,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
               onPressed: () async {
                 Navigator.of(context).pop();
                 await followService.handleFollowRequest(
-                    widget.postAccountId, myAccount!);
+                    widget.postAccountId, postAccount!);
               },
               child: Text('送信'),
             ),

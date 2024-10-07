@@ -90,6 +90,38 @@ class FunctionUtils {
     }
   }
 
+  // 動画をアップロードするメソッド
+  static Future<String?> uploadVideo(
+      String uid, File video, BuildContext context) async {
+    try {
+      final FirebaseStorage storageInstance = FirebaseStorage.instance;
+
+      // ファイル名 (8文字のランダム文字列)
+      String shortFileName = 'video_${_generateRandomString(8)}.mp4';
+
+      // Firebase Storage でのファイルパスを設定
+      final Reference ref = storageInstance.ref().child('$uid/$shortFileName');
+
+      print('Uploading video to: $ref');
+
+      // File を Uint8List に変換
+      Uint8List videoBytes = await video.readAsBytes();
+
+      // ファイルをアップロード
+      await ref.putData(videoBytes, SettableMetadata(contentType: 'video/mp4'));
+
+      // ダウンロードURLを取得
+      String downloadUrl = await ref.getDownloadURL();
+      return downloadUrl; // 正常にアップロードされた場合はURLを返す
+    } catch (e) {
+      print('動画のアップロード中にエラーが発生しました: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('動画のアップロード中にエラーが発生しました')),
+      );
+      return null; // エラー時はnullを返す
+    }
+  }
+
   // 6文字のランダムな文字列を生成するヘルパーメソッド
   static String _generateRandomString(int length) {
     const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';

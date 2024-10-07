@@ -12,129 +12,102 @@ class HiddenPostsPage extends StatefulWidget {
 
 class _HiddenPostsPageState extends State<HiddenPostsPage> {
   List<Post> _hiddenPosts = [];
-  String _searchQuery = '';
+  bool _isLoading = true; // ローディング状態を管理
 
   Future<List<Post>> _fetchHiddenPosts() async {
-    // hide フィールドが true の投稿を取得し、新しい順に並べ替え
-    final querySnapshot = await PostFirestore.posts
-        .where('hide', isEqualTo: true)
-        .orderBy('created_time', descending: true)
-        .get();
+    try {
+      // サーバー側で "hide" が true のものを取得
+      final querySnapshot = await PostFirestore.posts
+          .where('hide', isEqualTo: true)
+          .orderBy('created_time', descending: true)
+          .get();
 
-    return querySnapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
+      // 取得したデータを Post モデルに変換
+      return querySnapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
+    } catch (e) {
+      // エラーが発生した場合にログを出力
+      print('Error fetching hidden posts: $e');
+      return [];
+    }
   }
 
-  Future<void> _refreshPosts() async {
+  Future<void> _loadHiddenPosts() async {
     setState(() {
-      // 再描画をトリガーするためのsetState
+      _isLoading = true; // ローディングを開始
     });
-    await Future.delayed(const Duration(seconds: 1));
+
+    final posts = await _fetchHiddenPosts();
+    setState(() {
+      _hiddenPosts = posts; // 投稿をリストにセット
+      _isLoading = false; // ローディングを終了
+    });
   }
 
   @override
   void initState() {
     super.initState();
-    _loadHiddenPosts();
-  }
-
-  Future<void> _loadHiddenPosts() async {
-    final posts = await _fetchHiddenPosts();
-    setState(() {
-      _hiddenPosts = posts;
-    });
+    _loadHiddenPosts(); // 初期化時に投稿をロード
   }
 
   @override
   Widget build(BuildContext context) {
-    // 検索フィルタリング
-    final filteredPosts = _hiddenPosts.where((post) {
-      return post.content.toLowerCase().contains(_searchQuery.toLowerCase());
-    }).toList();
-
     return Scaffold(
       appBar: AppBar(
         title: Text('非表示投稿'),
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(50.0),
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: '検索...',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-            ),
-          ),
-        ),
       ),
-      body: RefreshIndicator(
-        onRefresh: _refreshPosts,
-        child: FutureBuilder<void>(
-          future: _loadHiddenPosts(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            } else if (snapshot.hasError) {
-              return Center(child: Text('エラーが発生しました: ${snapshot.error}'));
-            }
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator()) // ローディング中の表示
+          : _hiddenPosts.isEmpty
+              ? const Center(child: Text('非表示の投稿はありません')) // 非表示投稿がない場合
+              : ListView.builder(
+                  itemCount: _hiddenPosts.length,
+                  itemBuilder: (context, index) {
+                    Post post = _hiddenPosts[index];
 
-            if (filteredPosts.isEmpty) {
-              return const Center(child: Text('非表示の投稿はありません'));
-            }
+                    return FutureBuilder<Account?>(
+                      future: UserFirestore.getUserByUserId(post.postAccountId),
+                      builder: (context, userSnapshot) {
+                        if (userSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        } else if (userSnapshot.hasError) {
+                          return Center(
+                              child: Text('エラーが発生しました: ${userSnapshot.error}'));
+                        }
 
-            return ListView.builder(
-              itemCount: filteredPosts.length,
-              itemBuilder: (context, index) {
-                Post post = filteredPosts[index];
-
-                return FutureBuilder<Account?>(
-                  future: UserFirestore.getUserByUserId(post.postAccountId),
-                  builder: (context, userSnapshot) {
-                    if (userSnapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    } else if (userSnapshot.hasError) {
-                      return Center(
-                          child: Text('エラーが発生しました: ${userSnapshot.error}'));
-                    }
-
-                    Account postAccount = userSnapshot.data!;
-
-                    return Column(
-                      children: [
-                        PostItemWidget(
-                          post: post,
-                          postAccount: postAccount,
-                          favoriteUsersNotifier: ValueNotifier<int>(0),
-                          isFavoriteNotifier: ValueNotifier<bool>(false),
-                          onFavoriteToggle: () {
-                            // お気に入り機能を使用しない場合
-                          },
-                          isRetweetedNotifier: ValueNotifier<bool>(false),
-                          onRetweetToggle: () {
-                            // リツイート機能の処理
-                          },
-                          replyFlag: ValueNotifier<bool>(false),
-                          userId: postAccount.id, // 管理者として閲覧する場合
-                        ),
-                        Divider(
-                          color: Colors.black,
-                          thickness: 3,
-                        ),
-                      ],
+                        if (userSnapshot.hasData) {
+                          Account postAccount = userSnapshot.data!;
+                          return Column(
+                            children: [
+                              PostItemWidget(
+                                post: post,
+                                postAccount: postAccount,
+                                favoriteUsersNotifier: ValueNotifier<int>(0),
+                                isFavoriteNotifier: ValueNotifier<bool>(false),
+                                onFavoriteToggle: () {
+                                  // お気に入り機能を使用しない場合
+                                },
+                                isRetweetedNotifier: ValueNotifier<bool>(false),
+                                onRetweetToggle: () {
+                                  // リツイート機能の処理
+                                },
+                                replyFlag: ValueNotifier<bool>(false),
+                                userId: postAccount.id, // 管理者として閲覧する場合
+                              ),
+                              Divider(
+                                color: Colors.black,
+                                thickness: 3,
+                              ),
+                            ],
+                          );
+                        } else {
+                          return SizedBox(); // データがない場合は空のウィジェット
+                        }
+                      },
                     );
                   },
-                );
-              },
-            );
-          },
-        ),
-      ),
+                ),
     );
   }
 }

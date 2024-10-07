@@ -102,18 +102,42 @@ class _ShowReportDialogState extends State<ShowReportDialog> {
             SizedBox(height: 20), // スペースを追加
             ElevatedButton(
               onPressed: () async {
-                // 選択された理由をFirestoreに保存
-                await FirebaseFirestore.instance.collection('reports').add({
-                  'postId': widget.postId, // widget.postIdを参照
-                  'report_reason': _selectedReason?.displayName ?? '不明',
-                  'report_content': reportContent, // テキストフィールドの内容を保存
-                  'timestamp': FieldValue.serverTimestamp(),
-                });
+                try {
+                  final reportRef =
+                      FirebaseFirestore.instance.collection('reports');
+                  final querySnapshot = await reportRef
+                      .where('postId', isEqualTo: widget.postId)
+                      .limit(1) // 同じ postId の最初の1件を取得
+                      .get();
 
-                Navigator.of(context).pop(); // ページを閉じる
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('報告しました')),
-                );
+                  if (querySnapshot.docs.isNotEmpty) {
+                    // 既に同じ postId のレポートが存在する場合、その count をインクリメント
+                    final doc = querySnapshot.docs.first;
+                    await doc.reference.update({
+                      'count': FieldValue.increment(1),
+                    });
+                  } else {
+                    // 存在しない場合は新しいレポートを作成
+                    await reportRef.add({
+                      'postId': widget.postId, // widget.postIdを参照
+                      'report_reason': _selectedReason?.displayName ?? '不明',
+                      'report_content': reportContent, // テキストフィールドの内容を保存
+                      'timestamp': FieldValue.serverTimestamp(),
+                      'count': 1, // 初期カウントは1
+                    });
+                  }
+
+                  // ページを閉じ、スナックバーで通知
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('報告しました')),
+                  );
+                } catch (e) {
+                  // エラーハンドリング
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('エラーが発生しました: $e')),
+                  );
+                }
               },
               child: Text('報告する'),
             ),
