@@ -20,6 +20,7 @@ class FavoriteList extends StatelessWidget {
           .collection('users')
           .doc(myAccount.id)
           .collection('favorite_posts')
+          .orderBy('added_at', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasData) {

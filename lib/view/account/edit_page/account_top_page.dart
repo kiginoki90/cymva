@@ -5,9 +5,9 @@ import 'package:cymva/view/account/edit_page/account_options_page.dart';
 import 'package:cymva/view/account/follow_page.dart';
 import 'package:cymva/view/account/follower_page.dart';
 import 'package:cymva/view/admin/admin_page.dart';
+import 'package:cymva/view/post_item/show_account_report_dialog.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:flutter/material.dart';
-import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/view/account/account_page.dart';
@@ -213,15 +213,29 @@ class _AccountTopPageState extends State<AccountTopPage> {
         if (widget.userId != widget.postAccountId)
           PopupMenuButton<String>(
             icon: Icon(Icons.more_horiz),
-            onSelected: (String value) {},
+            onSelected: (String value) {
+              if (value == '2') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ShowAccountReportDialog(
+                        accountId: widget.postAccountId),
+                  ),
+                );
+              } else if (value == 'Option 2') {}
+            },
             itemBuilder: (BuildContext context) {
               return [
-                PopupMenuItem<String>(
-                  value: 'Option 1',
+                const PopupMenuItem<String>(
+                  value: '1',
                   child: Text(
                     'ブロック',
                     style: TextStyle(color: Colors.black),
                   ),
+                ),
+                const PopupMenuItem<String>(
+                  value: '2',
+                  child: Text('通報'),
                 ),
               ];
             },
@@ -285,7 +299,11 @@ class _AccountTopPageState extends State<AccountTopPage> {
           onTap: () {
             // lock_accountがtrueの場合はポップアップを出す
             if (postAccount?.lockAccount ?? false) {
-              showFollowDialog();
+              if (isFollowing) {
+                showUnfollowDialog();
+              } else {
+                showFollowDialog();
+              }
             } else {
               toggleFollowStatus();
             }
@@ -463,6 +481,33 @@ class _AccountTopPageState extends State<AccountTopPage> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
+              },
+              child: Text('キャンセル'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void showUnfollowDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('フォロー解除の確認'),
+          content: Text('このアカウントは非公開です。フォロー解除してよろしいですか？'),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop(); // ダイアログを閉じる
+                toggleFollowStatus(); // フォロー解除処理を実行
+              },
+              child: Text('OK'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // ダイアログを閉じる
               },
               child: Text('キャンセル'),
             ),

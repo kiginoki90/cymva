@@ -163,13 +163,25 @@ class FunctionUtils {
   }
 
   // 画像またはビデオを選択するメソッド
-  static Future<File?> getMedia(bool isVideo) async {
+  static Future<File?> getMedia(bool isVideo, context) async {
     File? pickedFile;
     if (isVideo) {
       final videoFile =
           await ImagePicker().pickVideo(source: ImageSource.gallery);
       if (videoFile != null) {
-        pickedFile = File(videoFile.path);
+        // 動画のサイズを確認
+        final file = File(videoFile.path);
+        final fileSizeInBytes = await file.length();
+
+        // 512MB (512 * 1024 * 1024 bytes) を超えているか確認
+        if (fileSizeInBytes <= 512 * 1024 * 1024) {
+          pickedFile = file; // サイズが適切であれば設定
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('動画のサイズが512MBを超えています。')),
+          );
+          return null;
+        }
       }
     } else {
       final imageFile =

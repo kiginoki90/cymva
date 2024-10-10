@@ -125,8 +125,8 @@ class _AccountHeaderState extends State<AccountHeader> {
                                 ),
                               ),
                             Text(
-                              postAccount!.name.length > 12
-                                  ? '${postAccount!.name.substring(0, 12)}...'
+                              postAccount!.name.length > 11
+                                  ? '${postAccount!.name.substring(0, 11)}...'
                                   : postAccount!.name,
                               style:
                                   const TextStyle(fontWeight: FontWeight.bold),
@@ -186,11 +186,15 @@ class _AccountHeaderState extends State<AccountHeader> {
         ),
         child: GestureDetector(
           onTap: () {
-            // lock_accountがtrueの場合はポップアップを出す
+            // 非公開アカウントをフォローしている場合の処理
             if (postAccount?.lockAccount ?? false) {
-              showFollowDialog();
+              if (isFollowing) {
+                showUnfollowDialog(); // フォロー解除の確認ダイアログを表示
+              } else {
+                showFollowDialog(); // フォローリクエストダイアログを表示
+              }
             } else {
-              toggleFollowStatus();
+              toggleFollowStatus(); // 通常のフォロー/フォロー解除処理
             }
           },
           child: Text(
@@ -263,6 +267,33 @@ class _AccountHeaderState extends State<AccountHeader> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
+              },
+              child: Text('キャンセル'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void showUnfollowDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('フォロー解除の確認'),
+          content: Text('このアカウントは非公開です。フォロー解除してよろしいですか？'),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop(); // ダイアログを閉じる
+                toggleFollowStatus(); // フォロー解除処理を実行
+              },
+              child: Text('OK'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // ダイアログを閉じる
               },
               child: Text('キャンセル'),
             ),

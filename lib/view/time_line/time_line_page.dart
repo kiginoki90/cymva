@@ -31,9 +31,7 @@ class _TimeLineState extends State<TimeLinePage> {
   }
 
   Future<void> _refreshPosts() async {
-    setState(() {
-      // FutureBuilderを再度トリガーするために空のsetStateを使う
-    });
+    setState(() {});
     await Future.delayed(const Duration(seconds: 1));
   }
 

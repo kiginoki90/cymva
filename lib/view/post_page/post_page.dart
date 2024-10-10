@@ -36,9 +36,11 @@ class _PostPageState extends State<PostPage> {
     final pickedFiles =
         await FunctionUtils.selectImages(context, selectedCategory);
     if (pickedFiles != null) {
-      setState(() {
-        images.addAll(pickedFiles);
-      });
+      if (mounted) {
+        setState(() {
+          images.addAll(pickedFiles);
+        });
+      }
     }
   }
 
@@ -68,7 +70,7 @@ class _PostPageState extends State<PostPage> {
 
   // メディアを取得する
   Future<void> getMedia(bool isVideo) async {
-    File? pickedFile = await FunctionUtils.getMedia(isVideo);
+    File? pickedFile = await FunctionUtils.getMedia(isVideo, context);
     if (pickedFile != null) {
       setState(() {
         _mediaFile = pickedFile;
@@ -95,7 +97,7 @@ class _PostPageState extends State<PostPage> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('新規投稿'),
+        title: const Text('投稿'),
         elevation: 2,
         iconTheme: const IconThemeData(color: Colors.black),
         actions: [
@@ -224,6 +226,14 @@ class _PostPageState extends State<PostPage> {
                                 isPosting = true; // 投稿中に設定
                               });
 
+                              // タイムラインページへ遷移
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      AccountPage(postUserId: widget.userId),
+                                ),
+                              );
+
                               List<String> mediaUrls = [];
 
                               // 画像ファイルのアップロード処理
@@ -257,29 +267,51 @@ class _PostPageState extends State<PostPage> {
 
                               var result = await PostFirestore.addPost(newPost);
 
-                              setState(() {
-                                isPosting = false; // 投稿処理が完了したらフラグを解除
-                              });
-
                               if (result != null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('投稿が完了しました')),
-                                );
-                                Navigator.of(context).pushReplacement(
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        AccountPage(postUserId: widget.userId),
-                                  ),
-                                );
+                                // 投稿処理が完了したらフラグを解除
+                                if (mounted) {
+                                  setState(() {
+                                    isPosting = false; // 投稿中フラグを解除
+                                  });
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('投稿が完了しました')),
+                                  );
+
+                                  Navigator.of(context).pushReplacement(
+                                    MaterialPageRoute(
+                                      builder: (context) => AccountPage(
+                                          postUserId: widget.userId),
+                                    ),
+                                  );
+                                }
                               } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('投稿に失敗しました')),
-                                );
+                                // 投稿に失敗した場合
+                                if (mounted) {
+                                  setState(() {
+                                    isPosting = false; // 投稿中フラグを解除
+                                  });
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('投稿に失敗しました')),
+                                  );
+                                }
                               }
+
+                              // // 投稿結果に応じてスナックバーを表示
+                              // if (result != null) {
+                              //   ScaffoldMessenger.of(context).showSnackBar(
+                              //     SnackBar(content: Text('投稿が完了しました')),
+                              //   );
+                              // } else {
+                              //   ScaffoldMessenger.of(context).showSnackBar(
+                              //     SnackBar(content: Text('投稿に失敗しました')),
+                              //   );
+                              // }
                             }
                           },
                     child: isPosting
-                        ? CircularProgressIndicator() // 投稿中はローディングインジケーターを表示
+                        ? CircularProgressIndicator()
                         : const Text('投稿'),
                   ),
                   const SizedBox(width: 20),
