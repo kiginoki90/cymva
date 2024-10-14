@@ -137,15 +137,22 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
 
                   final accounts = accountSnapshot.data ?? {};
 
-                  return ListView.builder(
-                    itemCount: postSnapshot.data!.length,
-                    itemBuilder: (context, index) {
-                      Post post = Post.fromDocument(postSnapshot.data![index]);
-                      Account? postAccount = accounts[post.postAccountId];
+                  // フィルタリングされた投稿リスト
+                  final visiblePosts = postSnapshot.data!.where((doc) {
+                    Post post = Post.fromDocument(doc);
+                    return accounts
+                        .containsKey(post.postAccountId); // アカウント情報が存在するかチェック
+                  }).toList();
 
-                      if (postAccount == null) {
-                        return const Center(child: Text('アカウント情報が見つかりません'));
-                      }
+                  if (visiblePosts.isEmpty) {
+                    return const Center(child: Text('アカウント情報が見つかりません'));
+                  }
+
+                  return ListView.builder(
+                    itemCount: visiblePosts.length,
+                    itemBuilder: (context, index) {
+                      Post post = Post.fromDocument(visiblePosts[index]);
+                      Account? postAccount = accounts[post.postAccountId];
 
                       bool isFavorite = (_favoritePost
                               .favoriteUsersNotifiers[post.id]
@@ -154,7 +161,7 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
 
                       return PostItemWidget(
                         post: post,
-                        postAccount: postAccount,
+                        postAccount: postAccount!,
                         favoriteUsersNotifier:
                             _favoritePost.favoriteUsersNotifiers[post.id] ??
                                 ValueNotifier<int>(0),

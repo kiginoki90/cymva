@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:photo_view/photo_view_gallery.dart';
 
 class FullScreenImagePage extends StatefulWidget {
   final List<String> imageUrls;
@@ -11,13 +13,11 @@ class FullScreenImagePage extends StatefulWidget {
 }
 
 class _FullScreenImagePageState extends State<FullScreenImagePage> {
-  late PageController _pageController;
   late int _currentIndex;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: widget.initialIndex);
     _currentIndex = widget.initialIndex;
   }
 
@@ -33,28 +33,27 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
         },
         child: Stack(
           children: [
-            PageView.builder(
-              controller: _pageController,
+            PhotoViewGallery.builder(
               itemCount: widget.imageUrls.length,
               onPageChanged: (index) {
                 setState(() {
                   _currentIndex = index;
                 });
               },
-              itemBuilder: (context, index) {
+              builder: (context, index) {
                 final imageUrl = widget.imageUrls[index];
-                return Center(
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
-                    child: Image.network(
-                      imageUrl,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
+                return PhotoViewGalleryPageOptions(
+                  imageProvider: NetworkImage(imageUrl),
+                  minScale: PhotoViewComputedScale.contained,
+                  maxScale: PhotoViewComputedScale.covered * 2, // 最大拡大率を設定
                 );
               },
+              scrollPhysics: BouncingScrollPhysics(),
+              backgroundDecoration: BoxDecoration(
+                color: Colors.black,
+              ),
+              pageController: PageController(
+                  initialPage: widget.initialIndex), // PageControllerをここに移動
             ),
             SafeArea(
               child: Column(

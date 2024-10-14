@@ -51,27 +51,26 @@ class UserFirestore {
         'lock_account': false,
       });
 
-      // Add subcollections with an empty document
-      await users
-          .doc(newAccount.id)
-          .collection('favorite_posts')
-          .doc('initial')
-          .set({});
-      await users
-          .doc(newAccount.id)
-          .collection('my_posts')
-          .doc('initial')
-          .set({});
-      await users
-          .doc(newAccount.id)
-          .collection('follow')
-          .doc('initial')
-          .set({});
-      await users
-          .doc(newAccount.id)
-          .collection('followers')
-          .doc('initial')
-          .set({});
+      // await users
+      //     .doc(newAccount.id)
+      //     .collection('favorite_posts')
+      //     .doc('initial')
+      //     .set({});
+      // await users
+      //     .doc(newAccount.id)
+      //     .collection('my_posts')
+      //     .doc('initial')
+      //     .set({});
+      // await users
+      //     .doc(newAccount.id)
+      //     .collection('follow')
+      //     .doc('initial')
+      //     .set({});
+      // await users
+      //     .doc(newAccount.id)
+      //     .collection('followers')
+      //     .doc('initial')
+      //     .set({});
 
       print('ユーザー作成が完了しました');
       return true;

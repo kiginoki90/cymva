@@ -53,31 +53,31 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
           child: Column(
             children: [
               SizedBox(height: 30),
-              GestureDetector(
-                onTap: () async {
-                  var result = await FunctionUtils.getImageFromGallery(context);
-                  if (result != null) {
-                    setState(() {
-                      image = File(result.path);
-                    });
-                  }
-                },
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    image: image == null
-                        ? null
-                        : DecorationImage(
-                            image: FileImage(image!),
-                            fit: BoxFit.cover,
-                          ),
-                    color: Colors.grey[300],
-                  ),
-                  child: image == null ? Icon(Icons.add) : null,
-                ),
-              ),
+              // GestureDetector(
+              //   onTap: () async {
+              //     var result = await FunctionUtils.getImageFromGallery(context);
+              //     if (result != null) {
+              //       setState(() {
+              //         image = File(result.path);
+              //       });
+              //     }
+              //   },
+              //   child: Container(
+              //     width: 80,
+              //     height: 80,
+              //     decoration: BoxDecoration(
+              //       borderRadius: BorderRadius.circular(8),
+              //       image: image == null
+              //           ? null
+              //           : DecorationImage(
+              //               image: FileImage(image!),
+              //               fit: BoxFit.cover,
+              //             ),
+              //       color: Colors.grey[300],
+              //     ),
+              //     child: image == null ? Icon(Icons.add) : null,
+              //   ),
+              // ),
               Container(
                 width: 300,
                 child: TextField(
@@ -112,7 +112,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                 width: 300,
                 child: TextField(
                   controller: passController,
-                  decoration: InputDecoration(hintText: 'パスワード'),
+                  decoration: InputDecoration(hintText: 'パスワード（6文字以上の英数字）'),
                 ),
               ),
               if (errorMessage != null) ...[
@@ -137,14 +137,12 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                             email: emailController.text,
                             pass: passController.text);
                         if (result is UserCredential) {
-                          String? imagePath = await FunctionUtils.uploadImage(
-                              result.user!.uid, image!, context);
                           Account newAccount = Account(
                             id: result.user!.uid,
                             name: nameController.text,
                             userId: userIdController.text,
                             selfIntroduction: selfIntroductionController.text,
-                            imagePath: imagePath!,
+                            imagePath: '',
                           );
                           var _result = await UserFirestore.setUser(newAccount);
                           if (_result == true) {
@@ -159,7 +157,27 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                             );
                           }
                         }
+                      } on FirebaseAuthException catch (e) {
+                        // FirebaseAuthExceptionのエラーメッセージをハンドリング
+                        if (e.code == 'email-already-in-use') {
+                          setState(() {
+                            errorMessage = 'このメールアドレスは既に使用されています';
+                          });
+                        } else if (e.code == 'weak-password') {
+                          setState(() {
+                            errorMessage = 'パスワードは6文字以上で入力してください';
+                          });
+                        } else if (e.code == 'invalid-email') {
+                          setState(() {
+                            errorMessage = '無効なメールアドレスです';
+                          });
+                        } else {
+                          setState(() {
+                            errorMessage = 'アカウント作成に失敗しました: ${e.message}';
+                          });
+                        }
                       } catch (e) {
+                        // その他のエラーハンドリング
                         setState(() {
                           errorMessage = 'アカウント作成に失敗しました: ${e.toString()}';
                         });

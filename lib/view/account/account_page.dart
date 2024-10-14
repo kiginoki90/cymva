@@ -3,6 +3,7 @@ import 'package:cymva/view/account/favorite_list.dart';
 import 'package:cymva/view/account/image_post_list.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'post_list.dart';
@@ -34,7 +35,8 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   Future<void> _getUserId() async {
-    userId = await storage.read(key: 'account_id');
+    userId = await storage.read(key: 'account_id') ??
+        FirebaseAuth.instance.currentUser?.uid;
     setState(() {});
   }
 

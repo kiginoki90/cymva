@@ -49,7 +49,6 @@ class _TimeLineBodyState extends State<TimeLineBody> {
         return Account.fromDocument(doc);
       } else {
         print('ユーザードキュメントが見つかりません');
-        return null; // ドキュメントが存在しない場合はnullを返す
       }
     } catch (e) {
       print('アカウント情報の取得に失敗しました: $e');

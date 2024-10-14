@@ -21,6 +21,7 @@ class _SearchPageState extends State<SearchPage> {
   final PageController _pageController = PageController();
   List<DocumentSnapshot> _postSearchResults = []; // コンテンツ検索結果用
   List<DocumentSnapshot> _recentFavoritesResults = []; // 人気検索結果用
+  List<DocumentSnapshot> _recentImageResults = [];
   List<Account> _accountSearchResults = [];
   final FavoritePost _favoritePost = FavoritePost();
   int _currentPage = 0;
@@ -42,6 +43,8 @@ class _SearchPageState extends State<SearchPage> {
         _searchAccounts(_searchController.text);
       } else if (_currentPage == 2) {
         _fetchRecentFavorites(_searchController.text);
+      } else if (_currentPage == 3) {
+        _searchImagePosts(_searchController.text);
       }
     }
 
@@ -54,6 +57,8 @@ class _SearchPageState extends State<SearchPage> {
         _searchAccounts(_lastQuery);
       } else if (_currentPage == 2) {
         _fetchRecentFavorites(_lastQuery);
+      } else if (_currentPage == 3) {
+        _searchImagePosts(_lastQuery);
       }
     });
 
@@ -85,6 +90,8 @@ class _SearchPageState extends State<SearchPage> {
                     _searchAccounts(query);
                   } else if (_currentPage == 2) {
                     _fetchRecentFavorites(query);
+                  } else if (_currentPage == 3) {
+                    _searchImagePosts(query);
                   }
                 },
               ),
@@ -123,6 +130,7 @@ class _SearchPageState extends State<SearchPage> {
                 _buildSearchByTextPage(),
                 _buildSearchByAccountNamePage(),
                 _buildRecentFavoritesPage(),
+                _buildSearchByImagePage(),
               ],
             ),
           ),
@@ -137,59 +145,69 @@ class _SearchPageState extends State<SearchPage> {
       return const Center(child: Text('検索結果がありません'));
     }
 
-    return ListView.builder(
-      itemCount: _postSearchResults.length,
-      itemBuilder: (context, index) {
-        final postDoc = _postSearchResults[index];
-        final post = Post.fromDocument(postDoc);
+    return RefreshIndicator(
+      onRefresh: _refreshSearchResults, // 更新時に呼び出されるメソッド
+      child: ListView.builder(
+        itemCount: _postSearchResults.length,
+        itemBuilder: (context, index) {
+          final postDoc = _postSearchResults[index];
+          final post = Post.fromDocument(postDoc);
 
-        return FutureBuilder<Account?>(
-          future: _getPostAccount(post.postAccountId),
-          builder: (context, accountSnapshot) {
-            if (accountSnapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            } else if (accountSnapshot.hasError) {
-              return Center(
-                  child: Text('エラーが発生しました: ${accountSnapshot.error}'));
-            } else if (!accountSnapshot.hasData) {
-              return Container();
-            }
+          return FutureBuilder<Account?>(
+            future: _getPostAccount(post.postAccountId),
+            builder: (context, accountSnapshot) {
+              if (accountSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (accountSnapshot.hasError) {
+                return Center(
+                    child: Text('エラーが発生しました: ${accountSnapshot.error}'));
+              } else if (!accountSnapshot.hasData) {
+                return Container();
+              }
 
-            final postAccount = accountSnapshot.data!;
+              final postAccount = accountSnapshot.data!;
 
-            // lock_accountがtrueの場合はスルーする
-            if (postAccount.lockAccount && postAccount.id != widget.userId) {
-              return Container(); // スキップして何も表示しない
-            }
+              // lock_accountがtrueの場合はスルーする
+              if (postAccount.lockAccount && postAccount.id != widget.userId) {
+                return Container(); // スキップして何も表示しない
+              }
 
-            // フォロワー数の処理
-            _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                ValueNotifier<int>(0);
-            _favoritePost.updateFavoriteUsersCount(post.id);
+              // フォロワー数の処理
+              _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                  ValueNotifier<int>(0);
+              _favoritePost.updateFavoriteUsersCount(post.id);
 
-            return PostItemWidget(
-              post: post,
-              postAccount: postAccount,
-              favoriteUsersNotifier:
-                  _favoritePost.favoriteUsersNotifiers[post.id]!,
-              isFavoriteNotifier: ValueNotifier<bool>(
-                  _favoritePost.favoritePostsNotifier.value.contains(post.id)),
-              onFavoriteToggle: () {
-                final isFavorite =
-                    _favoritePost.favoritePostsNotifier.value.contains(post.id);
-                _favoritePost.toggleFavorite(post.id, isFavorite);
-              },
-              isRetweetedNotifier: ValueNotifier<bool>(false),
-              onRetweetToggle: () {
-                // リツイートの状態をFirestoreに保存するロジックを追加
-              },
-              replyFlag: ValueNotifier<bool>(false),
-              userId: widget.userId,
-            );
-          },
-        );
-      },
+              return PostItemWidget(
+                post: post,
+                postAccount: postAccount,
+                favoriteUsersNotifier:
+                    _favoritePost.favoriteUsersNotifiers[post.id]!,
+                isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
+                    .favoritePostsNotifier.value
+                    .contains(post.id)),
+                onFavoriteToggle: () {
+                  final isFavorite = _favoritePost.favoritePostsNotifier.value
+                      .contains(post.id);
+                  _favoritePost.toggleFavorite(post.id, isFavorite);
+                },
+                isRetweetedNotifier: ValueNotifier<bool>(false),
+                onRetweetToggle: () {
+                  // リツイートの状態をFirestoreに保存するロジックを追加
+                },
+                replyFlag: ValueNotifier<bool>(false),
+                userId: widget.userId,
+              );
+            },
+          );
+        },
+      ),
     );
+  }
+
+// リストを更新するメソッド
+  Future<void> _refreshSearchResults() async {
+    // データを再取得して_stateを更新する
+    await _searchPosts(_lastQuery);
   }
 
   Widget _buildSearchByAccountNamePage() {
@@ -216,10 +234,20 @@ class _SearchPageState extends State<SearchPage> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8.0),
                   child: Image.network(
-                    account.imagePath,
+                    account.imagePath ??
+                        'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
                     width: 40,
                     height: 40,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      // 画像の取得に失敗した場合のエラービルダー
+                      return Image.network(
+                        'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                      );
+                    },
                   ),
                 ),
               ),
@@ -289,59 +317,145 @@ class _SearchPageState extends State<SearchPage> {
       return const Center(child: Text('検索結果がありません'));
     }
 
-    return ListView.builder(
-      itemCount: _recentFavoritesResults.length,
-      itemBuilder: (context, index) {
-        final postDoc = _recentFavoritesResults[index];
-        final post = Post.fromDocument(postDoc);
+    return RefreshIndicator(
+      onRefresh: _refreshRecentFavorites,
+      child: ListView.builder(
+        itemCount: _recentFavoritesResults.length,
+        itemBuilder: (context, index) {
+          final postDoc = _recentFavoritesResults[index];
+          final post = Post.fromDocument(postDoc);
 
-        return FutureBuilder<Account?>(
-          future: _getPostAccount(post.postAccountId),
-          builder: (context, accountSnapshot) {
-            if (accountSnapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            } else if (accountSnapshot.hasError) {
-              return Center(
-                  child: Text('エラーが発生しました: ${accountSnapshot.error}'));
-            } else if (!accountSnapshot.hasData) {
-              return Container();
-            }
+          return FutureBuilder<Account?>(
+            future: _getPostAccount(post.postAccountId),
+            builder: (context, accountSnapshot) {
+              if (accountSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (accountSnapshot.hasError) {
+                return Center(
+                    child: Text('エラーが発生しました: ${accountSnapshot.error}'));
+              } else if (!accountSnapshot.hasData) {
+                return Container();
+              }
 
-            final postAccount = accountSnapshot.data!;
+              final postAccount = accountSnapshot.data!;
 
-            // Firestoreから直近24時間のfavorite_usersを取得してcount
-            final recentFavoriteCount = _postFavoriteCounts[post.id] ?? 0;
+              // Firestoreから直近24時間のfavorite_usersを取得してcount
+              final recentFavoriteCount = _postFavoriteCounts[post.id] ?? 0;
 
-            // lock_accountがtrueの場合はスルーする
-            if (postAccount.lockAccount && postAccount.id != widget.userId) {
-              return Container();
-            }
+              // lock_accountがtrueの場合はスルーする
+              if (postAccount.lockAccount && postAccount.id != widget.userId) {
+                return Container();
+              }
 
-            // PostItemWidget に recentFavoriteCount をそのまま渡す
-            return PostItemWidget(
-              post: post,
-              postAccount: postAccount,
-              favoriteUsersNotifier:
-                  _favoritePost.favoriteUsersNotifiers[post.id] ??
-                      ValueNotifier<int>(recentFavoriteCount),
-              isFavoriteNotifier: ValueNotifier<bool>(
-                  _favoritePost.favoritePostsNotifier.value.contains(post.id)),
-              onFavoriteToggle: () {
-                final isFavorite =
-                    _favoritePost.favoritePostsNotifier.value.contains(post.id);
-                _favoritePost.toggleFavorite(post.id, isFavorite);
-              },
-              isRetweetedNotifier: ValueNotifier<bool>(false),
-              onRetweetToggle: () {
-                // リツイートの状態をFirestoreに保存するロジックを追加
-              },
-              replyFlag: ValueNotifier<bool>(false),
-              userId: widget.userId,
-            );
-          },
-        );
-      },
+              // PostItemWidget に recentFavoriteCount をそのまま渡す
+              return PostItemWidget(
+                post: post,
+                postAccount: postAccount,
+                favoriteUsersNotifier:
+                    _favoritePost.favoriteUsersNotifiers[post.id] ??
+                        ValueNotifier<int>(recentFavoriteCount),
+                isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
+                    .favoritePostsNotifier.value
+                    .contains(post.id)),
+                onFavoriteToggle: () {
+                  final isFavorite = _favoritePost.favoritePostsNotifier.value
+                      .contains(post.id);
+                  _favoritePost.toggleFavorite(post.id, isFavorite);
+                },
+                isRetweetedNotifier: ValueNotifier<bool>(false),
+                onRetweetToggle: () {
+                  // リツイートの状態をFirestoreに保存するロジックを追加
+                },
+                replyFlag: ValueNotifier<bool>(false),
+                userId: widget.userId,
+              );
+            },
+          );
+        },
+      ),
     );
+  }
+
+  // リストを更新するメソッド
+  Future<void> _refreshRecentFavorites() async {
+    // データを再取得して_stateを更新する
+    await _fetchRecentFavorites(_lastQuery);
+  }
+
+// 検索結果を表示するWidget
+  Widget _buildSearchByImagePage() {
+    if (_postSearchResults.isEmpty) {
+      return const Center(child: Text('検索結果がありません'));
+    }
+
+    return RefreshIndicator(
+      onRefresh: _refreshPosts, // 更新時に呼び出されるメソッド
+      child: ListView.builder(
+        itemCount: _postSearchResults.length,
+        itemBuilder: (context, index) {
+          final postDoc = _postSearchResults[index];
+          final post = Post.fromDocument(postDoc);
+
+          // media_urlがある投稿のみ表示
+          if (post.mediaUrl == null || post.mediaUrl!.isEmpty) {
+            return Container(); // media_urlがない場合はスキップ
+          }
+
+          return FutureBuilder<Account?>(
+            future: _getPostAccount(post.postAccountId),
+            builder: (context, accountSnapshot) {
+              if (accountSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (accountSnapshot.hasError) {
+                return Center(
+                    child: Text('エラーが発生しました: ${accountSnapshot.error}'));
+              } else if (!accountSnapshot.hasData) {
+                return Container();
+              }
+
+              final postAccount = accountSnapshot.data!;
+
+              // lock_accountがtrueの場合はスルーする
+              if (postAccount.lockAccount && postAccount.id != widget.userId) {
+                return Container(); // スキップして何も表示しない
+              }
+
+              // フォロワー数の処理
+              _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                  ValueNotifier<int>(0);
+              _favoritePost.updateFavoriteUsersCount(post.id);
+
+              return PostItemWidget(
+                post: post,
+                postAccount: postAccount,
+                favoriteUsersNotifier:
+                    _favoritePost.favoriteUsersNotifiers[post.id]!,
+                isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
+                    .favoritePostsNotifier.value
+                    .contains(post.id)),
+                onFavoriteToggle: () {
+                  final isFavorite = _favoritePost.favoritePostsNotifier.value
+                      .contains(post.id);
+                  _favoritePost.toggleFavorite(post.id, isFavorite);
+                },
+                isRetweetedNotifier: ValueNotifier<bool>(false),
+                onRetweetToggle: () {
+                  // リツイートの状態をFirestoreに保存するロジックを追加
+                },
+                replyFlag: ValueNotifier<bool>(false),
+                userId: widget.userId,
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+// リストを更新するメソッド
+  Future<void> _refreshPosts() async {
+    // データを再取得して_stateを更新する
+    await _searchImagePosts(_lastQuery);
   }
 
   void _onPageChanged() {
@@ -353,6 +467,8 @@ class _SearchPageState extends State<SearchPage> {
       _searchAccounts(_lastQuery);
     } else if (_currentPage == 2 && _recentFavoritesResults.isEmpty) {
       _fetchRecentFavorites(_lastQuery);
+    } else if (_currentPage == 3 && _recentImageResults.isEmpty) {
+      _searchImagePosts(_lastQuery);
     }
   }
 
@@ -400,15 +516,26 @@ class _SearchPageState extends State<SearchPage> {
 
     final firestore = FirebaseFirestore.instance;
 
-    final querySnapshot = await firestore.collection('users').get();
+    // `name`フィールドに対するクエリ
+    final nameQuerySnapshot = await firestore
+        .collection('users')
+        .where('name', isGreaterThanOrEqualTo: query)
+        .where('name', isLessThanOrEqualTo: query + '\uf8ff')
+        .get();
 
-    final filteredAccounts = querySnapshot.docs.where((doc) {
-      final name = doc['name'] as String;
-      return name.contains(query);
-    }).toList();
+    // `user_id`フィールドに対するクエリ
+    final userIdQuerySnapshot = await firestore
+        .collection('users')
+        .where('user_id', isGreaterThanOrEqualTo: query)
+        .where('user_id', isLessThanOrEqualTo: query + '\uf8ff')
+        .get();
+
+    // クエリ結果をマージ（重複を避けるために `doc.id` を基準にする）
+    final allDocs =
+        {...nameQuerySnapshot.docs, ...userIdQuerySnapshot.docs}.toList();
 
     setState(() {
-      _accountSearchResults = filteredAccounts.map((doc) {
+      _accountSearchResults = allDocs.map((doc) {
         return Account.fromDocument(doc);
       }).toList();
     });
@@ -486,6 +613,42 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
+  // 投稿を検索するメソッド
+  Future<void> _searchImagePosts(String query) async {
+    if (query.isEmpty &&
+        (_selectedCategory == null || _selectedCategory!.isEmpty)) {
+      setState(() {
+        _postSearchResults = [];
+      });
+      return;
+    }
+
+    final firestore = FirebaseFirestore.instance;
+
+    // 投稿コレクションのクエリ
+    Query queryRef =
+        firestore.collection('posts').orderBy('created_time', descending: true);
+
+    // カテゴリーが選択されている場合はカテゴリーでフィルタリング
+    if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
+      queryRef = queryRef.where('category', isEqualTo: _selectedCategory);
+    }
+
+    // クエリを使って、候補となるドキュメントを取得
+    final querySnapshot = await queryRef.get();
+
+    // 取得したドキュメントに対して、文字列に query が含まれているかをフィルタリング
+    final filteredPosts = querySnapshot.docs.where((doc) {
+      final content = doc['content'] as String;
+      final mediaUrl = doc['media_url'] as List<dynamic>?; // media_urlのフィールド
+      return content.contains(query) && mediaUrl != null && mediaUrl.isNotEmpty;
+    }).toList();
+
+    setState(() {
+      _recentImageResults = filteredPosts;
+    });
+  }
+
   Widget _buildNavigationBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -542,6 +705,23 @@ class _SearchPageState extends State<SearchPage> {
               ),
               onPressed: () {
                 _pageController.jumpToPage(2);
+              },
+            ),
+            IconButton(
+              icon: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('メディア'),
+                  Container(
+                    margin: const EdgeInsets.only(top: 3),
+                    height: 2,
+                    width: 60,
+                    color: _currentPage == 3 ? Colors.blue : Colors.transparent,
+                  ),
+                ],
+              ),
+              onPressed: () {
+                _pageController.jumpToPage(3);
               },
             ),
           ],

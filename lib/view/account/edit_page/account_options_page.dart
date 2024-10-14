@@ -1,4 +1,5 @@
 import 'package:cymva/view/account/edit_page/add_account_page.dart';
+import 'package:cymva/view/account/edit_page/delete_account_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
@@ -104,21 +105,14 @@ class AccountOptionsPage extends StatelessWidget {
               icon: Icons.delete_forever,
               label: 'アカウント削除',
               onTap: () {
-                _showConfirmationDialog(
+                Navigator.push(
                   context,
-                  'アカウント削除',
-                  'アカウントを削除すると元に戻せません。続けますか？',
-                  () {
-                    UserFirestore.deleteUser(myAccount.id);
-                    Authentication.deleteAuth();
-                    while (Navigator.canPop(context)) {
-                      Navigator.pop(context);
-                    }
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => LoginPage()),
-                    );
-                  },
+                  MaterialPageRoute(
+                    builder: (context) => DeleteAccountPage(
+                      userId: myAccount.id,
+                      parentsId: myAccount.parents_id,
+                    ),
+                  ),
                 );
               },
             ),

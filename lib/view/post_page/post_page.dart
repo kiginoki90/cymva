@@ -104,14 +104,35 @@ class _PostPageState extends State<PostPage> {
           // プロフィール画像を右端に表示
           if (userProfileImageUrl != null)
             Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  userProfileImageUrl!,
-                  width: 44,
-                  height: 44,
-                  fit: BoxFit.cover,
+              padding: const EdgeInsets.only(right: 35.0),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          AccountPage(postUserId: widget.userId),
+                    ),
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8.0),
+                  child: Image.network(
+                    userProfileImageUrl! ??
+                        'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
+                    width: 44,
+                    height: 44,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      // 画像の取得に失敗した場合のエラービルダー
+                      return Image.network(
+                        'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                      );
+                    },
+                  ),
                 ),
               ),
             ),

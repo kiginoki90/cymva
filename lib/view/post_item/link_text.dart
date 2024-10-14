@@ -26,7 +26,6 @@ class LinkText extends StatelessWidget {
             text.substring(start, match.start), hashtagRegex, context));
       }
 
-      // URL part
       final urlString = match.group(0)!;
       final Uri url = Uri.parse(urlString);
 
@@ -90,7 +89,7 @@ class LinkText extends StatelessWidget {
               MaterialPageRoute(
                 builder: (context) => SearchPage(
                   userId: userId,
-                  initialHashtag: hashtag, // ここでハッシュタグを渡す
+                  initialHashtag: hashtag,
                 ),
               ),
             );

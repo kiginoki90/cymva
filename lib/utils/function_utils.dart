@@ -70,22 +70,30 @@ class FunctionUtils {
       // Firebase Storage でのファイルパスを設定
       final Reference ref = storageInstance.ref().child('$uid/$shortFileName');
 
-      print('Uploading to: $ref');
+      print('Uploading to: ${ref.fullPath}'); // パス確認用のログ
 
       // File を Uint8List に変換
       Uint8List imageBytes = await image.readAsBytes();
 
-      // ファイルをアップロード
-      await ref.putData(imageBytes);
+      // メタデータを追加してファイルをアップロード
+      await ref.putData(
+        imageBytes,
+        SettableMetadata(contentType: 'image/jpeg'), // contentTypeを設定
+      );
 
       // ダウンロードURLを取得
       String downloadUrl = await ref.getDownloadURL();
       return downloadUrl; // 正常にアップロードされた場合はURLを返す
     } catch (e) {
       print('画像のアップロード中にエラーが発生しました: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('画像のアップロード中にエラーが発生しました')),
-      );
+
+      // contextが有効な時のみエラーメッセージを表示
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('画像のアップロード中にエラーが発生しました')),
+        );
+      }
+
       return null; // エラー時はnullを返す
     }
   }

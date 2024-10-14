@@ -19,7 +19,7 @@ class MediaDisplayWidget extends StatefulWidget {
 }
 
 class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
-  Map<String, bool> _isVideoCache = {}; // 判定結果のキャッシュ
+  Map<String, bool> _isVideoCache = {};
   Map<String, VideoPlayerController> _videoControllers = {};
 
   @override
@@ -33,10 +33,15 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
   @override
   void dispose() {
     // すべてのビデオコントローラを破棄
+    _disposeVideoControllers();
+    super.dispose();
+  }
+
+  // すべてのビデオコントローラを破棄する
+  void _disposeVideoControllers() {
     for (var controller in _videoControllers.values) {
       controller.dispose();
     }
-    super.dispose();
   }
 
   Future<void> _initializeMedia() async {
@@ -54,11 +59,17 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
   }
 
   void _initializeVideo(String videoUrl) {
-    final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
-    _videoControllers[videoUrl] = controller;
-    controller.initialize().then((_) {
-      setState(() {}); // ビデオコントローラの初期化後に再描画
-    });
+    if (!_videoControllers.containsKey(videoUrl)) {
+      final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
+      _videoControllers[videoUrl] = controller;
+      controller.initialize().then((_) {
+        if (mounted) {
+          setState(() {}); // ビデオコントローラの初期化後に再描画
+        }
+      }).catchError((error) {
+        print('Error initializing video: $error');
+      });
+    }
   }
 
   // メタデータを使ってファイルが動画か画像かを判別
@@ -125,6 +136,9 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
 
   // 漫画の場合の表示
   Widget _buildMangaMedia(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double maxHeight = screenWidth * 1.3;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -142,8 +156,8 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
         children: [
           Image.network(
             widget.mediaUrl![0],
-            width: MediaQuery.of(context).size.width,
-            height: 200,
+            width: screenWidth, // 横幅を画面幅に合わせる
+            height: maxHeight, // 縦の最大値を1.5倍に設定
             fit: BoxFit.cover,
           ),
           if (widget.mediaUrl!.length > 1)
@@ -173,6 +187,9 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
 
   // メディアが1枚の場合の表示（画像）
   Widget _buildSingleMedia(BuildContext context, String mediaUrl) {
+    double screenWidth = MediaQuery.of(context).size.width * 0.9;
+    double maxHeight = screenWidth * 1.3;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -188,8 +205,8 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
       },
       child: Image.network(
         mediaUrl,
-        width: MediaQuery.of(context).size.width * 0.9,
-        height: 250,
+        width: screenWidth,
+        height: maxHeight,
         fit: BoxFit.cover,
       ),
     );
@@ -264,7 +281,6 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                   ),
                 );
               } else {
-                // 画像の場合
                 return GestureDetector(
                   onTap: () {
                     Navigator.push(
@@ -310,7 +326,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.network(widget.videoUrl);
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
     _initializeVideoPlayerFuture = _controller.initialize().then((_) {
       setState(() {}); // 初期化後に再描画
     });

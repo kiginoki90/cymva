@@ -106,8 +106,9 @@ class RepostListPage extends StatelessWidget {
                                     post: post,
                                     postAccountName: userData['name'],
                                     postAccountUserId: userData['user_id'],
-                                    postAccountImagePath:
-                                        userData['image_path'] ?? '',
+                                    postAccountImagePath: userData[
+                                            'image_path'] ??
+                                        'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
                                     favoriteUsersNotifier:
                                         ValueNotifier<int>(0),
                                     isFavoriteNotifier:
@@ -147,10 +148,21 @@ class RepostListPage extends StatelessWidget {
                                           borderRadius: BorderRadius.circular(
                                               8.0), // 角を丸くする
                                           child: Image.network(
-                                            userData['image_path'], // プロフィール画像
+                                            userData['image_path'] ??
+                                                'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
                                             width: 40,
                                             height: 40,
                                             fit: BoxFit.cover, // 画像が正方形にフィット
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              // 画像の取得に失敗した場合のエラービルダー
+                                              return Image.network(
+                                                'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
+                                                width: 40,
+                                                height: 40,
+                                                fit: BoxFit.cover,
+                                              );
+                                            },
                                           ),
                                         ),
                                       ),
