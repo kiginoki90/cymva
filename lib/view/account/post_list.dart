@@ -6,22 +6,33 @@ import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 
-class PostList extends StatelessWidget {
+class PostList extends StatefulWidget {
   final Account myAccount;
   final Account postAccount;
-  final FavoritePost _favoritePost = FavoritePost(); //お気に入り機能のインスタンス
 
-  PostList({Key? key, required this.myAccount, required this.postAccount})
+  const PostList({Key? key, required this.myAccount, required this.postAccount})
       : super(key: key);
 
   @override
+  State<PostList> createState() => _PostListState();
+}
+
+class _PostListState extends State<PostList> {
+  late Future<List<String>> _favoritePostsFuture;
+  final FavoritePost _favoritePost = FavoritePost();
+
+  @override
+  void initState() {
+    super.initState();
+    _favoritePostsFuture = _favoritePost.getFavoritePosts(); // お気に入りの投稿を取得
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final Future<List<String>> _favoritePostsFuture =
-        _favoritePost.getFavoritePosts();
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
-          .doc(postAccount.id)
+          .doc(widget.postAccount.id)
           .collection('my_posts')
           .orderBy('created_time', descending: true)
           .snapshots(),
@@ -59,30 +70,30 @@ class PostList extends StatelessWidget {
 
                             // リツイートの状態を管理するためのValueNotifierを初期化
                             ValueNotifier<bool> isRetweetedNotifier =
-                                ValueNotifier<bool>(
-                              false, // Firestoreからリツイートの状態を取得し初期化する
-                            );
+                                ValueNotifier<bool>(false);
 
                             return PostItemWidget(
                               post: post,
-                              postAccount: postAccount,
+                              postAccount: widget.postAccount,
                               favoriteUsersNotifier: _favoritePost
                                   .favoriteUsersNotifiers[post.id]!,
-                              isFavoriteNotifier:
-                                  ValueNotifier<bool>(isFavorite),
-                              onFavoriteToggle: () {
-                                _favoritePost.toggleFavorite(
-                                  post.id,
-                                  isFavorite,
-                                );
-                              },
+                              isFavoriteNotifier: ValueNotifier<bool>(
+                                _favoritePost.favoritePostsNotifier.value
+                                    .contains(post.id),
+                              ),
+                              onFavoriteToggle: () =>
+                                  _favoritePost.toggleFavorite(
+                                post.id,
+                                _favoritePost.favoritePostsNotifier.value
+                                    .contains(post.id),
+                              ),
                               isRetweetedNotifier: isRetweetedNotifier,
                               onRetweetToggle: () {
                                 bool currentState = isRetweetedNotifier.value;
                                 isRetweetedNotifier.value = !currentState;
                               },
                               replyFlag: ValueNotifier<bool>(false),
-                              userId: myAccount.id,
+                              userId: widget.myAccount.id,
                             );
                           },
                         );

@@ -2,6 +2,7 @@ import 'package:cymva/view/slide_direction_page_route.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 import 'full_screen_image.dart';
 
 class MediaDisplayWidget extends StatefulWidget {
@@ -228,11 +229,22 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
           ),
         );
       },
-      child: Container(
-        height: 250, // タップ前の高さの上限
-        child: AspectRatio(
-          aspectRatio: controller.value.aspectRatio,
-          child: VideoPlayer(controller),
+      child: VisibilityDetector(
+        key: Key(mediaUrl),
+        onVisibilityChanged: (info) {
+          if (info.visibleFraction > 0.5) {
+            _initializeVideo(mediaUrl); // 動画が50%以上表示されたら読み込み開始
+          }
+        },
+        child: Container(
+          height: 250, // タップ前の高さの上限
+          child: AspectRatio(
+            aspectRatio:
+                _videoControllers[mediaUrl]?.value.aspectRatio ?? 16 / 9,
+            child: _videoControllers[mediaUrl]?.value.isInitialized == true
+                ? VideoPlayer(_videoControllers[mediaUrl]!)
+                : const Center(child: CircularProgressIndicator()),
+          ),
         ),
       ),
     );

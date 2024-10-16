@@ -31,15 +31,19 @@ class _MessesPageState extends State<MessesPage> {
     final snapshot = await firestore
         .collection('users')
         .doc(widget.userId)
-        .collection('messages')
+        .collection('message')
         .get();
 
     // 取得したデータをリストに格納
     final List<Map<String, dynamic>> tempNotifications =
         snapshot.docs.map((doc) {
       return {
+        'id': doc.id,
         'request_user': doc['request_user'],
         'message_type': doc['message_type'],
+        'request_userId': doc.data().containsKey('request_userId')
+            ? doc['request_userId']
+            : null,
       };
     }).toList();
 
@@ -60,7 +64,21 @@ class _MessesPageState extends State<MessesPage> {
     try {
       final currentUserId = await storage.read(key: 'account_id');
 
-      // followersサブコレクションにrequestUserを追加
+      // フォロー依頼を許可した際に、相手のメッセージを削除
+      final messageQuerySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserId)
+          .collection('message')
+          .where('request_user', isEqualTo: requestUserId)
+          .where('message_type', isEqualTo: 1)
+          .get();
+
+      // 該当するメッセージを削除
+      for (var doc in messageQuerySnapshot.docs) {
+        await doc.reference.delete();
+      }
+
+      // 自分のアカウントのフォロワーに相手を追加
       await FirebaseFirestore.instance
           .collection('users')
           .doc(currentUserId)
@@ -68,16 +86,27 @@ class _MessesPageState extends State<MessesPage> {
           .doc(requestUserId)
           .set({'timestamp': FieldValue.serverTimestamp()});
 
+      // 相手のアカウントのフォローに自分を追加
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(requestUserId)
+          .collection('follow')
+          .doc(currentUserId)
+          .set({'timestamp': FieldValue.serverTimestamp()});
+
       // 相手のユーザーのmessagesサブコレクションにメッセージを追加
       await FirebaseFirestore.instance
           .collection('users')
           .doc(requestUserId)
-          .collection('messages')
+          .collection('message')
           .add({
         'message_type': 2,
         'request_user': currentUserId,
         'timestamp': FieldValue.serverTimestamp(),
+        'isRead': false,
       });
+
+      await _updateFollowRequests();
 
       // 成功メッセージを表示
       ScaffoldMessenger.of(context).showSnackBar(
@@ -91,6 +120,61 @@ class _MessesPageState extends State<MessesPage> {
     }
   }
 
+  Future<void> _updateFollowRequests() async {
+    await _fetchNotifications(); // 通知を再取得して更新
+  }
+
+  Future<void> _showDeleteConfirmationDialog(
+      String requestUserId, String messageId) async {
+    final currentUserId = await storage.read(key: 'account_id');
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('確認'),
+          content: Text('このメッセージを削除しますか？'),
+          actions: [
+            TextButton(
+              child: Text('いいえ'),
+              onPressed: () {
+                Navigator.of(context).pop(); // ダイアログを閉じる
+              },
+            ),
+            TextButton(
+              child: Text('はい'),
+              onPressed: () async {
+                // Firestore からメッセージを削除する処理
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(currentUserId)
+                    .collection('message')
+                    .doc(messageId) // 削除するメッセージのID
+                    .delete();
+
+                // ダイアログを閉じる
+                Navigator.of(context).pop();
+
+                // 削除成功メッセージ
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('メッセージが削除されました')),
+                );
+
+                await _updateFollowRequests();
+
+                // 通知リストの更新
+                setState(() {
+                  notifications.removeWhere((notification) =>
+                      notification['message_id'] == messageId);
+                });
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,34 +183,91 @@ class _MessesPageState extends State<MessesPage> {
         itemCount: notifications.length,
         itemBuilder: (context, index) {
           final notification = notifications[index];
-          final requestUserId = notification['request_user'];
+          final requestUser = notification['request_user'];
           final user = notification['user'];
+          final requestUserId = notification['request_userId'];
 
           return Column(
             children: [
               if (notification['message_type'] == 1)
-                ListTile(
-                  title: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              AccountPage(postUserId: requestUserId),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10.0, vertical: 5.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    AccountPage(postUserId: requestUser),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            '@${requestUserId}さんからフォロー依頼が届いています',
+                            maxLines: 3, // 最大3行
+                            overflow: TextOverflow.ellipsis, // 3行を超えたら省略表示
+                          ),
                         ),
-                      );
-                    },
-                    child: Text('@${user.userId}さんからフォロー依頼が届いています'),
-                  ),
-                  trailing: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.blue),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: TextButton(
-                      onPressed: () => _acceptFollowRequest(requestUserId),
-                      child: Text('許可'),
-                    ),
+                      ),
+                      Row(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.red),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: TextButton(
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.symmetric(
+                                    vertical: 8.0, horizontal: 8.0),
+                                minimumSize: Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () {
+                                _showDeleteConfirmationDialog(
+                                    requestUser, notification['id']);
+                              },
+                              child: Text(
+                                '削除',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8), // ボタン間のスペースを追加
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.blue),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: TextButton(
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.symmetric(
+                                    vertical: 8.0, horizontal: 8.0),
+                                minimumSize: Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () =>
+                                  _acceptFollowRequest(requestUser),
+                              child: Text(
+                                '許可',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               if (notification['message_type'] == 2)

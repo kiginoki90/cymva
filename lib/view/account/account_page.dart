@@ -9,7 +9,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'post_list.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/view/account/account_header.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Firestoreを使うためのインポート
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AccountPage extends StatefulWidget {
   final String postUserId;

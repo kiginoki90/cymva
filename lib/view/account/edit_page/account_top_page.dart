@@ -353,7 +353,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
               ),
             ),
           ),
-          SizedBox(width: 10),
+          SizedBox(height: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -368,6 +368,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
               ),
             ],
           ),
+          SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -500,7 +501,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
               onPressed: () async {
                 Navigator.of(context).pop();
                 await followService.handleFollowRequest(
-                    widget.postAccountId, postAccount!);
+                    widget.postAccountId, myAccount!);
               },
               child: Text('送信'),
             ),

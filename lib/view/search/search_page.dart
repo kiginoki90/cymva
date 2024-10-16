@@ -103,12 +103,17 @@ class _SearchPageState extends State<SearchPage> {
               },
             ),
             if (_selectedCategory != null && _selectedCategory!.isNotEmpty)
-              Text(
-                _selectedCategory!,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+              GestureDetector(
+                onTap: () {
+                  _showCategoryDialog();
+                },
+                child: Text(
+                  _selectedCategory!,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
                 ),
               ),
           ],
@@ -495,10 +500,14 @@ class _SearchPageState extends State<SearchPage> {
     // クエリを使って、候補となるドキュメントを取得
     final querySnapshot = await queryRef.get();
 
-    // 取得したドキュメントに対して、文字列に query が含まれているかをフィルタリング
+    // クエリを小文字に変換し、スペースで分割
+    final lowerCaseQuery = query.toLowerCase();
+    final queryWords = lowerCaseQuery.split(' ');
+
+    // 取得したドキュメントに対して、すべての単語が含まれているかをフィルタリング
     final filteredPosts = querySnapshot.docs.where((doc) {
-      final content = doc['content'] as String;
-      return content.contains(query);
+      final content = (doc['content'] as String).toLowerCase(); // コンテンツを小文字に変換
+      return queryWords.every((word) => content.contains(word));
     }).toList();
 
     setState(() {
@@ -516,26 +525,40 @@ class _SearchPageState extends State<SearchPage> {
 
     final firestore = FirebaseFirestore.instance;
 
+    // クエリを小文字に変換
+    final lowerCaseQuery = query.toLowerCase();
+    final queryWords = lowerCaseQuery.split(' ');
+
+    // 検索条件を組み立てる
+    Query nameQuery = firestore.collection('users');
+    Query userIdQuery = firestore.collection('users');
+
+    for (String word in queryWords) {
+      if (word.isNotEmpty) {
+        nameQuery = nameQuery
+            .where('name', isGreaterThanOrEqualTo: word)
+            .where('name', isLessThanOrEqualTo: word + '\uf8ff');
+        userIdQuery = userIdQuery
+            .where('user_id', isGreaterThanOrEqualTo: word)
+            .where('user_id', isLessThanOrEqualTo: word + '\uf8ff');
+      }
+    }
+
     // `name`フィールドに対するクエリ
-    final nameQuerySnapshot = await firestore
-        .collection('users')
-        .where('name', isGreaterThanOrEqualTo: query)
-        .where('name', isLessThanOrEqualTo: query + '\uf8ff')
-        .get();
+    final nameQuerySnapshot = await nameQuery.get();
 
     // `user_id`フィールドに対するクエリ
-    final userIdQuerySnapshot = await firestore
-        .collection('users')
-        .where('user_id', isGreaterThanOrEqualTo: query)
-        .where('user_id', isLessThanOrEqualTo: query + '\uf8ff')
-        .get();
+    final userIdQuerySnapshot = await userIdQuery.get();
 
     // クエリ結果をマージ（重複を避けるために `doc.id` を基準にする）
     final allDocs =
         {...nameQuerySnapshot.docs, ...userIdQuerySnapshot.docs}.toList();
 
+    // 重複を避けるために user_id を基準にする
+    final uniqueDocs = allDocs.toSet().toList();
+
     setState(() {
-      _accountSearchResults = allDocs.map((doc) {
+      _accountSearchResults = uniqueDocs.map((doc) {
         return Account.fromDocument(doc);
       }).toList();
     });
@@ -567,6 +590,10 @@ class _SearchPageState extends State<SearchPage> {
 
       final List<DocumentSnapshot> postWithFavorites = [];
 
+      // クエリを小文字に変換し、スペースで分割
+      final lowerCaseQuery = query.toLowerCase();
+      final queryWords = lowerCaseQuery.split(' ');
+
       // 各投稿に対してFutureのリストを作成
       final futures = querySnapshot.docs.map((doc) async {
         final postId = doc.id;
@@ -584,9 +611,11 @@ class _SearchPageState extends State<SearchPage> {
         final recentFavoriteCount = favoriteUsersSnapshot.size;
 
         // 投稿の内容がクエリに含まれているかをチェック
-        final content = doc['content'] as String;
-        if (query.isNotEmpty && !content.contains(query)) {
-          return; // 条件に合わない投稿は無視
+        final content =
+            (doc['content'] as String).toLowerCase(); // コンテンツを小文字に変換
+        if (query.isNotEmpty &&
+            !queryWords.every((word) => content.contains(word))) {
+          return;
         }
 
         // お気に入り数を記録しておく
@@ -613,7 +642,7 @@ class _SearchPageState extends State<SearchPage> {
     }
   }
 
-  // 投稿を検索するメソッド
+  // 画像を検索するメソッド
   Future<void> _searchImagePosts(String query) async {
     if (query.isEmpty &&
         (_selectedCategory == null || _selectedCategory!.isEmpty)) {
@@ -637,11 +666,19 @@ class _SearchPageState extends State<SearchPage> {
     // クエリを使って、候補となるドキュメントを取得
     final querySnapshot = await queryRef.get();
 
+    // クエリを小文字に変換し、スペースで分割
+    final lowerCaseQuery = query.toLowerCase();
+    final queryWords = lowerCaseQuery.split(' ');
+
     // 取得したドキュメントに対して、文字列に query が含まれているかをフィルタリング
     final filteredPosts = querySnapshot.docs.where((doc) {
-      final content = doc['content'] as String;
+      final content = (doc['content'] as String).toLowerCase(); // コンテンツを小文字に変換
       final mediaUrl = doc['media_url'] as List<dynamic>?; // media_urlのフィールド
-      return content.contains(query) && mediaUrl != null && mediaUrl.isNotEmpty;
+
+      // 投稿の内容がすべての単語を含むかつmedia_urlが存在するかをチェック
+      return queryWords.every((word) => content.contains(word)) &&
+          mediaUrl != null &&
+          mediaUrl.isNotEmpty;
     }).toList();
 
     setState(() {

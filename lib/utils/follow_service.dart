@@ -82,6 +82,7 @@ class FollowService {
       'message_type': 1,
       'request_user': myAccount.id,
       'request_userId': myAccount.userId,
+      'isRead': false,
     });
   }
 }

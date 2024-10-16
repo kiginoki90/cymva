@@ -145,8 +145,8 @@ class RepostListPage extends StatelessWidget {
                                           );
                                         },
                                         child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                              8.0), // 角を丸くする
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
                                           child: Image.network(
                                             userData['image_path'] ??
                                                 'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',

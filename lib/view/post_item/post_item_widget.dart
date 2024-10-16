@@ -108,6 +108,41 @@ class _PostItemWidgetState extends State<PostItemWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if ((widget.post.category == '写真' || widget.post.category == 'イラスト') &&
+        widget.post.mediaUrl != null &&
+        widget.post.mediaUrl!.length == 1) {
+      // 投稿欄全体に画像を表示
+      return GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PostDetailPage(
+                post: widget.post,
+                postAccountName: widget.postAccount.name,
+                postAccountUserId: widget.postAccount.userId,
+                postAccountImagePath: widget.postAccount.imagePath,
+                favoriteUsersNotifier: widget.favoriteUsersNotifier,
+                isFavoriteNotifier: widget.isFavoriteNotifier,
+                onFavoriteToggle: widget.onFavoriteToggle,
+                isRetweetedNotifier: widget.isRetweetedNotifier,
+                onRetweetToggle: widget.onRetweetToggle,
+                replyFlag: widget.replyFlag,
+                userId: widget.userId,
+              ),
+            ),
+          );
+        },
+        child: Container(
+          width: double.infinity,
+          height: MediaQuery.of(context).size.width,
+          child: Image.network(
+            widget.post.mediaUrl![0],
+            fit: BoxFit.cover,
+          ),
+        ),
+      );
+    }
     return InkWell(
         onTap: () {
           Navigator.push(

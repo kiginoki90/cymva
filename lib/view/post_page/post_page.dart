@@ -8,6 +8,7 @@ import 'package:cymva/utils/firestore/posts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cymva/utils/function_utils.dart';
 import 'package:video_player/video_player.dart';
+import 'package:twitter_api_v2/twitter_api_v2.dart';
 
 class PostPage extends StatefulWidget {
   final String userId;
@@ -19,35 +20,22 @@ class PostPage extends StatefulWidget {
 
 class _PostPageState extends State<PostPage> {
   TextEditingController contentController = TextEditingController();
-  List<XFile> images = <XFile>[];
-  File? _mediaFile;
-  bool isVideo = false;
-  VideoPlayerController? _videoController;
-  bool isPickerActive = false;
-  final picker = ImagePicker();
+  List<XFile> images = <XFile>[]; // 選択した画像ファイルリスト
+  File? _mediaFile; // 選択したメディアファイル（動画）
+  bool isVideo = false; // 選択したメディアが動画かどうか
+  VideoPlayerController? _videoController; // 動画プレーヤーコントローラ
+  bool isPickerActive = false; // メディアピッカーがアクティブかどうか
+  final picker = ImagePicker(); // 画像/動画選択用のピッカー
 
   String? selectedCategory;
   final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真', '俳句・短歌'];
   String? userProfileImageUrl;
-  bool isPosting = false;
-
-  // 画像を選択する
-  Future<void> selectImages(selectedCategory) async {
-    final pickedFiles =
-        await FunctionUtils.selectImages(context, selectedCategory);
-    if (pickedFiles != null) {
-      if (mounted) {
-        setState(() {
-          images.addAll(pickedFiles);
-        });
-      }
-    }
-  }
+  bool isPosting = false; // 投稿中かどうかのフラグ
 
   @override
   void initState() {
     super.initState();
-    fetchUserProfileImage(); // プロフィール画像の取得を初期化時に呼び出し
+    fetchUserProfileImage(); // 初期化時にプロフィール画像を取得
   }
 
   // Firestoreからユーザーのプロフィール画像を取得
@@ -60,7 +48,7 @@ class _PostPageState extends State<PostPage> {
 
       if (userDoc.exists) {
         setState(() {
-          userProfileImageUrl = userDoc['image_path']; // Firestoreのフィールド名に合わせる
+          userProfileImageUrl = userDoc['image_path'];
         });
       }
     } catch (e) {
@@ -68,20 +56,46 @@ class _PostPageState extends State<PostPage> {
     }
   }
 
-  // メディアを取得する
+  // メディア（画像または動画）を取得する
   Future<void> getMedia(bool isVideo) async {
+    if (images.isNotEmpty) {
+      // 画像がすでに選択されている場合は、画像をクリア
+      setState(() {
+        images.clear();
+      });
+    }
     File? pickedFile = await FunctionUtils.getMedia(isVideo, context);
     if (pickedFile != null) {
       setState(() {
         _mediaFile = pickedFile;
         this.isVideo = isVideo;
         if (isVideo) {
-          // VideoControllerの初期化も非同期処理として行う
+          // VideoControllerの初期化
           _videoController = VideoPlayerController.file(_mediaFile!)
             ..initialize().then((_) {
               setState(() {});
             });
         }
+      });
+    }
+  }
+
+  // 画像を選択する（動画が選択されている場合は無効）
+  Future<void> selectImages() async {
+    if (_mediaFile != null) {
+      // 動画がすでに選択されている場合は、動画をクリア
+      setState(() {
+        _mediaFile = null;
+        _videoController?.dispose();
+        _videoController = null;
+        isVideo = false;
+      });
+    }
+    final pickedFiles =
+        await FunctionUtils.selectImages(context, selectedCategory);
+    if (pickedFiles != null) {
+      setState(() {
+        images.addAll(pickedFiles);
       });
     }
   }
@@ -118,8 +132,7 @@ class _PostPageState extends State<PostPage> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8.0),
                   child: Image.network(
-                    userProfileImageUrl! ??
-                        'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
+                    userProfileImageUrl!,
                     width: 44,
                     height: 44,
                     fit: BoxFit.cover,
@@ -180,7 +193,7 @@ class _PostPageState extends State<PostPage> {
               TextField(
                 controller: contentController,
                 decoration: InputDecoration(
-                  hintText: 'Conent',
+                  hintText: 'Content',
                   filled: true,
                   fillColor: selectedCategory == '俳句・短歌'
                       ? Color.fromARGB(255, 255, 238, 240)
@@ -188,17 +201,15 @@ class _PostPageState extends State<PostPage> {
                   border: InputBorder.none,
                 ),
                 minLines: 5,
-
                 maxLines: null,
-                maxLength:
-                    selectedCategory == '俳句・短歌' ? 40 : 200, // カテゴリーによる文字数制限
+                maxLength: selectedCategory == '俳句・短歌' ? 40 : 200,
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
               ),
 
               const SizedBox(height: 20),
 
-              // 選択した画像を表示する
+              // 選択した画像または動画を表示
               if (images.isNotEmpty)
                 SizedBox(
                   height: 150,
@@ -221,33 +232,51 @@ class _PostPageState extends State<PostPage> {
                       );
                     },
                   ),
-                ),
+                )
+              else if (_mediaFile != null && isVideo)
+                _videoController != null &&
+                        _videoController!.value.isInitialized
+                    ? Container(
+                        width: double.infinity,
+                        height: 300,
+                        child: AspectRatio(
+                          aspectRatio: _videoController!.value.aspectRatio,
+                          child: VideoPlayer(_videoController!),
+                        ),
+                      )
+                    : const SizedBox(),
+
               const SizedBox(height: 20),
+
+              // メディア選択ボタン（画像と動画を同時に選択不可）
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   IconButton(
                     icon: const Icon(Icons.image),
-                    onPressed: () => selectImages(selectedCategory),
+                    onPressed: _mediaFile != null
+                        ? null // 動画が選択されている場合は無効
+                        : () => selectImages(),
                     tooltip: '画像を選択',
                   ),
                   IconButton(
                     icon: const Icon(Icons.videocam),
-                    onPressed: () => getMedia(true),
+                    onPressed: images.isNotEmpty
+                        ? null // 画像が選択されている場合は無効
+                        : () => getMedia(true),
                     tooltip: 'ビデオを選択',
                   ),
                   ElevatedButton(
                     onPressed: isPosting
-                        ? null // 投稿中の場合はボタンを無効化
+                        ? null
                         : () async {
                             if (contentController.text.isNotEmpty ||
                                 images.isNotEmpty ||
                                 _mediaFile != null) {
                               setState(() {
-                                isPosting = true; // 投稿中に設定
+                                isPosting = true;
                               });
 
-                              // タイムラインページへ遷移
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(
                                   builder: (context) =>
@@ -257,7 +286,6 @@ class _PostPageState extends State<PostPage> {
 
                               List<String> mediaUrls = [];
 
-                              // 画像ファイルのアップロード処理
                               for (var xFile in images) {
                                 File file = File(xFile.path);
                                 String? mediaUrl =
@@ -268,13 +296,12 @@ class _PostPageState extends State<PostPage> {
                                 }
                               }
 
-                              // 動画ファイルのアップロード処理
                               String? videoUrl;
                               if (_mediaFile != null && isVideo) {
                                 videoUrl = await FunctionUtils.uploadVideo(
                                     widget.userId, _mediaFile!, context);
                                 if (videoUrl != null) {
-                                  mediaUrls.add(videoUrl); // 動画のURLもメディアリストに追加
+                                  mediaUrls.add(videoUrl);
                                 }
                               }
 
@@ -282,17 +309,16 @@ class _PostPageState extends State<PostPage> {
                                 content: contentController.text,
                                 postAccountId: widget.userId,
                                 mediaUrl: mediaUrls,
-                                isVideo: isVideo, // 動画投稿かどうかを判定
+                                isVideo: isVideo,
                                 category: selectedCategory,
                               );
 
                               var result = await PostFirestore.addPost(newPost);
 
                               if (result != null) {
-                                // 投稿処理が完了したらフラグを解除
                                 if (mounted) {
                                   setState(() {
-                                    isPosting = false; // 投稿中フラグを解除
+                                    isPosting = false;
                                   });
 
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -307,10 +333,9 @@ class _PostPageState extends State<PostPage> {
                                   );
                                 }
                               } else {
-                                // 投稿に失敗した場合
                                 if (mounted) {
                                   setState(() {
-                                    isPosting = false; // 投稿中フラグを解除
+                                    isPosting = false;
                                   });
 
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -318,17 +343,6 @@ class _PostPageState extends State<PostPage> {
                                   );
                                 }
                               }
-
-                              // // 投稿結果に応じてスナックバーを表示
-                              // if (result != null) {
-                              //   ScaffoldMessenger.of(context).showSnackBar(
-                              //     SnackBar(content: Text('投稿が完了しました')),
-                              //   );
-                              // } else {
-                              //   ScaffoldMessenger.of(context).showSnackBar(
-                              //     SnackBar(content: Text('投稿に失敗しました')),
-                              //   );
-                              // }
                             }
                           },
                     child: isPosting

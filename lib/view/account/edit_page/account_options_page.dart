@@ -1,5 +1,6 @@
 import 'package:cymva/view/account/edit_page/add_account_page.dart';
 import 'package:cymva/view/account/edit_page/delete_account_page.dart';
+import 'package:cymva/view/account/edit_page/x_auth_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
@@ -15,6 +16,7 @@ class AccountOptionsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String userId = myAccount.id;
     return Scaffold(
       appBar: AppBar(
         title: Text('Account Options', style: TextStyle(color: Colors.black)),
@@ -54,6 +56,20 @@ class AccountOptionsPage extends StatelessWidget {
                 );
               },
             ),
+            const Divider(),
+            // _buildOptionItem(
+            //   context,
+            //   icon: Icons.lock,
+            //   label: 'X連携',
+            //   onTap: () {
+            //     Navigator.push(
+            //       context,
+            //       MaterialPageRoute(
+            //         builder: (context) => XAuthPage(userId),
+            //       ),
+            //     );
+            //   },
+            // ),
             const Divider(),
             _buildOptionItem(
               context,
