@@ -12,6 +12,8 @@ class Post {
   String? repost;
   String? category;
   bool hide;
+  bool clip;
+  Timestamp? clipTime;
 
   Post({
     this.id = '',
@@ -25,6 +27,8 @@ class Post {
     this.repost,
     this.category,
     this.hide = false,
+    this.clip = false,
+    this.clipTime,
   });
 
   Map<String, dynamic> toMap() {
@@ -40,6 +44,8 @@ class Post {
       'repost': repost,
       'category': category,
       'hide': hide,
+      'clip': clip,
+      'clip_time': clipTime,
     };
   }
 
@@ -59,6 +65,8 @@ class Post {
       repost: data['repost'] as String?,
       category: data['category'] as String?,
       hide: data.containsKey('hide') ? data['hide'] as bool : false,
+      clip: data.containsKey('clip') ? data['clip'] as bool : false,
+      clipTime: data['clip_time'] as Timestamp?,
     );
   }
 
@@ -75,6 +83,8 @@ class Post {
       repost: data['repost'] as String?,
       category: data['category'] as String?,
       hide: data.containsKey('hide') ? data['hide'] as bool : false,
+      clip: data.containsKey('clip') ? data['clip'] as bool : false,
+      clipTime: data['clip_time'] as Timestamp?,
     );
   }
 }

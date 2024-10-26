@@ -97,8 +97,8 @@ class FollowPage extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => AccountPage(
-                                      postUserId: userData['parents_id']),
+                                  builder: (context) =>
+                                      AccountPage(postUserId: followId),
                                 ),
                               );
                             },

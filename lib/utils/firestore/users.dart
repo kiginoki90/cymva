@@ -146,6 +146,7 @@ class UserFirestore {
           createdTime: data['creaated_time'],
           updatedTime: data['uodated_time'],
           lockAccount: data['lock_account'],
+          parents_id: data['parents_id'],
         );
         map[accountId] = postAccount;
       });

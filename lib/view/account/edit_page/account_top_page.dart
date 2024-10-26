@@ -214,7 +214,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
           PopupMenuButton<String>(
             icon: Icon(Icons.more_horiz),
             onSelected: (String value) {
-              if (value == '2') {
+              if (value == '1') {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -222,20 +222,139 @@ class _AccountTopPageState extends State<AccountTopPage> {
                         accountId: widget.postAccountId),
                   ),
                 );
-              } else if (value == 'Option 2') {}
+              } else if (value == '2') {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: Text('アカウントをブロック'),
+                      content: Text('次の操作を選択してください'),
+                      actions: [
+                        TextButton(
+                          child: Text('ブロック'),
+                          onPressed: () async {
+                            // Firestore インスタンス
+                            final firestore = FirebaseFirestore.instance;
+
+                            // 現在のユーザーとブロック対象のユーザーID
+                            final currentUserId = widget.userId;
+                            final blockedUserId = widget.postAccountId;
+
+                            // 自分の block サブコレクションの参照
+                            final blockCollectionRef = firestore
+                                .collection('users')
+                                .doc(currentUserId)
+                                .collection('block');
+
+                            // すでに blocked_user_id が存在するかチェック
+                            final existingBlocks = await blockCollectionRef
+                                .where('blocked_user_id',
+                                    isEqualTo: blockedUserId)
+                                .get();
+
+                            // ブロック対象がすでに存在する場合は処理を終了
+                            if (existingBlocks.docs.isNotEmpty) {
+                              // すでにブロックしている場合はポップアップを閉じる
+                              Navigator.pop(context);
+                              return;
+                            }
+
+                            // 自分の block サブコレクションにブロック情報を追加
+                            await blockCollectionRef.add({
+                              'blocked_user_id': blockedUserId,
+                              'parents_id': postAccount?.parents_id,
+                              'blocked_at': Timestamp.now(),
+                            });
+
+                            // ブロック対象ユーザーの blockUsers サブコレクションにブロック情報を追加
+                            final blockedUserBlockCollectionRef = firestore
+                                .collection('users')
+                                .doc(blockedUserId)
+                                .collection('blockUsers');
+
+                            await blockedUserBlockCollectionRef.add({
+                              'blocked_user_id': currentUserId,
+                              'parents_id': myAccount?.parents_id,
+                              'blocked_at': Timestamp.now(),
+                            });
+
+                            // ポップアップを閉じる
+                            Navigator.pop(context);
+                          },
+                        ),
+                        TextButton(
+                          child: Text('解除'),
+                          onPressed: () async {
+                            // 解除処理
+                            final firestore = FirebaseFirestore.instance;
+                            final currentUserId = widget.userId;
+                            final blockedUserId = widget.postAccountId;
+
+                            // 自分の block サブコレクションの参照
+                            final blockCollectionRef = firestore
+                                .collection('users')
+                                .doc(currentUserId)
+                                .collection('block');
+
+                            // 一致するドキュメントを探す
+                            final querySnapshot = await blockCollectionRef
+                                .where('blocked_user_id',
+                                    isEqualTo: blockedUserId)
+                                .get();
+
+                            // 一致するドキュメントが見つかった場合、削除する
+                            if (querySnapshot.docs.isNotEmpty) {
+                              for (var doc in querySnapshot.docs) {
+                                await blockCollectionRef.doc(doc.id).delete();
+                              }
+                            }
+
+                            // ブロックされたユーザーの blockUsers サブコレクションの参照
+                            final blockedUserBlockCollectionRef = firestore
+                                .collection('users')
+                                .doc(blockedUserId)
+                                .collection('blockUsers');
+
+                            // 一致するドキュメントを探す
+                            final blockedUserQuerySnapshot =
+                                await blockedUserBlockCollectionRef
+                                    .where('blocked_user_id',
+                                        isEqualTo: currentUserId)
+                                    .get();
+
+                            // 一致するドキュメントが見つかった場合、削除する
+                            if (blockedUserQuerySnapshot.docs.isNotEmpty) {
+                              for (var doc in blockedUserQuerySnapshot.docs) {
+                                await blockedUserBlockCollectionRef
+                                    .doc(doc.id)
+                                    .delete();
+                              }
+                            }
+
+                            Navigator.pop(context); // ポップアップを閉じる
+                          },
+                        ),
+                        TextButton(
+                          child: Text('キャンセル'),
+                          onPressed: () {
+                            Navigator.pop(context); // ポップアップを閉じる
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
+              }
             },
             itemBuilder: (BuildContext context) {
               return [
                 const PopupMenuItem<String>(
                   value: '1',
-                  child: Text(
-                    'ブロック',
-                    style: TextStyle(color: Colors.black),
-                  ),
+                  child: Text('通報'),
                 ),
                 const PopupMenuItem<String>(
                   value: '2',
-                  child: Text('通報'),
+                  child: Text('ブロック'),
                 ),
               ];
             },

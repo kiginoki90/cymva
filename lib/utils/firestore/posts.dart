@@ -23,8 +23,12 @@ class PostFirestore {
         'is_video': newPost.isVideo,
         'post_id': '',
         'reply': newPost.reply,
+        'reply_limit': false,
         'repost': newPost.repost,
         'category': newPost.category,
+        'clip': false,
+        'clipTime': null,
+        'hide': false,
       };
 
       // Firestoreに投稿を追加し、その結果からドキュメントIDを取得
@@ -39,6 +43,8 @@ class PostFirestore {
       await _userPost.doc(docRef.id).set({
         'post_id': docRef.id,
         'created_time': Timestamp.now(),
+        'clip': false,
+        'clipTime': null,
       });
 
       // // favorite_users サブコレクションを空で作成（スター一覧）
@@ -75,6 +81,8 @@ class PostFirestore {
           postId: data['post_id'] ?? '',
           repost: data['repost'] ?? null,
           category: data['category'] ?? null,
+          clip: data['clip'] ?? false,
+          clipTime: data['clipTime'] ?? null,
         );
         postList.add(post);
       }

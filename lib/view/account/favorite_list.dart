@@ -7,104 +7,119 @@ import 'package:cymva/utils/firestore/users.dart'; // Firestoreからユーザ�
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 
-class FavoriteList extends StatelessWidget {
+class FavoriteList extends StatefulWidget {
   final Account myAccount;
-  final FavoritePost _favoritePost = FavoritePost(); // お気に入り機能のインスタンス
 
-  FavoriteList({Key? key, required this.myAccount}) : super(key: key);
+  const FavoriteList({Key? key, required this.myAccount}) : super(key: key);
+
+  @override
+  _FavoriteListState createState() => _FavoriteListState();
+}
+
+class _FavoriteListState extends State<FavoriteList> {
+  final FavoritePost _favoritePost = FavoritePost();
+  late Future<List<String>>? _favoritePostsFuture;
+  List<Post> _posts = [];
+  Map<String, Account> _accounts = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavorites();
+    _favoritePostsFuture = _favoritePost.getFavoritePosts();
+  }
+
+  // お気に入りの投稿をFirestoreから取得するメソッド
+  Future<void> _loadFavorites() async {
+    setState(() {
+      _loading = true; // 読み込み開始
+    });
+
+    QuerySnapshot favoriteSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.myAccount.id)
+        .collection('favorite_posts')
+        .orderBy('added_at', descending: true)
+        .get();
+
+    List<String> favoritePostIds =
+        favoriteSnapshot.docs.map((doc) => doc.id).toList();
+
+    if (favoritePostIds.isNotEmpty) {
+      // 投稿を取得
+      List<Post> posts = await PostFirestore.getPostsFromIds(favoritePostIds);
+      // 投稿者のアカウント情報を取得
+      List<String> accountIds =
+          posts.map((post) => post.postAccountId).toSet().toList();
+      Map<String, Account> accounts =
+          await UserFirestore.getUsersByIds(accountIds);
+
+      setState(() {
+        _posts = posts;
+        _accounts = accounts;
+        _loading = false; // 読み込み完了
+      });
+    } else {
+      setState(() {
+        _loading = false; // 読み込み完了
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(myAccount.id)
-          .collection('favorite_posts')
-          .orderBy('added_at', descending: true)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          List<String> favoritePostIds =
-              List.generate(snapshot.data!.docs.length, (index) {
-            return snapshot.data!.docs[index].id;
-          });
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-          if (favoritePostIds.isEmpty) {
-            return const Center(child: Text('まだお気に入りの投稿がありません'));
-          }
+    if (_posts.isEmpty) {
+      return const Center(child: Text('まだお気に入りの投稿がありません'));
+    }
 
-          // 投稿とユーザー情報を同時に取得する
-          return FutureBuilder<List<Post>>(
-            future: PostFirestore.getPostsFromIds(favoritePostIds),
-            builder: (context, postSnapshot) {
-              if (postSnapshot.hasData) {
-                List<Post> posts = postSnapshot.data!;
+    return RefreshIndicator(
+      onRefresh: _loadFavorites, // 下にスワイプして更新する際に呼び出される
+      child: ListView.builder(
+        itemCount: _posts.length,
+        itemBuilder: (context, index) {
+          Post post = _posts[index];
+          Account postAccount = _accounts[post.postAccountId]!;
 
-                // 投稿者のユーザー情報を取得する
-                List<String> accountIds =
-                    posts.map((post) => post.postAccountId).toSet().toList();
-                return FutureBuilder<Map<String, Account>>(
-                  future: UserFirestore.getUsersByIds(accountIds),
-                  builder: (context, accountSnapshot) {
-                    if (accountSnapshot.hasData) {
-                      Map<String, Account> accounts = accountSnapshot.data!;
+          bool isFavorite = true; // お気に入りの投稿なので常にtrue
 
-                      return ListView.builder(
-                        itemCount: posts.length,
-                        itemBuilder: (context, index) {
-                          Post post = posts[index];
-                          Account postAccount = accounts[post.postAccountId]!;
+          // お気に入りユーザー数の初期化と更新
+          _favoritePost.favoriteUsersNotifiers[post.id] ??=
+              ValueNotifier<int>(0);
+          _favoritePost.updateFavoriteUsersCount(post.id);
 
-                          bool isFavorite = true; // お気に入りの投稿なので常にtrue
+          // リツイートの状態を管理するためのValueNotifierを初期化
+          ValueNotifier<bool> isRetweetedNotifier = ValueNotifier<bool>(false);
 
-                          // お気に入りユーザー数の初期化と更新
-                          _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                              ValueNotifier<int>(0);
-                          _favoritePost.updateFavoriteUsersCount(post.id);
-
-                          // リツイートの状態を管理するためのValueNotifierを初期化
-                          ValueNotifier<bool> isRetweetedNotifier =
-                              ValueNotifier<bool>(false);
-
-                          return PostItemWidget(
-                            post: post,
-                            postAccount: postAccount, // Firestoreから取得したユーザー情報
-                            favoriteUsersNotifier:
-                                _favoritePost.favoriteUsersNotifiers[post.id]!,
-                            isFavoriteNotifier: ValueNotifier<bool>(isFavorite),
-                            onFavoriteToggle: () {
-                              _favoritePost.toggleFavorite(
-                                post.id,
-                                isFavorite,
-                              );
-                            },
-                            // リツイートの状態を渡す
-                            isRetweetedNotifier: isRetweetedNotifier,
-                            // リツイートの状態をトグルする処理
-                            onRetweetToggle: () {
-                              bool currentState = isRetweetedNotifier.value;
-                              isRetweetedNotifier.value = !currentState;
-                              // Firestoreでリツイートの情報を更新する処理
-                            },
-                            replyFlag: ValueNotifier<bool>(false),
-                            userId: myAccount.userId,
-                          );
-                        },
-                      );
-                    } else {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                  },
-                );
-              } else {
-                return const Center(child: CircularProgressIndicator());
-              }
+          return PostItemWidget(
+            post: post,
+            postAccount: postAccount, // Firestoreから取得したユーザー情報
+            favoriteUsersNotifier:
+                _favoritePost.favoriteUsersNotifiers[post.id]!,
+            isFavoriteNotifier: ValueNotifier<bool>(
+              _favoritePost.favoritePostsNotifier.value.contains(post.id),
+            ),
+            onFavoriteToggle: () => _favoritePost.toggleFavorite(
+              post.id,
+              _favoritePost.favoritePostsNotifier.value.contains(post.id),
+            ),
+            // リツイートの状態を渡す
+            isRetweetedNotifier: isRetweetedNotifier,
+            // リツイートの状態をトグルする処理
+            onRetweetToggle: () {
+              bool currentState = isRetweetedNotifier.value;
+              isRetweetedNotifier.value = !currentState;
+              // Firestoreでリツイートの情報を更新する処理
             },
+            replyFlag: ValueNotifier<bool>(false),
+            userId: widget.myAccount.userId,
           );
-        } else {
-          return const Center(child: CircularProgressIndicator());
-        }
-      },
+        },
+      ),
     );
   }
 }

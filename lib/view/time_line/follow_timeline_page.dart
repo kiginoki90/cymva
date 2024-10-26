@@ -7,15 +7,20 @@ import 'package:cymva/utils/favorite_post.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class FollowTimelinePage extends StatefulWidget {
-  FollowTimelinePage({Key? key}) : super(key: key);
+  final String userId;
+  FollowTimelinePage({
+    super.key,
+    required this.userId,
+  });
 
   @override
   State<FollowTimelinePage> createState() => _FollowTimelinePageState();
 }
 
 class _FollowTimelinePageState extends State<FollowTimelinePage> {
+  late Future<List<String>>? _favoritePostsFuture;
+  late Future<List<String>>? _blockedAccountsFuture;
   final FavoritePost _favoritePost = FavoritePost();
-  late Future<List<String>> _favoritePostsFuture;
   String? loginUserId;
   final FlutterSecureStorage storage = FlutterSecureStorage();
   late Future<Map<String, Account?>> _accountsFuture;
@@ -27,6 +32,7 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
     super.initState();
     _loadLoginUserId();
     _favoritePostsFuture = _favoritePost.getFavoritePosts();
+    _blockedAccountsFuture = _fetchBlockedAccounts(widget.userId);
   }
 
   Future<void> _loadLoginUserId() async {
@@ -44,22 +50,50 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
     }
   }
 
-  Future<List<QueryDocumentSnapshot>> _fetchFollowedPosts() async {
-    if (loginUserId == null) return []; // loginUserIdが取得できていない場合、空のリストを返す
+  Future<List<String>> _fetchBlockedAccounts(String userId) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('blockUsers')
+        .get();
 
+    // ブロックされたアカウントのparentsIdをリストに変換して返す
+    return snapshot.docs
+        .map((doc) => doc['blocked_user_id'] as String)
+        .toList();
+  }
+
+  Future<List<QueryDocumentSnapshot>> _fetchFollowedPosts() async {
     // フォローしているユーザーのIDリストを取得
     final followSnapshot = await FirebaseFirestore.instance
         .collection('users')
-        .doc(loginUserId)
+        .doc(widget.userId)
         .collection('follow')
         .get();
+
     List<String> followedUserIds =
         followSnapshot.docs.map((doc) => doc.id).toList();
 
     // フォローしているユーザーがいない場合は空のリストを返す
     if (followedUserIds.isEmpty) return [];
 
+    // ブロックしたユーザーのIDリストを取得
+    final blockSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .collection('blockUsers')
+        .get();
+
+    List<String> blockedUserIds = blockSnapshot.docs
+        .map((doc) => doc['blocked_user_id'] as String)
+        .toList();
+
+    // フォローしているユーザーのIDリストからブロックしたユーザーのIDを削除
+    followedUserIds.removeWhere((userId) => blockedUserIds.contains(userId));
+
     // フォローしているユーザーの投稿を取得
+    if (followedUserIds.isEmpty) return [];
+
     final postSnapshot = await FirebaseFirestore.instance
         .collection('posts')
         .where('post_account_id', whereIn: followedUserIds)
@@ -154,25 +188,28 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
                       Post post = Post.fromDocument(visiblePosts[index]);
                       Account? postAccount = accounts[post.postAccountId];
 
-                      bool isFavorite = (_favoritePost
-                              .favoriteUsersNotifiers[post.id]
-                              ?.value as bool?) ??
-                          false;
+                      _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                          ValueNotifier<int>(0);
+                      _favoritePost.updateFavoriteUsersCount(post.id);
 
                       return PostItemWidget(
                         post: post,
                         postAccount: postAccount!,
                         favoriteUsersNotifier:
-                            _favoritePost.favoriteUsersNotifiers[post.id] ??
-                                ValueNotifier<int>(0),
-                        isFavoriteNotifier: ValueNotifier<bool>(isFavorite),
-                        onFavoriteToggle: () {
-                          _favoritePost.toggleFavorite(post.id, isFavorite);
-                        },
+                            _favoritePost.favoriteUsersNotifiers[post.id]!,
+                        isFavoriteNotifier: ValueNotifier<bool>(
+                          _favoritePost.favoritePostsNotifier.value
+                              .contains(post.id),
+                        ),
+                        onFavoriteToggle: () => _favoritePost.toggleFavorite(
+                          post.id,
+                          _favoritePost.favoritePostsNotifier.value
+                              .contains(post.id),
+                        ),
                         isRetweetedNotifier: ValueNotifier<bool>(false),
                         onRetweetToggle: () {},
                         replyFlag: ValueNotifier<bool>(false),
-                        userId: loginUserId!,
+                        userId: widget.userId,
                       );
                     },
                   );

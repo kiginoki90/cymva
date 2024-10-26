@@ -1,12 +1,13 @@
-import 'package:cymva/view/account/edit_page/add_account_page.dart';
-import 'package:cymva/view/account/edit_page/delete_account_page.dart';
+import 'package:cymva/view/account/edit_page/options_page/add_account_page.dart';
+import 'package:cymva/view/account/edit_page/options_page/blocked_users_page.dart';
+import 'package:cymva/view/account/edit_page/options_page/delete_account_page.dart';
 import 'package:cymva/view/account/edit_page/x_auth_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
-import 'package:cymva/view/account/edit_page/change_password_page.dart';
-import 'package:cymva/view/account/edit_page/edit_account_page.dart';
+import 'package:cymva/view/account/edit_page/options_page/change_password_page.dart';
+import 'package:cymva/view/account/edit_page/options_page/edit_account_page.dart';
 import 'package:cymva/view/start_up/login_page.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -70,7 +71,7 @@ class AccountOptionsPage extends StatelessWidget {
             //     );
             //   },
             // ),
-            const Divider(),
+            // const Divider(),
             _buildOptionItem(
               context,
               icon: Icons.logout,
@@ -98,6 +99,20 @@ class AccountOptionsPage extends StatelessWidget {
                       print('ログアウト処理中にエラーが発生しました: $e');
                     }
                   },
+                );
+              },
+            ),
+            const Divider(),
+            _buildOptionItem(
+              context,
+              icon: Icons.remove_moderator,
+              label: 'ブロック管理',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BlockedUsersPage(userId: userId),
+                  ),
                 );
               },
             ),

@@ -145,67 +145,103 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
+  Future<List<String>> _fetchBlockedUserIds() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .collection('blockUsers')
+        .get();
+
+    return snapshot.docs
+        .map((doc) => doc['blocked_user_id'] as String)
+        .toList();
+  }
+
   Widget _buildSearchByTextPage() {
     if (_postSearchResults.isEmpty) {
       return const Center(child: Text('検索結果がありません'));
     }
 
-    return RefreshIndicator(
-      onRefresh: _refreshSearchResults, // 更新時に呼び出されるメソッド
-      child: ListView.builder(
-        itemCount: _postSearchResults.length,
-        itemBuilder: (context, index) {
-          final postDoc = _postSearchResults[index];
-          final post = Post.fromDocument(postDoc);
+    return FutureBuilder<List<String>>(
+      future: _fetchBlockedUserIds(), // ブロックされたユーザーIDを取得するFuture
+      builder: (context, blockedUsersSnapshot) {
+        if (blockedUsersSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (blockedUsersSnapshot.hasError) {
+          return Center(
+              child: Text('エラーが発生しました: ${blockedUsersSnapshot.error}'));
+        } else if (!blockedUsersSnapshot.hasData) {
+          return Container();
+        }
 
-          return FutureBuilder<Account?>(
-            future: _getPostAccount(post.postAccountId),
-            builder: (context, accountSnapshot) {
-              if (accountSnapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              } else if (accountSnapshot.hasError) {
-                return Center(
-                    child: Text('エラーが発生しました: ${accountSnapshot.error}'));
-              } else if (!accountSnapshot.hasData) {
-                return Container();
-              }
+        final blockedUserIds = blockedUsersSnapshot.data!; // ブロックされたユーザーIDのリスト
 
-              final postAccount = accountSnapshot.data!;
+        return RefreshIndicator(
+          onRefresh: _refreshSearchResults,
+          child: ListView.builder(
+            itemCount: _postSearchResults.length,
+            itemBuilder: (context, index) {
+              final postDoc = _postSearchResults[index];
+              final post = Post.fromDocument(postDoc);
 
-              // lock_accountがtrueの場合はスルーする
-              if (postAccount.lockAccount && postAccount.id != widget.userId) {
-                return Container(); // スキップして何も表示しない
-              }
+              return FutureBuilder<Account?>(
+                future: _getPostAccount(post.postAccountId),
+                builder: (context, accountSnapshot) {
+                  if (accountSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (accountSnapshot.hasError) {
+                    return Center(
+                        child: Text('エラーが発生しました: ${accountSnapshot.error}'));
+                  } else if (!accountSnapshot.hasData) {
+                    return Container();
+                  }
 
-              // フォロワー数の処理
-              _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                  ValueNotifier<int>(0);
-              _favoritePost.updateFavoriteUsersCount(post.id);
+                  final postAccount = accountSnapshot.data!;
 
-              return PostItemWidget(
-                post: post,
-                postAccount: postAccount,
-                favoriteUsersNotifier:
-                    _favoritePost.favoriteUsersNotifiers[post.id]!,
-                isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
-                    .favoritePostsNotifier.value
-                    .contains(post.id)),
-                onFavoriteToggle: () {
-                  final isFavorite = _favoritePost.favoritePostsNotifier.value
-                      .contains(post.id);
-                  _favoritePost.toggleFavorite(post.id, isFavorite);
+                  // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
+                  if (blockedUserIds.contains(postAccount.id)) {
+                    return Container(); // スキップして何も表示しない
+                  }
+
+                  // lock_accountがtrueで、自分ではないアカウントならスキップする
+                  if (postAccount.lockAccount &&
+                      postAccount.id != widget.userId) {
+                    return Container(); // スキップして何も表示しない
+                  }
+
+                  // フォロワー数の処理
+                  _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                      ValueNotifier<int>(0);
+                  _favoritePost.updateFavoriteUsersCount(post.id);
+
+                  return PostItemWidget(
+                    post: post,
+                    postAccount: postAccount,
+                    favoriteUsersNotifier:
+                        _favoritePost.favoriteUsersNotifiers[post.id]!,
+                    isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
+                        .favoritePostsNotifier.value
+                        .contains(post.id)),
+                    onFavoriteToggle: () {
+                      final isFavorite = _favoritePost
+                          .favoritePostsNotifier.value
+                          .contains(post.id);
+                      _favoritePost.toggleFavorite(post.id, isFavorite);
+                    },
+                    isRetweetedNotifier: ValueNotifier<bool>(false),
+                    onRetweetToggle: () {
+                      // リツイートの状態をFirestoreに保存するロジックを追加
+                    },
+                    replyFlag: ValueNotifier<bool>(false),
+                    userId: widget.userId,
+                  );
                 },
-                isRetweetedNotifier: ValueNotifier<bool>(false),
-                onRetweetToggle: () {
-                  // リツイートの状態をFirestoreに保存するロジックを追加
-                },
-                replyFlag: ValueNotifier<bool>(false),
-                userId: widget.userId,
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -322,62 +358,86 @@ class _SearchPageState extends State<SearchPage> {
       return const Center(child: Text('検索結果がありません'));
     }
 
-    return RefreshIndicator(
-      onRefresh: _refreshRecentFavorites,
-      child: ListView.builder(
-        itemCount: _recentFavoritesResults.length,
-        itemBuilder: (context, index) {
-          final postDoc = _recentFavoritesResults[index];
-          final post = Post.fromDocument(postDoc);
+    return FutureBuilder<List<String>>(
+      future: _fetchBlockedUserIds(), // ブロックされたユーザーIDを取得するFuture
+      builder: (context, blockedUsersSnapshot) {
+        if (blockedUsersSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (blockedUsersSnapshot.hasError) {
+          return Center(
+              child: Text('エラーが発生しました: ${blockedUsersSnapshot.error}'));
+        } else if (!blockedUsersSnapshot.hasData) {
+          return Container(); // データがない場合は空のコンテナを返す
+        }
 
-          return FutureBuilder<Account?>(
-            future: _getPostAccount(post.postAccountId),
-            builder: (context, accountSnapshot) {
-              if (accountSnapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              } else if (accountSnapshot.hasError) {
-                return Center(
-                    child: Text('エラーが発生しました: ${accountSnapshot.error}'));
-              } else if (!accountSnapshot.hasData) {
-                return Container();
-              }
+        final blockedUserIds = blockedUsersSnapshot.data!; // ブロックされたユーザーIDのリスト
 
-              final postAccount = accountSnapshot.data!;
+        return RefreshIndicator(
+          onRefresh: _refreshRecentFavorites,
+          child: ListView.builder(
+            itemCount: _recentFavoritesResults.length,
+            itemBuilder: (context, index) {
+              final postDoc = _recentFavoritesResults[index];
+              final post = Post.fromDocument(postDoc);
 
-              // Firestoreから直近24時間のfavorite_usersを取得してcount
-              final recentFavoriteCount = _postFavoriteCounts[post.id] ?? 0;
+              return FutureBuilder<Account?>(
+                future: _getPostAccount(post.postAccountId),
+                builder: (context, accountSnapshot) {
+                  if (accountSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (accountSnapshot.hasError) {
+                    return Center(
+                        child: Text('エラーが発生しました: ${accountSnapshot.error}'));
+                  } else if (!accountSnapshot.hasData) {
+                    return Container();
+                  }
 
-              // lock_accountがtrueの場合はスルーする
-              if (postAccount.lockAccount && postAccount.id != widget.userId) {
-                return Container();
-              }
+                  final postAccount = accountSnapshot.data!;
 
-              // PostItemWidget に recentFavoriteCount をそのまま渡す
-              return PostItemWidget(
-                post: post,
-                postAccount: postAccount,
-                favoriteUsersNotifier:
-                    _favoritePost.favoriteUsersNotifiers[post.id] ??
-                        ValueNotifier<int>(recentFavoriteCount),
-                isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
-                    .favoritePostsNotifier.value
-                    .contains(post.id)),
-                onFavoriteToggle: () {
-                  final isFavorite = _favoritePost.favoritePostsNotifier.value
-                      .contains(post.id);
-                  _favoritePost.toggleFavorite(post.id, isFavorite);
+                  // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
+                  if (blockedUserIds.contains(postAccount.id)) {
+                    return Container(); // スキップして何も表示しない
+                  }
+
+                  // lock_accountがtrueで、自分ではないアカウントならスキップする
+                  if (postAccount.lockAccount &&
+                      postAccount.id != widget.userId) {
+                    return Container(); // スキップして何も表示しない
+                  }
+
+                  // Firestoreから直近24時間のfavorite_usersを取得してcount
+                  final recentFavoriteCount = _postFavoriteCounts[post.id] ?? 0;
+
+                  // PostItemWidget に recentFavoriteCount をそのまま渡す
+                  return PostItemWidget(
+                    post: post,
+                    postAccount: postAccount,
+                    favoriteUsersNotifier:
+                        _favoritePost.favoriteUsersNotifiers[post.id] ??
+                            ValueNotifier<int>(recentFavoriteCount),
+                    isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
+                        .favoritePostsNotifier.value
+                        .contains(post.id)),
+                    onFavoriteToggle: () {
+                      final isFavorite = _favoritePost
+                          .favoritePostsNotifier.value
+                          .contains(post.id);
+                      _favoritePost.toggleFavorite(post.id, isFavorite);
+                    },
+                    isRetweetedNotifier: ValueNotifier<bool>(false),
+                    onRetweetToggle: () {
+                      // リツイートの状態をFirestoreに保存するロジックを追加
+                    },
+                    replyFlag: ValueNotifier<bool>(false),
+                    userId: widget.userId,
+                  );
                 },
-                isRetweetedNotifier: ValueNotifier<bool>(false),
-                onRetweetToggle: () {
-                  // リツイートの状態をFirestoreに保存するロジックを追加
-                },
-                replyFlag: ValueNotifier<bool>(false),
-                userId: widget.userId,
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -387,73 +447,97 @@ class _SearchPageState extends State<SearchPage> {
     await _fetchRecentFavorites(_lastQuery);
   }
 
-// 検索結果を表示するWidget
+  // 検索結果を表示するWidget
   Widget _buildSearchByImagePage() {
     if (_postSearchResults.isEmpty) {
       return const Center(child: Text('検索結果がありません'));
     }
 
-    return RefreshIndicator(
-      onRefresh: _refreshPosts, // 更新時に呼び出されるメソッド
-      child: ListView.builder(
-        itemCount: _postSearchResults.length,
-        itemBuilder: (context, index) {
-          final postDoc = _postSearchResults[index];
-          final post = Post.fromDocument(postDoc);
+    return FutureBuilder<List<String>>(
+      future: _fetchBlockedUserIds(), // ブロックされたユーザーIDを取得するFuture
+      builder: (context, blockedUsersSnapshot) {
+        if (blockedUsersSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (blockedUsersSnapshot.hasError) {
+          return Center(
+              child: Text('エラーが発生しました: ${blockedUsersSnapshot.error}'));
+        } else if (!blockedUsersSnapshot.hasData) {
+          return Container(); // データがない場合は空のコンテナを返す
+        }
 
-          // media_urlがある投稿のみ表示
-          if (post.mediaUrl == null || post.mediaUrl!.isEmpty) {
-            return Container(); // media_urlがない場合はスキップ
-          }
+        final blockedUserIds = blockedUsersSnapshot.data!; // ブロックされたユーザーIDのリスト
 
-          return FutureBuilder<Account?>(
-            future: _getPostAccount(post.postAccountId),
-            builder: (context, accountSnapshot) {
-              if (accountSnapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              } else if (accountSnapshot.hasError) {
-                return Center(
-                    child: Text('エラーが発生しました: ${accountSnapshot.error}'));
-              } else if (!accountSnapshot.hasData) {
-                return Container();
+        return RefreshIndicator(
+          onRefresh: _refreshPosts, // 更新時に呼び出されるメソッド
+          child: ListView.builder(
+            itemCount: _postSearchResults.length,
+            itemBuilder: (context, index) {
+              final postDoc = _postSearchResults[index];
+              final post = Post.fromDocument(postDoc);
+
+              // media_urlがある投稿のみ表示
+              if (post.mediaUrl == null || post.mediaUrl!.isEmpty) {
+                return Container(); // media_urlがない場合はスキップ
               }
 
-              final postAccount = accountSnapshot.data!;
+              return FutureBuilder<Account?>(
+                future: _getPostAccount(post.postAccountId),
+                builder: (context, accountSnapshot) {
+                  if (accountSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (accountSnapshot.hasError) {
+                    return Center(
+                        child: Text('エラーが発生しました: ${accountSnapshot.error}'));
+                  } else if (!accountSnapshot.hasData) {
+                    return Container();
+                  }
 
-              // lock_accountがtrueの場合はスルーする
-              if (postAccount.lockAccount && postAccount.id != widget.userId) {
-                return Container(); // スキップして何も表示しない
-              }
+                  final postAccount = accountSnapshot.data!;
 
-              // フォロワー数の処理
-              _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                  ValueNotifier<int>(0);
-              _favoritePost.updateFavoriteUsersCount(post.id);
+                  // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
+                  if (blockedUserIds.contains(postAccount.id)) {
+                    return Container(); // スキップして何も表示しない
+                  }
 
-              return PostItemWidget(
-                post: post,
-                postAccount: postAccount,
-                favoriteUsersNotifier:
-                    _favoritePost.favoriteUsersNotifiers[post.id]!,
-                isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
-                    .favoritePostsNotifier.value
-                    .contains(post.id)),
-                onFavoriteToggle: () {
-                  final isFavorite = _favoritePost.favoritePostsNotifier.value
-                      .contains(post.id);
-                  _favoritePost.toggleFavorite(post.id, isFavorite);
+                  // lock_accountがtrueで、自分ではないアカウントならスキップする
+                  if (postAccount.lockAccount &&
+                      postAccount.id != widget.userId) {
+                    return Container(); // スキップして何も表示しない
+                  }
+
+                  // フォロワー数の処理
+                  _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                      ValueNotifier<int>(0);
+                  _favoritePost.updateFavoriteUsersCount(post.id);
+
+                  return PostItemWidget(
+                    post: post,
+                    postAccount: postAccount,
+                    favoriteUsersNotifier:
+                        _favoritePost.favoriteUsersNotifiers[post.id]!,
+                    isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
+                        .favoritePostsNotifier.value
+                        .contains(post.id)),
+                    onFavoriteToggle: () {
+                      final isFavorite = _favoritePost
+                          .favoritePostsNotifier.value
+                          .contains(post.id);
+                      _favoritePost.toggleFavorite(post.id, isFavorite);
+                    },
+                    isRetweetedNotifier: ValueNotifier<bool>(false),
+                    onRetweetToggle: () {
+                      // リツイートの状態をFirestoreに保存するロジックを追加
+                    },
+                    replyFlag: ValueNotifier<bool>(false),
+                    userId: widget.userId,
+                  );
                 },
-                isRetweetedNotifier: ValueNotifier<bool>(false),
-                onRetweetToggle: () {
-                  // リツイートの状態をFirestoreに保存するロジックを追加
-                },
-                replyFlag: ValueNotifier<bool>(false),
-                userId: widget.userId,
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -529,8 +613,13 @@ class _SearchPageState extends State<SearchPage> {
     final lowerCaseQuery = query.toLowerCase();
     final queryWords = lowerCaseQuery.split(' ');
 
-    // 検索条件を組み立てる
+    // 検索結果を格納するリスト
+    final Set<String> uniqueAccountIds = {}; // 重複を防ぐためのセット
+    final List<DocumentSnapshot> allDocs = [];
+
+    // ユーザー名に対するクエリ
     Query nameQuery = firestore.collection('users');
+    // ユーザーIDに対するクエリ
     Query userIdQuery = firestore.collection('users');
 
     for (String word in queryWords) {
@@ -546,19 +635,25 @@ class _SearchPageState extends State<SearchPage> {
 
     // `name`フィールドに対するクエリ
     final nameQuerySnapshot = await nameQuery.get();
-
     // `user_id`フィールドに対するクエリ
     final userIdQuerySnapshot = await userIdQuery.get();
 
-    // クエリ結果をマージ（重複を避けるために `doc.id` を基準にする）
-    final allDocs =
-        {...nameQuerySnapshot.docs, ...userIdQuerySnapshot.docs}.toList();
+    // 名前の結果を追加
+    for (var doc in nameQuerySnapshot.docs) {
+      if (uniqueAccountIds.add(doc.id)) {
+        allDocs.add(doc);
+      }
+    }
 
-    // 重複を避けるために user_id を基準にする
-    final uniqueDocs = allDocs.toSet().toList();
+    // ユーザーIDの結果を追加
+    for (var doc in userIdQuerySnapshot.docs) {
+      if (uniqueAccountIds.add(doc.id)) {
+        allDocs.add(doc);
+      }
+    }
 
     setState(() {
-      _accountSearchResults = uniqueDocs.map((doc) {
+      _accountSearchResults = allDocs.map((doc) {
         return Account.fromDocument(doc);
       }).toList();
     });

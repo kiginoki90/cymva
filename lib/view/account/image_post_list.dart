@@ -6,20 +6,31 @@ import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 
-class ImagePostList extends StatelessWidget {
+class ImagePostList extends StatefulWidget {
   final Account myAccount;
-  final FavoritePost _favoritePost = FavoritePost(); // お気に入り機能のインスタンス
 
-  ImagePostList({Key? key, required this.myAccount}) : super(key: key);
+  const ImagePostList({Key? key, required this.myAccount}) : super(key: key);
+
+  @override
+  _ImagePostListState createState() => _ImagePostListState();
+}
+
+class _ImagePostListState extends State<ImagePostList> {
+  late Future<List<String>> _favoritePostsFuture;
+  final FavoritePost _favoritePost = FavoritePost();
+
+  @override
+  void initState() {
+    super.initState();
+    _favoritePostsFuture = _favoritePost.getFavoritePosts();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final Future<List<String>> _favoritePostsFuture =
-        _favoritePost.getFavoritePosts();
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
-          .doc(myAccount.id)
+          .doc(widget.myAccount.id)
           .collection('my_posts')
           .orderBy('created_time', descending: true)
           .snapshots(),
@@ -53,8 +64,6 @@ class ImagePostList extends StatelessWidget {
                           itemCount: imagePosts.length,
                           itemBuilder: (context, index) {
                             Post post = imagePosts[index];
-                            bool isFavorite =
-                                favoriteSnapshot.data!.contains(post.id);
 
                             // お気に入りユーザー数の初期化と更新
                             _favoritePost.favoriteUsersNotifiers[post.id] ??=
@@ -69,28 +78,29 @@ class ImagePostList extends StatelessWidget {
 
                             return PostItemWidget(
                               post: post,
-                              postAccount: myAccount,
+                              postAccount: widget.myAccount,
                               favoriteUsersNotifier: _favoritePost
                                   .favoriteUsersNotifiers[post.id]!,
-                              isFavoriteNotifier:
-                                  ValueNotifier<bool>(isFavorite),
-                              onFavoriteToggle: () {
-                                _favoritePost.toggleFavorite(
-                                  post.id,
-                                  isFavorite,
-                                );
-                              },
+                              isFavoriteNotifier: ValueNotifier<bool>(
+                                _favoritePost.favoritePostsNotifier.value
+                                    .contains(post.id),
+                              ),
+                              onFavoriteToggle: () =>
+                                  _favoritePost.toggleFavorite(
+                                post.id,
+                                _favoritePost.favoritePostsNotifier.value
+                                    .contains(post.id),
+                              ),
                               // リツイートの状態を渡す
                               isRetweetedNotifier: isRetweetedNotifier,
                               // リツイートの状態をトグルする処理
                               onRetweetToggle: () {
-                                // ここにリツイートの状態をFirestoreに保存するロジックを追加する
                                 bool currentState = isRetweetedNotifier.value;
                                 isRetweetedNotifier.value = !currentState;
-                                // Firestoreでリツイートの情報を更新する処理
+                                // Firestoreでリツイートの情報を更新する処理を追加
                               },
                               replyFlag: ValueNotifier<bool>(false),
-                              userId: myAccount.userId,
+                              userId: widget.myAccount.userId,
                             );
                           },
                         );

@@ -190,6 +190,42 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
   }
 
+  // Firestoreの投稿のclipステータスを更新する関数
+  Future<void> _updatePostClipStatus(bool clipStatus) async {
+    try {
+      // FirestoreのpostsコレクションにあるpostIdのドキュメントを取得
+      final postRef = FirebaseFirestore.instance
+          .collection('posts')
+          .doc(widget.post.postId);
+
+      // 更新するデータ
+      final data = {
+        'clip': clipStatus, // clipの状態を設定
+        'clipTime': clipStatus
+            ? FieldValue.serverTimestamp()
+            : null, // clipがtrueの時に現在時刻を設定、falseの時はnull
+      };
+
+      // Firestoreに更新を反映
+      await postRef.update(data);
+
+      // userコレクションのmy_postsに対しても更新を反映
+      final userRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId) // userIdを使用してユーザーを特定
+          .collection('my_posts')
+          .doc(widget.post.postId); // 同じpostIdでmy_postsのドキュメントを特定
+
+      // userのmy_postsに対しても更新
+      await userRef.update(data);
+
+      print(
+          'Post clip status updated to $clipStatus and user my_posts updated');
+    } catch (e) {
+      print('Error updating post clip status: $e');
+    }
+  }
+
   Future<List<Post>> getRePosts(String postId) async {
     try {
       final replyPostCollectionRef = _firestoreInstance
@@ -414,26 +450,32 @@ class _PostDetailPageState extends State<PostDetailPage> {
                       if (widget.post.postAccountId == widget.userId)
                         PopupMenuButton<String>(
                           icon: Icon(Icons.add),
-                          onSelected: (String value) {
-                            if (value == 'Option 1') _deletePost(context);
+                          onSelected: (String value) async {
+                            if (value == 'Option 1') {
+                              _deletePost(context); // 投稿の削除
+                            } else if (value == 'Option 2') {
+                              await _updatePostClipStatus(true);
+                            } else if (value == 'Option 3') {
+                              await _updatePostClipStatus(false);
+                            }
                           },
                           itemBuilder: (BuildContext context) {
                             return [
                               PopupMenuItem<String>(
                                 value: 'Option 1',
                                 child: Text(
-                                  'ポストの削除',
+                                  '投稿の削除',
                                   style: TextStyle(color: Colors.red),
                                 ),
                               ),
-                              // PopupMenuItem<String>(
-                              //   value: 'Option 2',
-                              //   child: Text('Option 2'),
-                              // ),
-                              // PopupMenuItem<String>(
-                              //   value: 'Option 3',
-                              //   child: Text('Option 3'),
-                              // ),
+                              PopupMenuItem<String>(
+                                value: 'Option 2',
+                                child: Text('トップに固定'),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'Option 3',
+                                child: Text('固定を解除'),
+                              ),
                             ];
                           },
                         )

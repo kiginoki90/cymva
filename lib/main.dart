@@ -8,36 +8,10 @@ import 'package:flutter/material.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-
-  // ユーザーがログインしているかどうかをチェック
-  User? user = FirebaseAuth.instance.currentUser;
-
-  Widget initialScreen;
-  if (user != null && user.emailVerified) {
-    // FirestoreからユーザーIDが存在するかチェック
-    DocumentSnapshot userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-
-    if (userDoc.exists) {
-      initialScreen = TimeLineBody(userId: user.uid); // ユーザーIDが存在する場合タイムラインへ
-    } else {
-      initialScreen = const LoginPage(); // ユーザーIDが存在しない場合ログインページへ
-    }
-  } else {
-    initialScreen = const LoginPage(); // ログインしていないかメール認証がされていない場合ログインページへ
-  }
-
-  runApp(MyApp(initialScreen: initialScreen));
+  runApp(MyApp());
 }
 
-// StatelessWidgetを継承しているMyAppクラス
 class MyApp extends StatelessWidget {
-  final Widget initialScreen;
-
-  const MyApp({required this.initialScreen, super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -47,7 +21,73 @@ class MyApp extends StatelessWidget {
             seedColor: const Color.fromARGB(255, 140, 199, 221)),
         useMaterial3: true,
       ),
-      home: initialScreen, // 初期画面を設定
+      home: InitialScreen(), // 初期画面に遷移するウィジェットを指定
+    );
+  }
+}
+
+class InitialScreen extends StatefulWidget {
+  @override
+  _InitialScreenState createState() => _InitialScreenState();
+}
+
+class _InitialScreenState extends State<InitialScreen> {
+  late Future<Widget> _initialScreenFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialScreenFuture = _determineInitialScreen();
+  }
+
+  // 初期画面を決定するための非同期処理
+  Future<Widget> _determineInitialScreen() async {
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null && user.emailVerified) {
+      // FirestoreからユーザーIDが存在するかチェック
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        // ユーザーIDが存在する場合タイムラインへ
+        return TimeLineBody(userId: user.uid);
+      } else {
+        // ユーザーIDが存在しない場合ログインページへ
+        return const LoginPage();
+      }
+    } else {
+      // ログインしていないかメール認証がされていない場合ログインページへ
+      return const LoginPage();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Widget>(
+      future: _initialScreenFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // 非同期処理が完了するまでローディング画面を表示
+          return Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        } else if (snapshot.hasError) {
+          // エラーが発生した場合のエラーメッセージ
+          return Scaffold(
+            body: Center(
+              child: Text('エラーが発生しました: ${snapshot.error}'),
+            ),
+          );
+        } else {
+          // 初期画面へ遷移
+          return snapshot.data!;
+        }
+      },
     );
   }
 }

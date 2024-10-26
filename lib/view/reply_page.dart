@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cymva/utils/function_utils.dart';
 import 'package:cymva/utils/firestore/posts.dart';
@@ -25,6 +24,8 @@ class _ReplyPageState extends State<ReplyPage> {
   String? _postAccountId;
   List<File> _mediaFiles = [];
   final picker = ImagePicker();
+  final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
 
   @override
   void initState() {
@@ -33,16 +34,20 @@ class _ReplyPageState extends State<ReplyPage> {
   }
 
   Future<void> _pickMedia() async {
-    final pickedFiles = await picker.pickMultiImage();
+    final pickedFiles = await FunctionUtils.getImagesFromGallery(context);
+
     if (pickedFiles != null) {
       setState(() {
-        _mediaFiles = pickedFiles.map((file) => File(file.path)).toList();
+        _mediaFiles = pickedFiles;
       });
     }
   }
 
+  void _dismissKeyboard() {
+    FocusScope.of(context).unfocus();
+  }
+
   Future<void> _fetchPostAccountInfo() async {
-    // Firestoreから投稿者の情報を取得
     final accountSnapshot = await FirebaseFirestore.instance
         .collection('users')
         .doc(widget.post.postAccountId)
@@ -59,9 +64,23 @@ class _ReplyPageState extends State<ReplyPage> {
 
   Future<void> _sendReply() async {
     if (_replyController.text.isNotEmpty || _mediaFiles.isNotEmpty) {
+      if (_mediaFiles.length > 4) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('画像は最大4枚まで選択できます。')),
+        );
+        return;
+      }
+
+      if (_mediaFiles.any((file) => file.path.endsWith('.mp4')) &&
+          _mediaFiles.length > 1) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('動画は最大1つまで選択できます。')),
+        );
+        return;
+      }
+
       List<String>? mediaUrls;
 
-      // メディアが選択されている場合、Firebase Storageにアップロードする
       if (_mediaFiles.isNotEmpty) {
         mediaUrls = [];
 
@@ -75,7 +94,8 @@ class _ReplyPageState extends State<ReplyPage> {
         }
       }
 
-      // Firestoreに返信情報を追加する処理を実装
+      Navigator.of(context).pop();
+
       Post replyPost = Post(
         content: _replyController.text,
         postAccountId: widget.userId,
@@ -83,7 +103,6 @@ class _ReplyPageState extends State<ReplyPage> {
         reply: widget.post.id,
       );
 
-      // Firestoreに返信を追加し、新しい投稿のIDを取得
       String? replyPostId = await PostFirestore.addPost(replyPost);
 
       if (replyPostId != null) {
@@ -100,7 +119,6 @@ class _ReplyPageState extends State<ReplyPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('返信が完了しました')),
         );
-        Navigator.of(context).pop(); // 返信後に前の画面に戻る
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('返信に失敗しました')),
@@ -117,21 +135,21 @@ class _ReplyPageState extends State<ReplyPage> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
+      key: scaffoldMessengerKey,
       appBar: AppBar(
         title: const Text('返信'),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 投稿内容を表示
-              Column(
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 投稿者のアイコンと名前、アカウントIDを表示
                   Row(
                     children: [
                       if (_postAccountName != null)
@@ -145,7 +163,6 @@ class _ReplyPageState extends State<ReplyPage> {
                               height: 40,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
-                                // 画像の取得に失敗した場合のエラービルダー
                                 return Image.network(
                                   'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
                                   width: 40,
@@ -182,17 +199,15 @@ class _ReplyPageState extends State<ReplyPage> {
                     style: const TextStyle(fontSize: 18),
                   ),
                   const SizedBox(height: 10),
-                  // 複数のメディアがある場合に表示
                   if (widget.post.mediaUrl != null &&
                       widget.post.mediaUrl!.isNotEmpty)
                     GridView.builder(
-                      physics:
-                          const NeverScrollableScrollPhysics(), // グリッド内でのスクロールを無効に
-                      shrinkWrap: true, // グリッドのサイズを内容に合わせる
+                      physics: const NeverScrollableScrollPhysics(),
+                      shrinkWrap: true,
                       itemCount: widget.post.mediaUrl!.length,
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2, // グリッドの列数を2に設定
+                        crossAxisCount: 2,
                       ),
                       itemBuilder: (BuildContext context, int index) {
                         final mediaUrl = widget.post.mediaUrl![index];
@@ -200,12 +215,10 @@ class _ReplyPageState extends State<ReplyPage> {
                           child: ClipRRect(
                             child: Image.network(
                               mediaUrl,
-                              width: MediaQuery.of(context).size.width *
-                                  0.4, // 画像の幅を画面に合わせる
-                              height: 150, // 固定高さ
+                              width: MediaQuery.of(context).size.width * 0.4,
+                              height: 150,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
-                                // 画像の取得に失敗した場合のエラービルダー
                                 return Image.network(
                                   'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
                                   width: 40,
@@ -218,51 +231,68 @@ class _ReplyPageState extends State<ReplyPage> {
                         );
                       },
                     ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: _replyController,
+                    maxLines: 5,
+                    decoration: const InputDecoration(
+                      hintText: '返信を入力...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  if (_mediaFiles.isNotEmpty)
+                    SizedBox(
+                      height: 150,
+                      child: GridView.builder(
+                        itemCount: _mediaFiles.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 4,
+                          mainAxisSpacing: 4,
+                        ),
+                        itemBuilder: (BuildContext context, int index) {
+                          return Image.file(
+                            _mediaFiles[index],
+                            width: 150,
+                            height: 150,
+                            fit: BoxFit.cover,
+                          );
+                        },
+                      ),
+                    ),
                 ],
               ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _replyController,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  hintText: '返信を入力...',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // メディア選択ボタン
-              ElevatedButton(
-                onPressed: _pickMedia,
-                child: const Text('画像を選択'),
-              ),
-              if (_mediaFiles.isNotEmpty)
-                SizedBox(
-                  height: 150,
-                  child: GridView.builder(
-                    itemCount: _mediaFiles.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 4,
-                      mainAxisSpacing: 4,
-                    ),
-                    itemBuilder: (BuildContext context, int index) {
-                      return Image.file(
-                        _mediaFiles[index],
-                        width: 150,
-                        height: 150,
-                        fit: BoxFit.cover,
-                      );
-                    },
-                  ),
-                ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _sendReply,
-                child: const Text('返信を送信'),
-              ),
-            ],
+            ),
           ),
-        ),
+          Positioned(
+            bottom: keyboardHeight > 0 ? 0 : 0,
+            left: 0,
+            right: 0,
+            child: Padding(
+              padding: const EdgeInsets.only(
+                  left: 0, top: 0, right: 25.0, bottom: 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (keyboardHeight > 0)
+                    IconButton(
+                      icon: Icon(Icons.keyboard_arrow_down),
+                      onPressed: _dismissKeyboard,
+                    ),
+                  IconButton(
+                    onPressed: _pickMedia,
+                    icon: const Icon(Icons.image),
+                  ),
+                  ElevatedButton(
+                    onPressed: _sendReply,
+                    child: const Text('返信を送信'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

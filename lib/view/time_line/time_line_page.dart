@@ -20,6 +20,7 @@ class TimeLinePage extends StatefulWidget {
 
 class _TimeLineState extends State<TimeLinePage> {
   late Future<List<String>>? _favoritePostsFuture;
+  late Future<List<String>>? _blockedAccountsFuture;
   final FavoritePost _favoritePost = FavoritePost();
 
   Future<List<QueryDocumentSnapshot>> _fetchPosts() async {
@@ -34,17 +35,31 @@ class _TimeLineState extends State<TimeLinePage> {
     await Future.delayed(const Duration(seconds: 1));
   }
 
+  Future<List<String>> _fetchBlockedAccounts(String userId) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('blockUsers')
+        .get();
+
+    // ブロックされたアカウントのparentsIdをリストに変換して返す
+    return snapshot.docs
+        .map((doc) => doc['blocked_user_id'] as String)
+        .toList();
+  }
+
   @override
   void initState() {
     super.initState();
     _favoritePostsFuture = _favoritePost.getFavoritePosts();
+    _blockedAccountsFuture = _fetchBlockedAccounts(widget.userId);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: _refreshPosts, // スクロールで更新するためのリフレッシュ機能
+        onRefresh: _refreshPosts,
         child: FutureBuilder<List<QueryDocumentSnapshot>>(
           future: _fetchPosts(),
           builder: (context, postSnapshot) {
@@ -63,26 +78,28 @@ class _TimeLineState extends State<TimeLinePage> {
                   if (userSnapshot.hasData &&
                       userSnapshot.connectionState == ConnectionState.done) {
                     return FutureBuilder<List<String>>(
-                      future: _favoritePostsFuture,
-                      builder: (context, favoriteSnapshot) {
-                        if (favoriteSnapshot.connectionState ==
+                      future: _blockedAccountsFuture, // ブロックされたアカウントの取得
+                      builder: (context, blockedSnapshot) {
+                        if (blockedSnapshot.connectionState ==
                                 ConnectionState.done &&
-                            favoriteSnapshot.hasData) {
-                          // 投稿をフィルタリング
+                            blockedSnapshot.hasData) {
+                          List<String> blockedAccounts = blockedSnapshot.data!;
+
                           List<Post> visiblePosts = postSnapshot.data!
                               .map((doc) => Post.fromDocument(doc))
                               .where((post) {
                             Account postAccount =
                                 userSnapshot.data![post.postAccountId]!;
-                            return !postAccount
-                                .lockAccount; // lockAccountがfalseのもののみ
+
+                            // アカウントが鍵アカウントまたはブロックされているかをチェック
+                            return !(postAccount.lockAccount ||
+                                blockedAccounts.contains(postAccount.id));
                           }).toList();
 
                           return ListView.builder(
-                            itemCount: visiblePosts.length, // フィルタリング後のアイテム数
+                            itemCount: visiblePosts.length,
                             itemBuilder: (context, index) {
                               Post post = visiblePosts[index];
-
                               Account postAccount =
                                   userSnapshot.data![post.postAccountId]!;
 

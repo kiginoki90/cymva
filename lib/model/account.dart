@@ -29,7 +29,7 @@ class Account {
   factory Account.fromDocument(DocumentSnapshot doc) {
     return Account(
       admin: doc['admin'],
-      id: doc.id, // ドキュメントIDをidフィールドにセット
+      id: doc.id,
       parents_id: doc['parents_id'],
       name: doc['name'],
       imagePath: doc['image_path'],

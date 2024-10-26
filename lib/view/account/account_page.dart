@@ -66,7 +66,25 @@ class _AccountPageState extends State<AccountPage> {
     return null;
   }
 
-  // myAccountのfollowサブコレクションにhomeAccountのIDが存在するかチェックするメソッド
+  // ブロックされているか確認するメソッド
+  Future<bool> _isBlocked(String myAccountId, String postAccountId) async {
+    final blockSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(postAccountId)
+        .collection('block')
+        .get();
+
+    // blockサブコレクション内のparents_idリストを取得
+    List<String> blockedParentsIds =
+        blockSnapshot.docs.map((doc) => doc['parents_id'] as String).toList();
+
+    // 自分のparents_idを取得して、それがblockリストに含まれているかチェック
+    final myAccount = await UserFirestore.getUser(myAccountId);
+    return myAccount != null &&
+        blockedParentsIds.contains(myAccount.parents_id);
+  }
+
+  // followサブコレクションにpostAccountIdが存在するかチェックするメソッド
   Future<bool> _isFollowing(String myAccountId, String postAccountId) async {
     final followSnapshot = await FirebaseFirestore.instance
         .collection('users')
@@ -112,21 +130,16 @@ class _AccountPageState extends State<AccountPage> {
           );
         }
 
-        // follow状態をチェックするFutureBuilder
+        // ブロックされているかチェックするFutureBuilder
         return FutureBuilder<bool>(
-          future: _isFollowing(myAccount.id, postAccount!.id),
-          builder: (context, followSnapshot) {
-            if (followSnapshot.connectionState == ConnectionState.waiting) {
+          future: _isBlocked(myAccount.id, postAccount!.id),
+          builder: (context, blockSnapshot) {
+            if (blockSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final isFollowing = followSnapshot.data ?? false;
-
-            // ページ遷移の条件をチェック
-            if (postAccount!.lockAccount &&
-                postAccount!.id != myAccount.id &&
-                !isFollowing) {
-              // 条件が満たされている場合、別のウィジェットを表示
+            if (blockSnapshot.data == true) {
+              // 自分がブロックされている場合の表示
               return Scaffold(
                 body: SafeArea(
                   child: Column(
@@ -136,10 +149,10 @@ class _AccountPageState extends State<AccountPage> {
                         pageController: _pageController,
                         value: 0,
                       ),
-                      // 非公開アカウントのメッセージを表示
+                      // ブロックされているメッセージを表示
                       Expanded(
                         child: Center(
-                          child: Text('このアカウントの投稿は非公開です。'),
+                          child: Text('このアカウントの情報はお見せすることができません。'),
                         ),
                       ),
                     ],
@@ -149,31 +162,70 @@ class _AccountPageState extends State<AccountPage> {
               );
             }
 
-            // 通常の表示
-            return Scaffold(
-              body: SafeArea(
-                child: Column(
-                  children: [
-                    AccountHeader(
-                      postUserId: widget.postUserId,
-                      pageController: _pageController,
-                      value: 1,
-                    ),
-                    Expanded(
-                      child: PageView(
-                        controller: _pageController,
+            // follow状態をチェックするFutureBuilder
+            return FutureBuilder<bool>(
+              future: _isFollowing(myAccount.id, postAccount!.id),
+              builder: (context, followSnapshot) {
+                if (followSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final isFollowing = followSnapshot.data ?? false;
+
+                // ページ遷移の条件をチェック
+                if (postAccount!.lockAccount &&
+                    postAccount!.id != myAccount.id &&
+                    !isFollowing) {
+                  // 非公開アカウントの場合の表示
+                  return Scaffold(
+                    body: SafeArea(
+                      child: Column(
                         children: [
-                          PostList(
-                              postAccount: postAccount!, myAccount: myAccount!),
-                          ImagePostList(myAccount: postAccount!),
-                          FavoriteList(myAccount: postAccount!)
+                          AccountHeader(
+                            postUserId: widget.postUserId,
+                            pageController: _pageController,
+                            value: 0,
+                          ),
+                          Expanded(
+                            child: Center(
+                              child: Text('このアカウントの投稿は非公開です。'),
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-              bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
+                    bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
+                  );
+                }
+
+                // 通常の表示
+                return Scaffold(
+                  body: SafeArea(
+                    child: Column(
+                      children: [
+                        AccountHeader(
+                          postUserId: widget.postUserId,
+                          pageController: _pageController,
+                          value: 1,
+                        ),
+                        Expanded(
+                          child: PageView(
+                            controller: _pageController,
+                            children: [
+                              PostList(
+                                  postAccount: postAccount!,
+                                  myAccount: myAccount!),
+                              ImagePostList(myAccount: postAccount!),
+                              FavoriteList(myAccount: postAccount!)
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
+                );
+              },
             );
           },
         );

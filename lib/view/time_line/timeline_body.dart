@@ -78,7 +78,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                 controller: _pageController,
                 children: [
                   TimeLinePage(userId: widget.userId),
-                  FollowTimelinePage(),
+                  FollowTimelinePage(userId: widget.userId),
                 ],
               ),
             ),
