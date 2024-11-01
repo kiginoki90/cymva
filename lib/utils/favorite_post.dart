@@ -29,10 +29,14 @@ class FavoritePost {
   }
 
   Future<void> toggleFavorite(String postId, bool isFavorite) async {
-    userId = await storage.read(key: 'account_id') ??
+    String? userId = await storage.read(key: 'account_id') ??
         FirebaseAuth.instance.currentUser?.uid;
 
-    if (userId == null) return;
+    // ユーザーIDが取得できなければ、処理を中断
+    if (userId == null) {
+      print('Error: userId is null');
+      return;
+    }
 
     final favoritePostsCollection = FirebaseFirestore.instance
         .collection('users')
@@ -46,27 +50,35 @@ class FavoritePost {
 
     final timestamp = Timestamp.now(); // 現在の時間を取得
 
-    if (isFavorite == true) {
-      await favoritePostsCollection.doc(postId).delete();
-      await favoriteUsersCollection.doc(userId).delete();
-    } else {
-      await favoritePostsCollection.doc(postId).set({
-        'added_at': timestamp, // 投稿が追加された時間を記録
-      });
-      await favoriteUsersCollection.doc(userId).set({
-        'added_at': timestamp, // ユーザーが投稿をお気に入りにした時間を記録
-      });
-    }
+    try {
+      if (isFavorite) {
+        // お気に入りから削除
+        await favoritePostsCollection.doc(postId).delete();
+        await favoriteUsersCollection.doc(userId).delete();
+      } else {
+        // お気に入りに追加
+        await favoritePostsCollection.doc(postId).set({
+          'added_at': timestamp, // 投稿が追加された時間を記録
+        });
+        await favoriteUsersCollection.doc(userId).set({
+          'added_at': timestamp, // ユーザーが投稿をお気に入りにした時間を記録
+        });
+      }
 
-    final updatedFavorites = favoritePostsNotifier.value.toSet();
-    if (updatedFavorites.contains(postId)) {
-      updatedFavorites.remove(postId);
-    } else {
-      updatedFavorites.add(postId);
-    }
-    favoritePostsNotifier.value = updatedFavorites;
+      // お気に入りの状態を更新
+      final updatedFavorites = favoritePostsNotifier.value.toSet();
+      if (isFavorite) {
+        updatedFavorites.remove(postId);
+      } else {
+        updatedFavorites.add(postId);
+      }
+      favoritePostsNotifier.value = updatedFavorites;
 
-    await updateFavoriteUsersCount(postId);
+      // お気に入りユーザー数を更新
+      await updateFavoriteUsersCount(postId);
+    } catch (e) {
+      print('Error toggling favorite: $e'); // エラーログを表示
+    }
   }
 
   Future<void> updateFavoriteUsersCount(String postId) async {

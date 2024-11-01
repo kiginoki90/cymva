@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/main.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:flutter/material.dart';
@@ -191,9 +192,7 @@ class _PostPageState extends State<PostPage> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
                   // コンテンツ入力欄
                   TextField(
                     controller: contentController,
@@ -211,9 +210,7 @@ class _PostPageState extends State<PostPage> {
                     keyboardType: TextInputType.multiline,
                     textInputAction: TextInputAction.newline,
                   ),
-
                   const SizedBox(height: 20),
-
                   // 選択した画像または動画を表示
                   if (images.isNotEmpty)
                     SizedBox(
@@ -228,7 +225,6 @@ class _PostPageState extends State<PostPage> {
                         itemBuilder: (BuildContext context, int index) {
                           XFile xFile = images[index];
                           File file = File(xFile.path);
-
                           return Image.file(
                             file,
                             width: 150,
@@ -250,13 +246,11 @@ class _PostPageState extends State<PostPage> {
                             ),
                           )
                         : const SizedBox(),
-
                   const SizedBox(height: 20),
                 ],
               ),
             ),
           ),
-
           // キーボードの上にボタンを配置する
           Positioned(
             bottom: keyboardHeight > 0 ? 10 : 10,
@@ -306,23 +300,32 @@ class _PostPageState extends State<PostPage> {
                                   });
 
                                   // タイムラインページへ遷移してから投稿処理を実行
-                                  Navigator.of(context)
-                                      .pushReplacement(
+                                  await Navigator.of(context).pushReplacement(
                                     MaterialPageRoute(
                                       builder: (context) => AccountPage(
                                           postUserId: widget.userId),
                                     ),
-                                  )
-                                      .then((_) async {
-                                    // タイムラインに遷移後に非同期で投稿処理を実行
+                                  );
+
+                                  // 投稿処理を非同期で実行
+                                  WidgetsBinding.instance
+                                      .addPostFrameCallback((_) async {
+                                    // 投稿処理を行う
                                     List<String> mediaUrls = [];
+                                    int maxImageLimit =
+                                        selectedCategory == '漫画' ? 50 : 4;
 
                                     // 画像ファイルのアップロード処理
-                                    for (var xFile in images) {
-                                      File file = File(xFile.path);
+                                    for (var i = 0;
+                                        i < images.length && i < maxImageLimit;
+                                        i++) {
+                                      File file = File(images[i].path);
                                       String? mediaUrl =
                                           await FunctionUtils.uploadImage(
-                                              widget.userId, file, context);
+                                        widget.userId,
+                                        file,
+                                        context,
+                                      );
                                       if (mediaUrl != null) {
                                         mediaUrls.add(mediaUrl);
                                       }
@@ -354,14 +357,13 @@ class _PostPageState extends State<PostPage> {
                                     var result =
                                         await PostFirestore.addPost(newPost);
 
+                                    // 投稿完了後の処理
                                     if (result != null) {
-                                      // 投稿処理が成功した場合
                                       scaffoldMessengerKey.currentState
                                           ?.showSnackBar(
                                         SnackBar(content: Text('投稿が完了しました')),
                                       );
                                     } else {
-                                      // 投稿処理が失敗した場合
                                       scaffoldMessengerKey.currentState
                                           ?.showSnackBar(
                                         SnackBar(content: Text('投稿に失敗しました')),

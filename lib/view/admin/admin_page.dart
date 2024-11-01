@@ -111,9 +111,6 @@ class _AdminPageState extends State<AdminPage> {
                                     },
                                     isRetweetedNotifier:
                                         ValueNotifier<bool>(false),
-                                    onRetweetToggle: () {
-                                      // リツイート機能の処理
-                                    },
                                     replyFlag: ValueNotifier<bool>(false),
                                     userId: postAccount.id,
                                   ),
@@ -186,6 +183,9 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   Future<void> _hidePost(BuildContext context, Post post) async {
+    // 先にmountedをチェック
+    if (!mounted) return;
+
     try {
       await FirebaseFirestore.instance.collection('posts').doc(post.id).update({
         'hide': true,
@@ -200,13 +200,13 @@ class _AdminPageState extends State<AdminPage> {
         await reportDoc.reference.delete();
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('投稿を非表示にしました')),
-      );
+      // ここで再度mountedを確認
+      if (mounted) {
+        print('投稿を非表示にしました');
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('投稿を非表示にできませんでした: $e')),
-      );
+      // ここでも再度mountedを確認
+      print('投稿を非表示にできませんでした: $e');
     }
   }
 

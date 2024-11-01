@@ -19,7 +19,6 @@ class PostItemWidget extends StatefulWidget {
   final ValueNotifier<bool> isFavoriteNotifier;
   final ValueNotifier<bool> isRetweetedNotifier;
   final VoidCallback onFavoriteToggle;
-  final VoidCallback onRetweetToggle;
   final ValueNotifier<bool> replyFlag;
   final String userId;
 
@@ -30,7 +29,6 @@ class PostItemWidget extends StatefulWidget {
     required this.onFavoriteToggle,
     required this.favoriteUsersNotifier,
     required this.isRetweetedNotifier,
-    required this.onRetweetToggle,
     required this.replyFlag,
     required this.userId,
     Key? key,
@@ -108,6 +106,25 @@ class _PostItemWidgetState extends State<PostItemWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.post.hide == true) {
+      return const Center(
+        child: Column(
+          children: [
+            SizedBox(height: 20),
+            Text(
+              'この投稿は表示できません',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+            SizedBox(height: 15),
+            Divider(
+              // 横幅いっぱいのラインを表示
+              color: Colors.grey, // ラインの色を設定
+              thickness: 0.3, // ラインの太さを設定
+            ),
+          ],
+        ),
+      );
+    }
     if ((widget.post.category == '写真' || widget.post.category == 'イラスト') &&
         widget.post.mediaUrl != null &&
         widget.post.mediaUrl!.length == 1) {
@@ -122,11 +139,10 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                 postAccountName: widget.postAccount.name,
                 postAccountUserId: widget.postAccount.userId,
                 postAccountImagePath: widget.postAccount.imagePath,
-                favoriteUsersNotifier: widget.favoriteUsersNotifier,
-                isFavoriteNotifier: widget.isFavoriteNotifier,
+                // favoriteUsersNotifier: widget.favoriteUsersNotifier,
+                // isFavoriteNotifier: widget.isFavoriteNotifier,
                 onFavoriteToggle: widget.onFavoriteToggle,
                 isRetweetedNotifier: widget.isRetweetedNotifier,
-                onRetweetToggle: widget.onRetweetToggle,
                 replyFlag: widget.replyFlag,
                 userId: widget.userId,
               ),
@@ -153,11 +169,10 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                 postAccountName: widget.postAccount.name,
                 postAccountUserId: widget.postAccount.userId,
                 postAccountImagePath: widget.postAccount.imagePath,
-                favoriteUsersNotifier: widget.favoriteUsersNotifier,
-                isFavoriteNotifier: widget.isFavoriteNotifier,
+                // favoriteUsersNotifier: widget.favoriteUsersNotifier,
+                // isFavoriteNotifier: widget.isFavoriteNotifier,
                 onFavoriteToggle: widget.onFavoriteToggle,
                 isRetweetedNotifier: widget.isRetweetedNotifier,
-                onRetweetToggle: widget.onRetweetToggle,
                 replyFlag: widget.replyFlag,
                 userId: widget.userId,
               ),
@@ -326,7 +341,32 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                 ),
                               ],
                             ),
-                            if (_repostPost != null &&
+                            if (_repostPost?.hide == true)
+                              Center(
+                                child: Column(
+                                  children: [
+                                    SizedBox(height: 5),
+                                    Container(
+                                      padding:
+                                          EdgeInsets.all(20.0), // テキストの周りに余白を追加
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                            color: Colors.grey,
+                                            width: 0.5), // 薄い枠線を設定
+                                        borderRadius: BorderRadius.circular(
+                                            5.0), // 角を少し丸くする
+                                      ),
+                                      child: Text(
+                                        'この投稿は表示できません',
+                                        style: TextStyle(
+                                            color: Colors.grey, fontSize: 16),
+                                      ),
+                                    ),
+                                    SizedBox(height: 5),
+                                  ],
+                                ),
+                              )
+                            else if (_repostPost != null &&
                                 _repostPostAccount != null)
                               //引用の表示
                               PostVisibilityWidget(

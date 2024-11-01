@@ -133,8 +133,8 @@ class _RepostPageState extends State<RepostPage> {
                                 children: [
                                   if (_postAccountName != null)
                                     Text(
-                                      _postAccountName!.length > 25
-                                          ? '${_postAccountName!.substring(0, 25)}...'
+                                      _postAccountName!.length > 18
+                                          ? '${_postAccountName!.substring(0, 18)}...'
                                           : _postAccountName!,
                                       style: const TextStyle(
                                           fontWeight: FontWeight.bold),
@@ -143,7 +143,7 @@ class _RepostPageState extends State<RepostPage> {
                                     ),
                                   if (_postAccountId != null)
                                     Text(
-                                      '@$_postAccountId',
+                                      '@${_postAccountId!.length > 23 ? '${_postAccountId!.substring(0, 23)}...' : _postAccountId}',
                                       style: const TextStyle(
                                           color: Colors.grey, fontSize: 13),
                                     ),

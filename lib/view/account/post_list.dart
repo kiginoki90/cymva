@@ -115,10 +115,6 @@ class _PostListState extends State<PostList> {
                                       .contains(post.id),
                                 ),
                                 isRetweetedNotifier: isRetweetedNotifier,
-                                onRetweetToggle: () {
-                                  bool currentState = isRetweetedNotifier.value;
-                                  isRetweetedNotifier.value = !currentState;
-                                },
                                 replyFlag: ValueNotifier<bool>(false),
                                 userId: widget.myAccount.id,
                               );

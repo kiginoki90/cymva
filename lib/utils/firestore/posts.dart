@@ -81,6 +81,7 @@ class PostFirestore {
           postId: data['post_id'] ?? '',
           repost: data['repost'] ?? null,
           category: data['category'] ?? null,
+          hide: data['hide'] ?? false,
           clip: data['clip'] ?? false,
           clipTime: data['clipTime'] ?? null,
         );

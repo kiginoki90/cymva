@@ -230,9 +230,6 @@ class _SearchPageState extends State<SearchPage> {
                       _favoritePost.toggleFavorite(post.id, isFavorite);
                     },
                     isRetweetedNotifier: ValueNotifier<bool>(false),
-                    onRetweetToggle: () {
-                      // リツイートの状態をFirestoreに保存するロジックを追加
-                    },
                     replyFlag: ValueNotifier<bool>(false),
                     userId: widget.userId,
                   );
@@ -426,9 +423,6 @@ class _SearchPageState extends State<SearchPage> {
                       _favoritePost.toggleFavorite(post.id, isFavorite);
                     },
                     isRetweetedNotifier: ValueNotifier<bool>(false),
-                    onRetweetToggle: () {
-                      // リツイートの状態をFirestoreに保存するロジックを追加
-                    },
                     replyFlag: ValueNotifier<bool>(false),
                     userId: widget.userId,
                   );
@@ -526,9 +520,6 @@ class _SearchPageState extends State<SearchPage> {
                       _favoritePost.toggleFavorite(post.id, isFavorite);
                     },
                     isRetweetedNotifier: ValueNotifier<bool>(false),
-                    onRetweetToggle: () {
-                      // リツイートの状態をFirestoreに保存するロジックを追加
-                    },
                     replyFlag: ValueNotifier<bool>(false),
                     userId: widget.userId,
                   );

@@ -91,12 +91,14 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
     // フォローしているユーザーのIDリストからブロックしたユーザーのIDを削除
     followedUserIds.removeWhere((userId) => blockedUserIds.contains(userId));
 
-    // フォローしているユーザーの投稿を取得
+    // フォローしているユーザーの投稿を取得し、created_timeで降順にソート
     if (followedUserIds.isEmpty) return [];
 
     final postSnapshot = await FirebaseFirestore.instance
         .collection('posts')
         .where('post_account_id', whereIn: followedUserIds)
+        .where('hide', isEqualTo: false)
+        .orderBy('created_time', descending: true) // ここで降順にソート
         .get();
 
     return postSnapshot.docs;
@@ -207,7 +209,6 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
                               .contains(post.id),
                         ),
                         isRetweetedNotifier: ValueNotifier<bool>(false),
-                        onRetweetToggle: () {},
                         replyFlag: ValueNotifier<bool>(false),
                         userId: widget.userId,
                       );

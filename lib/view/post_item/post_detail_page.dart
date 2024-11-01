@@ -24,11 +24,10 @@ class PostDetailPage extends StatefulWidget {
   final String postAccountName;
   final String postAccountUserId;
   final String postAccountImagePath;
-  final ValueNotifier<int> favoriteUsersNotifier;
-  final ValueNotifier<bool> isFavoriteNotifier;
+  // final ValueNotifier<int> favoriteUsersNotifier;
+  // final ValueNotifier<bool> isFavoriteNotifier;
   final VoidCallback onFavoriteToggle;
   final ValueNotifier<bool> isRetweetedNotifier;
-  final VoidCallback onRetweetToggle;
   final ValueNotifier<bool> replyFlag;
   final String userId;
 
@@ -38,11 +37,10 @@ class PostDetailPage extends StatefulWidget {
       required this.postAccountName,
       required this.postAccountUserId,
       required this.postAccountImagePath,
-      required this.favoriteUsersNotifier,
-      required this.isFavoriteNotifier,
+      // required this.favoriteUsersNotifier,
+      // required this.isFavoriteNotifier,
       required this.onFavoriteToggle,
       required this.isRetweetedNotifier,
-      required this.onRetweetToggle,
       required this.replyFlag,
       required this.userId})
       : super(key: key);
@@ -53,20 +51,28 @@ class PostDetailPage extends StatefulWidget {
 
 class _PostDetailPageState extends State<PostDetailPage> {
   late Future<List<Post>> _replyPostsFuture;
+  late Future<List<String>> _favoritePostsFuture;
+  final ValueNotifier<int> favoriteCountNotifier = ValueNotifier<int>(0);
   Future<Post?>? _replyToPostFuture;
   final FavoritePost _favoritePost = FavoritePost();
   final ValueNotifier<int> _replyCountNotifier = ValueNotifier<int>(0);
   final GlobalKey _userRowKey = GlobalKey();
-  final FlutterSecureStorage storage = FlutterSecureStorage();
+  // final FlutterSecureStorage storage = FlutterSecureStorage();
   Post? _repostPost;
   Account? _repostPostAccount;
   VideoPlayerController? _videoController;
-  Future<String?>? _myIdFuture;
+  final ValueNotifier<int> favoriteUsersNotifier = ValueNotifier<int>(0);
+  final ValueNotifier<bool> isFavoriteNotifier = ValueNotifier<bool>(false);
+  // late ValueNotifier<int> favoriteCountNotifier;
+  // Future<String?>? _myIdFuture;
 
   @override
   void initState() {
     super.initState();
+    _fetchFavoriteData();
     _replyPostsFuture = getRePosts(widget.post.postId);
+    _favoritePostsFuture = _favoritePost.getFavoritePosts();
+    // favoriteCountNotifier = ValueNotifier<int>(0);
 
     if (widget.post.reply != null && widget.post.reply!.isNotEmpty) {
       _replyToPostFuture = getPostById(widget.post.reply!);
@@ -76,12 +82,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
     _fetchRepostDetails();
     _fetchReplyCount();
-    _myIdFuture = _getMyAccountId();
+    // _myIdFuture = _getMyAccountId();
   }
 
-  Future<String?> _getMyAccountId() async {
-    return await storage.read(key: 'account_id');
-  }
+  // Future<String?> _getMyAccountId() async {
+  //   return await storage.read(key: 'account_id');
+  // }
 
   void _fetchReplyCount() {
     String documentId =
@@ -97,6 +103,48 @@ class _PostDetailPageState extends State<PostDetailPage> {
     });
   }
 
+  Future<void> _fetchFavoriteData() async {
+    // Firestoreからお気に入り数とお気に入り状態を取得
+    final favoriteCountSnapshot = await FirebaseFirestore.instance
+        .collection('posts')
+        .doc(widget.post.postId)
+        .collection('favorite_users')
+        .get();
+
+    favoriteUsersNotifier.value = favoriteCountSnapshot.docs.length;
+
+    // 自分がすでにお気に入りに追加しているかどうかを確認
+    final isFavoriteSnapshot = await FirebaseFirestore.instance
+        .collection('posts')
+        .doc(widget.post.postId)
+        .collection('favorite_users')
+        .doc(widget.userId)
+        .get();
+
+    isFavoriteNotifier.value = isFavoriteSnapshot.exists;
+  }
+
+  Future<void> _toggleFavorite() async {
+    final postRef = FirebaseFirestore.instance
+        .collection('posts')
+        .doc(widget.post.postId)
+        .collection('favorite_users')
+        .doc(widget.userId);
+
+    if (isFavoriteNotifier.value) {
+      // すでにお気に入りに登録されている場合、解除する
+      await postRef.delete();
+      favoriteUsersNotifier.value--;
+    } else {
+      // お気に入りに追加する
+      await postRef.set({});
+      favoriteUsersNotifier.value++;
+    }
+
+    // お気に入り状態を反転
+    isFavoriteNotifier.value = !isFavoriteNotifier.value;
+  }
+
   Future<void> _fetchRepostDetails() async {
     try {
       if (widget.post.repost != null) {
@@ -105,12 +153,38 @@ class _PostDetailPageState extends State<PostDetailPage> {
       if (_repostPost != null) {
         _repostPostAccount =
             await UserFirestore.getUser(_repostPost!.postAccountId);
+
+        final favoriteCountSnapshot = await FirebaseFirestore.instance
+            .collection('posts')
+            .doc(_repostPost!.postId)
+            .collection('favorite_users')
+            .get();
+        int favoriteCount = favoriteCountSnapshot.size; // ユーザー数を取得
+
+        // favoriteCountNotifierに値を設定
+        favoriteCountNotifier.value = favoriteCount; // 更新
+
         setState(() {});
       }
     } catch (e) {
       print('Repost details fetch failed: $e');
     }
   }
+
+  // Future<int> getFavoriteUsersCount(String postId) async {
+  //   try {
+  //     final snapshot = await FirebaseFirestore.instance
+  //         .collection('posts')
+  //         .doc(postId)
+  //         .collection('favorite_users')
+  //         .get();
+
+  //     return snapshot.size; // ドキュメント数を返す
+  //   } catch (e) {
+  //     print('Error fetching favorite users count: $e');
+  //     return 0; // エラーが発生した場合は0を返す
+  //   }
+  // }
 
   void _initializeVideoPlayer() {
     if (widget.post.mediaUrl != null && widget.post.mediaUrl!.isNotEmpty) {
@@ -143,15 +217,15 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
   }
 
-  static Future<Map<String, dynamic>?> getUser(String userId) async {
-    try {
-      var doc = await _firestoreInstance.collection('users').doc(userId).get();
-      return doc.data();
-    } catch (e) {
-      print('ユーザー情報取得エラー: $e');
-      return null;
-    }
-  }
+  // static Future<Map<String, dynamic>?> getUser(String userId) async {
+  //   try {
+  //     var doc = await _firestoreInstance.collection('users').doc(userId).get();
+  //     return doc.data();
+  //   } catch (e) {
+  //     print('ユーザー情報取得エラー: $e');
+  //     return null;
+  //   }
+  // }
 
   Future<void> _deletePost(BuildContext context) async {
     try {
@@ -239,7 +313,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
         return [];
       }
 
-      List<Post> replyPosts = [];
+      List<Post> prioritizedPosts = [];
+      List<MapEntry<Post, int>> otherPostsWithFavorites = [];
+
       for (var doc in snapshot.docs) {
         var replyPostId = doc.id;
         var postSnapshot =
@@ -247,12 +323,31 @@ class _PostDetailPageState extends State<PostDetailPage> {
         if (postSnapshot.exists) {
           var postDetailData = postSnapshot.data();
           if (postDetailData != null) {
-            replyPosts.add(Post.fromMap(postDetailData));
+            var post = Post.fromMap(postDetailData);
+
+            // userIdとpost_account_idが一致する場合は優先してリストに追加
+            if (post.postAccountId == widget.post.postAccountId) {
+              prioritizedPosts.add(post);
+            } else {
+              // それ以外の投稿はfavorite_usersの件数でソートするため件数を取得
+              final favoriteUsersSnapshot = await _firestoreInstance
+                  .collection('posts')
+                  .doc(replyPostId)
+                  .collection('favorite_users')
+                  .get();
+              otherPostsWithFavorites
+                  .add(MapEntry(post, favoriteUsersSnapshot.size));
+            }
           }
         }
       }
 
-      return replyPosts;
+      // favorite_usersの件数が多い順にソート
+      otherPostsWithFavorites.sort((a, b) => b.value.compareTo(a.value));
+
+      // prioritizedPostsの後にソートされたotherPostsWithFavoritesを追加
+      return prioritizedPosts +
+          otherPostsWithFavorites.map((e) => e.key).toList();
     } catch (e) {
       print('サブコレクションの取得に失敗しました: $e');
       return [];
@@ -267,6 +362,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    // お気に入りユーザー数の初期化と更新
     return Scaffold(
       appBar: AppBar(
         title: const Text('投稿の詳細'),
@@ -305,6 +401,30 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                 ValueNotifier<bool>(
                               false, // Firestoreからリツイートの状態を取得し初期化する
                             );
+                            if (replyToPost.hide == true) {
+                              return const Center(
+                                child: Column(
+                                  children: [
+                                    SizedBox(height: 15),
+                                    Text(
+                                      'この投稿は表示できません',
+                                      style: TextStyle(
+                                          color: Colors.grey, fontSize: 16),
+                                    ),
+                                    SizedBox(height: 15),
+                                    Divider(
+                                      // 横幅いっぱいのラインを表示
+                                      color: Colors.grey, // ラインの色を設定
+                                      thickness: 0.5, // ラインの太さを設定
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            _favoritePost.favoriteUsersNotifiers[
+                                replyToPost.postId] ??= ValueNotifier<int>(0);
+                            _favoritePost
+                                .updateFavoriteUsersCount(replyToPost.postId);
 
                             return Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -319,9 +439,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                         post: replyToPost,
                                         postAccount: postAccount!,
                                         favoriteUsersNotifier: _favoritePost
-                                                    .favoriteUsersNotifiers[
-                                                replyToPost.postId] ??
-                                            ValueNotifier<int>(0),
+                                                .favoriteUsersNotifiers[
+                                            replyToPost.postId]!,
                                         isFavoriteNotifier: ValueNotifier<bool>(
                                             _favoritePost
                                                 .favoritePostsNotifier.value
@@ -343,15 +462,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                         // リツイートの状態を渡す
                                         isRetweetedNotifier:
                                             isRetweetedNotifier,
-                                        // リツイートの状態をトグルする処理
-                                        onRetweetToggle: () {
-                                          // ここにリツイートの状態をFirestoreに保存するロジックを追加する
-                                          bool currentState =
-                                              isRetweetedNotifier.value;
-                                          isRetweetedNotifier.value =
-                                              !currentState;
-                                          // Firestoreでリツイートの情報を更新する処理
-                                        },
                                         replyFlag: ValueNotifier<bool>(true),
                                         userId: widget.userId,
                                       ),
@@ -541,8 +651,28 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   ),
                 ],
               ),
-
-              if (_repostPost != null && _repostPostAccount != null)
+              if (_repostPost?.hide == true)
+                Center(
+                  child: Column(
+                    children: [
+                      SizedBox(height: 5),
+                      Container(
+                        padding: EdgeInsets.all(20.0), // テキストの周りに余白を追加
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                              color: Colors.grey, width: 0.5), // 薄い枠線を設定
+                          borderRadius: BorderRadius.circular(5.0), // 角を少し丸くする
+                        ),
+                        child: Text(
+                          'この投稿は表示できません',
+                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                        ),
+                      ),
+                      SizedBox(height: 5),
+                    ],
+                  ),
+                )
+              else if (_repostPost != null && _repostPostAccount != null)
                 GestureDetector(
                   onTap: () {
                     // タップされた RepostItem の詳細ページに遷移
@@ -554,11 +684,13 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           postAccountName: _repostPostAccount!.name,
                           postAccountUserId: _repostPostAccount!.userId,
                           postAccountImagePath: _repostPostAccount!.imagePath,
-                          favoriteUsersNotifier: ValueNotifier<int>(0),
-                          isFavoriteNotifier: ValueNotifier<bool>(false),
+                          // favoriteUsersNotifier: favoriteCountNotifier,
+                          // isFavoriteNotifier: ValueNotifier<bool>(
+                          //   _favoritePost.favoritePostsNotifier.value
+                          //       .contains(_repostPostAccount!.userId),
+                          // ),
                           onFavoriteToggle: () {},
                           isRetweetedNotifier: ValueNotifier<bool>(false),
-                          onRetweetToggle: () {},
                           replyFlag: ValueNotifier<bool>(false),
                           userId: widget.userId,
                         ),
@@ -576,20 +708,19 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   Row(
                     children: [
                       ValueListenableBuilder<int>(
-                        valueListenable: widget.favoriteUsersNotifier,
+                        valueListenable: favoriteUsersNotifier,
                         builder: (context, value, child) {
-                          return Text((value).toString());
+                          return Text(value.toString());
                         },
                       ),
                       const SizedBox(width: 5),
                       ValueListenableBuilder<bool>(
-                        valueListenable: widget.isFavoriteNotifier,
+                        valueListenable: isFavoriteNotifier,
                         builder: (context, isFavorite, child) {
                           return GestureDetector(
-                            onTap: () {
+                            onTap: () async {
+                              await _toggleFavorite();
                               widget.onFavoriteToggle();
-                              widget.isFavoriteNotifier.value =
-                                  !widget.isFavoriteNotifier.value;
                             },
                             child: Icon(
                               isFavorite ? Icons.star : Icons.star_outline,
@@ -746,20 +877,44 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                     ValueNotifier<bool>(
                                   false, // Firestoreからリツイートの状態を取得し初期化する
                                 );
+                                if (replyPost.hide == true) {
+                                  return const Center(
+                                    child: Column(
+                                      children: [
+                                        SizedBox(height: 15),
+                                        Text(
+                                          'この投稿は表示できません',
+                                          style: TextStyle(
+                                              color: Colors.grey, fontSize: 16),
+                                        ),
+                                        SizedBox(height: 15),
+                                        Divider(
+                                          // 横幅いっぱいのラインを表示
+                                          color: Colors.grey, // ラインの色を設定
+                                          thickness: 0.5, // ラインの太さを設定
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                                _favoritePost.favoriteUsersNotifiers[
+                                    replyPost.postId] ??= ValueNotifier<int>(0);
+                                _favoritePost
+                                    .updateFavoriteUsersCount(replyPost.postId);
+
                                 return PostItemWidget(
                                   post: replyPost,
                                   postAccount: postAccount!,
                                   favoriteUsersNotifier:
                                       _favoritePost.favoriteUsersNotifiers[
-                                              replyPost.postId] ??
-                                          ValueNotifier<int>(0),
+                                          replyPost.postId]!,
                                   isFavoriteNotifier: ValueNotifier<bool>(
                                     _favoritePost.favoritePostsNotifier.value
                                         .contains(replyPost.postId),
                                   ),
                                   onFavoriteToggle: () {
                                     _favoritePost.toggleFavorite(
-                                      replyPost.id,
+                                      replyPost.postId,
                                       _favoritePost.favoritePostsNotifier.value
                                           .contains(replyPost.postId),
                                     );
@@ -770,12 +925,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                         replyPost.postId);
                                   },
                                   isRetweetedNotifier: isRetweetedNotifier,
-                                  onRetweetToggle: () {
-                                    bool currentState =
-                                        isRetweetedNotifier.value;
-                                    isRetweetedNotifier.value = !currentState;
-                                    // Firestoreでリツイートの情報を更新する処理
-                                  },
                                   replyFlag: ValueNotifier<bool>(false),
                                   userId: widget.userId,
                                 );

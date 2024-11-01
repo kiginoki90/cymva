@@ -93,12 +93,6 @@ class _ImagePostListState extends State<ImagePostList> {
                               ),
                               // リツイートの状態を渡す
                               isRetweetedNotifier: isRetweetedNotifier,
-                              // リツイートの状態をトグルする処理
-                              onRetweetToggle: () {
-                                bool currentState = isRetweetedNotifier.value;
-                                isRetweetedNotifier.value = !currentState;
-                                // Firestoreでリツイートの情報を更新する処理を追加
-                              },
                               replyFlag: ValueNotifier<bool>(false),
                               userId: widget.myAccount.userId,
                             );

@@ -25,6 +25,7 @@ class _AccountPageState extends State<AccountPage> {
   late PageController _pageController;
   String? userId;
   final FlutterSecureStorage storage = FlutterSecureStorage();
+  bool isPosting = false;
 
   @override
   void initState() {
@@ -208,6 +209,15 @@ class _AccountPageState extends State<AccountPage> {
                           pageController: _pageController,
                           value: 1,
                         ),
+                        if (isPosting)
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            color: Colors.yellow[100],
+                            child: const Text(
+                              '処理中...お待ちください。',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ),
                         Expanded(
                           child: PageView(
                             controller: _pageController,

@@ -91,9 +91,11 @@ class _TimeLineState extends State<TimeLinePage> {
                             Account postAccount =
                                 userSnapshot.data![post.postAccountId]!;
 
-                            // アカウントが鍵アカウントまたはブロックされているかをチェック
+                            // アカウントが鍵アカウントまたはブロックされているか、または reply が null でないかをチェック
                             return !(postAccount.lockAccount ||
-                                blockedAccounts.contains(postAccount.id));
+                                blockedAccounts.contains(postAccount.id) ||
+                                post.reply != null ||
+                                post.hide);
                           }).toList();
 
                           return ListView.builder(
@@ -126,10 +128,6 @@ class _TimeLineState extends State<TimeLinePage> {
                                       .contains(post.id),
                                 ),
                                 isRetweetedNotifier: isRetweetedNotifier,
-                                onRetweetToggle: () {
-                                  bool currentState = isRetweetedNotifier.value;
-                                  isRetweetedNotifier.value = !currentState;
-                                },
                                 replyFlag: ValueNotifier<bool>(false),
                                 userId: widget.userId,
                               );
