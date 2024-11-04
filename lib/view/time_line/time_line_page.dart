@@ -109,9 +109,6 @@ class _TimeLineState extends State<TimeLinePage> {
                                   ValueNotifier<int>(0);
                               _favoritePost.updateFavoriteUsersCount(post.id);
 
-                              ValueNotifier<bool> isRetweetedNotifier =
-                                  ValueNotifier<bool>(false);
-
                               return PostItemWidget(
                                 post: post,
                                 postAccount: postAccount,
@@ -127,7 +124,7 @@ class _TimeLineState extends State<TimeLinePage> {
                                   _favoritePost.favoritePostsNotifier.value
                                       .contains(post.id),
                                 ),
-                                isRetweetedNotifier: isRetweetedNotifier,
+                                // isRetweetedNotifier: isRetweetedNotifier,
                                 replyFlag: ValueNotifier<bool>(false),
                                 userId: widget.userId,
                               );

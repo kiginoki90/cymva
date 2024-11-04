@@ -118,9 +118,96 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
         for (var postDoc in postsSnapshot.docs) {
           await postDoc.reference.delete(); // 投稿の削除
         }
+
+        // 3. 各サブコレクションからuserIdと一致するドキュメントを削除
+        await _deleteUserFromSubcollections(userId);
       }
     } catch (e) {
       print("Error deleting users and posts with same parentsId: $e");
+    }
+  }
+
+// サブコレクションからuserIdを削除するメソッド
+  Future<void> _deleteUserFromSubcollections(String userId) async {
+    // blockサブコレクションから削除
+    await _deleteBlocked(userId);
+
+    // followサブコレクションから削除
+    await _deleteFollow(userId);
+
+    // followersサブコレクションから削除
+    await _deleteDocumentsInSubcollection(userId, 'followers');
+
+    // blockUsersサブコレクションから削除
+    await _deleteBlockedUsers(userId);
+  }
+
+// blockUsersサブコレクションからblocked_user_idがuserIdと一致するドキュメントを削除するメソッド
+  Future<void> _deleteBlockedUsers(String userId) async {
+    QuerySnapshot subcollectionSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('blockUsers')
+        .where('blocked_user_id',
+            isEqualTo: userId) // blocked_user_idがuserIdと一致するものを取得
+        .get();
+
+    for (var doc in subcollectionSnapshot.docs) {
+      await doc.reference.delete(); // サブコレクションのドキュメントを削除
+    }
+  }
+
+  Future<void> _deleteBlocked(String userId) async {
+    QuerySnapshot subcollectionSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('block')
+        .where('blocked_user_id',
+            isEqualTo: userId) // blocked_user_idがuserIdと一致するものを取得
+        .get();
+
+    for (var doc in subcollectionSnapshot.docs) {
+      await doc.reference.delete(); // サブコレクションのドキュメントを削除
+    }
+  }
+
+  Future<void> _deleteFollow(String userId) async {
+    QuerySnapshot subcollectionSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('follow')
+        .where('followed_user_id', isEqualTo: userId)
+        .get();
+
+    for (var doc in subcollectionSnapshot.docs) {
+      await doc.reference.delete(); // サブコレクションのドキュメントを削除
+    }
+  }
+
+  //   Future<void> _deleteFollower(String userId) async {
+  //   QuerySnapshot subcollectionSnapshot = await FirebaseFirestore.instance
+  //       .collection('users')
+  //       .doc(userId)
+  //       .collection('follow')
+  //       .where('followed_user_id', isEqualTo: userId)
+  //       .get();
+
+  //   for (var doc in subcollectionSnapshot.docs) {
+  //     await doc.reference.delete(); // サブコレクションのドキュメントを削除
+  //   }
+  // }
+
+// サブコレクションからドキュメントを削除するヘルパーメソッド
+  Future<void> _deleteDocumentsInSubcollection(
+      String userId, String subcollection) async {
+    QuerySnapshot subcollectionSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection(subcollection)
+        .get();
+
+    for (var doc in subcollectionSnapshot.docs) {
+      await doc.reference.delete(); // サブコレクションのドキュメントを削除
     }
   }
 }

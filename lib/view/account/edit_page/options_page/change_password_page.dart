@@ -1,5 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/view/start_up/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ChangePasswordPage extends StatefulWidget {
   @override
@@ -13,6 +16,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   final TextEditingController _confirmPasswordController =
       TextEditingController();
   final _auth = FirebaseAuth.instance;
+  final storage = const FlutterSecureStorage();
 
   Future<void> _changePassword() async {
     final String currentPassword = _currentPasswordController.text;
@@ -38,7 +42,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     try {
       User? user = _auth.currentUser;
       if (user != null) {
-        // Re-authenticate the user
+        // ユーザーを再認証
         AuthCredential credential = EmailAuthProvider.credential(
           email: user.email!,
           password: currentPassword,
@@ -46,20 +50,60 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
         await user.reauthenticateWithCredential(credential);
 
-        // Update the password
+        // パスワードを更新
         await user.updatePassword(newPassword);
+
+        // パスワード変更トークンを更新
+        await updatePasswordChangeToken(user.uid);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('パスワードが変更されました')),
         );
 
-        Navigator.pop(context);
+        // ログイン画面に遷移
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (context) => LoginPage()), // LoginPage() はログイン画面のウィジェット
+        );
       }
     } catch (e) {
       print('パスワード変更に失敗しました: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('パスワード変更に失敗しました')),
       );
+    }
+  }
+
+// トークン更新処理
+  Future<void> updatePasswordChangeToken(String userId) async {
+    final firestore = FirebaseFirestore.instance;
+
+    // `userId`の`parents_id`を取得
+    final userDoc = await firestore.collection('users').doc(userId).get();
+    final parentsId = userDoc['parents_id'];
+
+    if (parentsId != null) {
+      // Firestoreにサーバーのタイムスタンプを設定
+      final timestamp = FieldValue.serverTimestamp();
+
+      // `parents_id`のドキュメントの`passwordChangeToken`フィールドにタイムスタンプを更新
+      await firestore.collection('users').doc(parentsId).update({
+        'passwordChangeToken': timestamp,
+      });
+
+      // `parents_id`のドキュメントを再取得して、更新されたタイムスタンプをローカルストレージに保存
+      final parentDoc =
+          await firestore.collection('users').doc(parentsId).get();
+      final updatedTimestamp = parentDoc['passwordChangeToken'];
+
+      // FlutterSecureStorageに保存
+      await storage.write(
+        key: 'passwordChangeToken',
+        value: updatedTimestamp.toString(),
+      );
+    } else {
+      print('parents_idが存在しません');
     }
   }
 

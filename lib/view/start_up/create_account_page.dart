@@ -53,31 +53,6 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
           child: Column(
             children: [
               SizedBox(height: 30),
-              // GestureDetector(
-              //   onTap: () async {
-              //     var result = await FunctionUtils.getImageFromGallery(context);
-              //     if (result != null) {
-              //       setState(() {
-              //         image = File(result.path);
-              //       });
-              //     }
-              //   },
-              //   child: Container(
-              //     width: 80,
-              //     height: 80,
-              //     decoration: BoxDecoration(
-              //       borderRadius: BorderRadius.circular(8),
-              //       image: image == null
-              //           ? null
-              //           : DecorationImage(
-              //               image: FileImage(image!),
-              //               fit: BoxFit.cover,
-              //             ),
-              //       color: Colors.grey[300],
-              //     ),
-              //     child: image == null ? Icon(Icons.add) : null,
-              //   ),
-              // ),
               Container(
                 width: 300,
                 child: TextField(

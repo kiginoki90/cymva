@@ -208,7 +208,7 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
                           _favoritePost.favoritePostsNotifier.value
                               .contains(post.id),
                         ),
-                        isRetweetedNotifier: ValueNotifier<bool>(false),
+                        // isRetweetedNotifier: ValueNotifier<bool>(false),
                         replyFlag: ValueNotifier<bool>(false),
                         userId: widget.userId,
                       );

@@ -1,11 +1,9 @@
 import 'package:cymva/view/account/edit_page/options_page/add_account_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/blocked_users_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/delete_account_page.dart';
-import 'package:cymva/view/account/edit_page/x_auth_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
-import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/account/edit_page/options_page/change_password_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/edit_account_page.dart';
 import 'package:cymva/view/start_up/login_page.dart';

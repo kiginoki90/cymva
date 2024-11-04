@@ -1,5 +1,6 @@
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
+import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:flutter/material.dart';
 
 class RepostItem extends StatelessWidget {
@@ -24,90 +25,123 @@ class RepostItem extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  repostPostAccount.imagePath ??
-                      'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
-                  width: 30,
-                  height: 30,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    // 画像の取得に失敗した場合のエラービルダー
-                    return Image.network(
-                      'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.cover,
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: 5),
-              Expanded(
-                // Expandedを追加して、テキストが横幅を調整できるようにする
-                child: RichText(
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1, // 最大1行に設定
-                  text: TextSpan(
-                    style:
-                        const TextStyle(color: Colors.black), // テキストのデフォルトスタイル
-                    children: [
-                      TextSpan(
-                        text: repostPostAccount.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const TextSpan(text: ' '), // スペースを追加
-                      TextSpan(
-                        text: '@${repostPostAccount.userId}',
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+          _buildUserInfo(),
           const SizedBox(height: 5),
           Text(repostPost.content),
           const SizedBox(height: 10),
           if (repostPost.mediaUrl != null && repostPost.mediaUrl!.isNotEmpty)
-            GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true, // グリッドのサイズを内容に合わせる
-              itemCount: repostPost.mediaUrl!.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, // グリッドの列数を2に設定
-              ),
-              itemBuilder: (BuildContext context, int index) {
-                final mediaUrl = repostPost.mediaUrl![index];
-                return GestureDetector(
-                  child: ClipRRect(
-                    child: Image.network(
-                      mediaUrl ??
-                          'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
-                      width: MediaQuery.of(context).size.width *
-                          0.4, // 画像の幅を画面に合わせる
-                      height: 150, // 固定高さ
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        // 画像の取得に失敗した場合のエラービルダー
-                        return Image.network(
-                          'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
-                          width: 40,
-                          height: 40,
-                          fit: BoxFit.cover,
-                        );
-                      },
-                    ),
-                  ),
-                );
-              },
+            MediaDisplayWidget(
+              mediaUrl: repostPost.mediaUrl,
+              category: repostPost.category ?? '',
             ),
         ],
       ),
+    );
+  }
+
+  // ユーザー情報を表示するウィジェット
+  Widget _buildUserInfo() {
+    return Row(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8.0),
+          child: Image.network(
+            repostPostAccount.imagePath ??
+                'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+            width: 30,
+            height: 30,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Image.network(
+                'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                width: 40,
+                height: 40,
+                fit: BoxFit.cover,
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 5),
+        Expanded(
+          child: RichText(
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            text: TextSpan(
+              style: const TextStyle(color: Colors.black),
+              children: [
+                TextSpan(
+                  text: repostPostAccount.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const TextSpan(text: ' '),
+                TextSpan(
+                  text: '@${repostPostAccount.userId}',
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // メディアコンテンツを表示するウィジェット
+  Widget _buildMediaContent(BuildContext context) {
+    if (repostPost.mediaUrl!.length == 1) {
+      // 画像が1枚のときは横幅いっぱいで表示
+      final mediaUrl = repostPost.mediaUrl![0];
+      return GestureDetector(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            mediaUrl,
+            width: MediaQuery.of(context).size.width,
+            height: MediaQuery.of(context).size.width,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return _buildErrorImage();
+            },
+          ),
+        ),
+      );
+    } else {
+      // 画像が複数枚のときはグリッドで表示
+      return GridView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        shrinkWrap: true,
+        itemCount: repostPost.mediaUrl!.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+        ),
+        itemBuilder: (BuildContext context, int index) {
+          final mediaUrl = repostPost.mediaUrl![index];
+          return GestureDetector(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                mediaUrl,
+                width: MediaQuery.of(context).size.width * 0.4,
+                height: 150,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return _buildErrorImage();
+                },
+              ),
+            ),
+          );
+        },
+      );
+    }
+  }
+
+  // エラービルダー用の画像
+  Widget _buildErrorImage() {
+    return Image.network(
+      'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+      width: 40,
+      height: 40,
+      fit: BoxFit.cover,
     );
   }
 }

@@ -207,202 +207,262 @@ class _AccountTopPageState extends State<AccountTopPage> {
   }
 
   Widget _buildAccountOptions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        if (widget.userId != widget.postAccountId)
-          PopupMenuButton<String>(
-            icon: Icon(Icons.more_horiz),
-            onSelected: (String value) {
-              if (value == '1') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ShowAccountReportDialog(
-                        accountId: widget.postAccountId),
-                  ),
-                );
-              } else if (value == '2') {
+        if (myAccount?.admin == 1)
+          SizedBox(
+            height: 25,
+            width: 110,
+            child: TextButton(
+              onPressed: () async {
+                // Show logout confirmation dialog
                 showDialog(
                   context: context,
                   builder: (BuildContext context) {
                     return AlertDialog(
-                      title: Text('アカウントをブロック'),
-                      content: Text('次の操作を選択してください'),
+                      title: Text('ログアウト'),
+                      content: Text('このアカウントからすべてのユーザーをログアウトしますか？'),
                       actions: [
-                        TextButton(
-                          child: Text('ブロック'),
-                          onPressed: () async {
-                            // Firestore インスタンス
-                            final firestore = FirebaseFirestore.instance;
-
-                            // 現在のユーザーとブロック対象のユーザーID
-                            final currentUserId = widget.userId;
-                            final blockedUserId = widget.postAccountId;
-
-                            // 自分の block サブコレクションの参照
-                            final blockCollectionRef = firestore
-                                .collection('users')
-                                .doc(currentUserId)
-                                .collection('block');
-
-                            // すでに blocked_user_id が存在するかチェック
-                            final existingBlocks = await blockCollectionRef
-                                .where('blocked_user_id',
-                                    isEqualTo: blockedUserId)
-                                .get();
-
-                            // ブロック対象がすでに存在する場合は処理を終了
-                            if (existingBlocks.docs.isNotEmpty) {
-                              // すでにブロックしている場合はポップアップを閉じる
-                              Navigator.pop(context);
-                              return;
-                            }
-
-                            // 自分の block サブコレクションにブロック情報を追加
-                            await blockCollectionRef.add({
-                              'blocked_user_id': blockedUserId,
-                              'parents_id': postAccount?.parents_id,
-                              'blocked_at': Timestamp.now(),
-                            });
-
-                            // ブロック対象ユーザーの blockUsers サブコレクションにブロック情報を追加
-                            final blockedUserBlockCollectionRef = firestore
-                                .collection('users')
-                                .doc(blockedUserId)
-                                .collection('blockUsers');
-
-                            await blockedUserBlockCollectionRef.add({
-                              'blocked_user_id': currentUserId,
-                              'parents_id': myAccount?.parents_id,
-                              'blocked_at': Timestamp.now(),
-                            });
-
-                            // ポップアップを閉じる
-                            Navigator.pop(context);
-                          },
-                        ),
-                        TextButton(
-                          child: Text('解除'),
-                          onPressed: () async {
-                            // 解除処理
-                            final firestore = FirebaseFirestore.instance;
-                            final currentUserId = widget.userId;
-                            final blockedUserId = widget.postAccountId;
-
-                            // 自分の block サブコレクションの参照
-                            final blockCollectionRef = firestore
-                                .collection('users')
-                                .doc(currentUserId)
-                                .collection('block');
-
-                            // 一致するドキュメントを探す
-                            final querySnapshot = await blockCollectionRef
-                                .where('blocked_user_id',
-                                    isEqualTo: blockedUserId)
-                                .get();
-
-                            // 一致するドキュメントが見つかった場合、削除する
-                            if (querySnapshot.docs.isNotEmpty) {
-                              for (var doc in querySnapshot.docs) {
-                                await blockCollectionRef.doc(doc.id).delete();
-                              }
-                            }
-
-                            // ブロックされたユーザーの blockUsers サブコレクションの参照
-                            final blockedUserBlockCollectionRef = firestore
-                                .collection('users')
-                                .doc(blockedUserId)
-                                .collection('blockUsers');
-
-                            // 一致するドキュメントを探す
-                            final blockedUserQuerySnapshot =
-                                await blockedUserBlockCollectionRef
-                                    .where('blocked_user_id',
-                                        isEqualTo: currentUserId)
-                                    .get();
-
-                            // 一致するドキュメントが見つかった場合、削除する
-                            if (blockedUserQuerySnapshot.docs.isNotEmpty) {
-                              for (var doc in blockedUserQuerySnapshot.docs) {
-                                await blockedUserBlockCollectionRef
-                                    .doc(doc.id)
-                                    .delete();
-                              }
-                            }
-
-                            Navigator.pop(context); // ポップアップを閉じる
-                          },
-                        ),
                         TextButton(
                           child: Text('キャンセル'),
                           onPressed: () {
-                            Navigator.pop(context); // ポップアップを閉じる
+                            Navigator.pop(context); // Close the dialog
+                          },
+                        ),
+                        TextButton(
+                          child: Text('ログアウト'),
+                          onPressed: () async {
+                            // Call your logout method here
+                            await _logoutOtherUsers(widget.postAccountId);
+                            Navigator.pop(context); // Close the dialog
                           },
                         ),
                       ],
                     );
                   },
                 );
-              }
-            },
-            itemBuilder: (BuildContext context) {
-              return [
-                const PopupMenuItem<String>(
-                  value: '1',
-                  child: Text('通報'),
-                ),
-                const PopupMenuItem<String>(
-                  value: '2',
-                  child: Text('ブロック'),
-                ),
-              ];
-            },
+              },
+              child: const Text('1'),
+            ),
           ),
-        if (widget.userId == widget.postAccountId)
-          Column(
-            children: [
-              SizedBox(height: 20),
-              SizedBox(
-                height: 25,
-                width: 110,
-                child: OutlinedButton(
-                  onPressed: () async {
-                    var result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => AccountOptionsPage()));
-                    // if (result == true) {
-                    //   setState(() {
-                    //     myAccount = Authentication.myAccount!;
-                    //   });
-                    // }
-                  },
-                  child: const Text('編集'),
-                ),
+        Spacer(),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (widget.userId != widget.postAccountId)
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_horiz),
+                onSelected: (String value) {
+                  if (value == '1') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ShowAccountReportDialog(
+                            accountId: widget.postAccountId),
+                      ),
+                    );
+                  } else if (value == '2') {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: Text('アカウントをブロック'),
+                          content: Text('次の操作を選択してください'),
+                          actions: [
+                            TextButton(
+                              child: Text('ブロック'),
+                              onPressed: () async {
+                                // Firestore インスタンス
+                                final firestore = FirebaseFirestore.instance;
+
+                                // 現在のユーザーとブロック対象のユーザーID
+                                final currentUserId = widget.userId;
+                                final blockedUserId = widget.postAccountId;
+
+                                // 自分の block サブコレクションの参照
+                                final blockCollectionRef = firestore
+                                    .collection('users')
+                                    .doc(currentUserId)
+                                    .collection('block');
+
+                                // すでに blocked_user_id が存在するかチェック
+                                final existingBlocks = await blockCollectionRef
+                                    .where('blocked_user_id',
+                                        isEqualTo: blockedUserId)
+                                    .get();
+
+                                // ブロック対象がすでに存在する場合は処理を終了
+                                if (existingBlocks.docs.isNotEmpty) {
+                                  // すでにブロックしている場合はポップアップを閉じる
+                                  Navigator.pop(context);
+                                  return;
+                                }
+
+                                // 自分の block サブコレクションにブロック情報を追加
+                                await blockCollectionRef.add({
+                                  'blocked_user_id': blockedUserId,
+                                  'parents_id': postAccount?.parents_id,
+                                  'blocked_at': Timestamp.now(),
+                                });
+
+                                // ブロック対象ユーザーの blockUsers サブコレクションにブロック情報を追加
+                                final blockedUserBlockCollectionRef = firestore
+                                    .collection('users')
+                                    .doc(blockedUserId)
+                                    .collection('blockUsers');
+
+                                await blockedUserBlockCollectionRef.add({
+                                  'blocked_user_id': currentUserId,
+                                  'parents_id': myAccount?.parents_id,
+                                  'blocked_at': Timestamp.now(),
+                                });
+
+                                // ポップアップを閉じる
+                                Navigator.pop(context);
+                              },
+                            ),
+                            TextButton(
+                              child: Text('解除'),
+                              onPressed: () async {
+                                // 解除処理
+                                final firestore = FirebaseFirestore.instance;
+                                final currentUserId = widget.userId;
+                                final blockedUserId = widget.postAccountId;
+
+                                // 自分の block サブコレクションの参照
+                                final blockCollectionRef = firestore
+                                    .collection('users')
+                                    .doc(currentUserId)
+                                    .collection('block');
+
+                                // 一致するドキュメントを探す
+                                final querySnapshot = await blockCollectionRef
+                                    .where('blocked_user_id',
+                                        isEqualTo: blockedUserId)
+                                    .get();
+
+                                // 一致するドキュメントが見つかった場合、削除する
+                                if (querySnapshot.docs.isNotEmpty) {
+                                  for (var doc in querySnapshot.docs) {
+                                    await blockCollectionRef
+                                        .doc(doc.id)
+                                        .delete();
+                                  }
+                                }
+
+                                // ブロックされたユーザーの blockUsers サブコレクションの参照
+                                final blockedUserBlockCollectionRef = firestore
+                                    .collection('users')
+                                    .doc(blockedUserId)
+                                    .collection('blockUsers');
+
+                                // 一致するドキュメントを探す
+                                final blockedUserQuerySnapshot =
+                                    await blockedUserBlockCollectionRef
+                                        .where('blocked_user_id',
+                                            isEqualTo: currentUserId)
+                                        .get();
+
+                                // 一致するドキュメントが見つかった場合、削除する
+                                if (blockedUserQuerySnapshot.docs.isNotEmpty) {
+                                  for (var doc
+                                      in blockedUserQuerySnapshot.docs) {
+                                    await blockedUserBlockCollectionRef
+                                        .doc(doc.id)
+                                        .delete();
+                                  }
+                                }
+
+                                Navigator.pop(context); // ポップアップを閉じる
+                              },
+                            ),
+                            TextButton(
+                              child: Text('キャンセル'),
+                              onPressed: () {
+                                Navigator.pop(context); // ポップアップを閉じる
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  }
+                },
+                itemBuilder: (BuildContext context) {
+                  return [
+                    const PopupMenuItem<String>(
+                      value: '1',
+                      child: Text('通報'),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: '2',
+                      child: Text('ブロック'),
+                    ),
+                  ];
+                },
               ),
-              SizedBox(height: 20),
-              if (myAccount?.admin == 1)
-                SizedBox(
-                  height: 25,
-                  width: 110,
-                  child: TextButton(
-                    onPressed: () async {
-                      var result = await Navigator.push(context,
-                          MaterialPageRoute(builder: (context) => AdminPage()));
-                      // if (result == true) {
-                      //   setState(() {
-                      //     myAccount = Authentication.myAccount!;
-                      //   });
-                      // }
-                    },
-                    child: const Text('1'),
+            if (widget.userId == widget.postAccountId)
+              Column(
+                children: [
+                  SizedBox(height: 20),
+                  SizedBox(
+                    height: 25,
+                    width: 110,
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        var result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => AccountOptionsPage()));
+                        // if (result == true) {
+                        //   setState(() {
+                        //     myAccount = Authentication.myAccount!;
+                        //   });
+                        // }
+                      },
+                      child: const Text('編集'),
+                    ),
                   ),
-                ),
-            ],
-          ),
+                  SizedBox(height: 20),
+                  if (myAccount?.admin == 1)
+                    SizedBox(
+                      height: 25,
+                      width: 110,
+                      child: TextButton(
+                        onPressed: () async {
+                          var result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => AdminPage()));
+                          // if (result == true) {
+                          //   setState(() {
+                          //     myAccount = Authentication.myAccount!;
+                          //   });
+                          // }
+                        },
+                        child: const Text('1'),
+                      ),
+                    ),
+                ],
+              ),
+          ],
+        ),
       ],
     );
+  }
+
+  Future<void> _logoutOtherUsers(String accountId) async {
+    final firestore = FirebaseFirestore.instance;
+
+    final sessionsSnapshot = await firestore
+        .collection('sessions')
+        .where('accountId', isEqualTo: accountId)
+        .get();
+
+    for (var sessionDoc in sessionsSnapshot.docs) {
+      await sessionDoc.reference.update({'isLoggedIn': false});
+    }
   }
 
   Widget _buildFollowButton() {
@@ -456,14 +516,16 @@ class _AccountTopPageState extends State<AccountTopPage> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8.0),
               child: Image.network(
-                postAccount!.imagePath,
+                postAccount!.imagePath.isNotEmpty == true
+                    ? postAccount!.imagePath
+                    : 'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
                 width: 70,
                 height: 70,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   // 画像の取得に失敗した場合のエラービルダー
                   return Image.network(
-                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
+                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
                     width: 40,
                     height: 40,
                     fit: BoxFit.cover,
@@ -581,14 +643,16 @@ class _AccountTopPageState extends State<AccountTopPage> {
               backgroundColor: Colors.grey, // 背景色を設定（画像が取得できない場合に表示される色）
               child: ClipOval(
                 child: Image.network(
-                  sibling.imagePath,
+                  sibling.imagePath.isNotEmpty == true
+                      ? sibling.imagePath
+                      : 'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
                   width: 40,
                   height: 40,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     // 画像の取得に失敗した場合のエラービルダー
                     return Image.network(
-                      'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
+                      'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
                       width: 40,
                       height: 40,
                       fit: BoxFit.cover,

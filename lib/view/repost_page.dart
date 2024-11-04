@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cymva/utils/function_utils.dart';
+import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -111,14 +112,14 @@ class _RepostPageState extends State<RepostPage> {
                                     borderRadius: BorderRadius.circular(8.0),
                                     child: Image.network(
                                       _postAccountIconUrl ??
-                                          'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
+                                          'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
                                       width: 40,
                                       height: 40,
                                       fit: BoxFit.cover,
                                       errorBuilder:
                                           (context, error, stackTrace) {
                                         return Image.network(
-                                          'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
+                                          'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
                                           width: 40,
                                           height: 40,
                                           fit: BoxFit.cover,
@@ -162,39 +163,9 @@ class _RepostPageState extends State<RepostPage> {
                           if (widget.post.mediaUrl != null &&
                               widget.post.mediaUrl!.isNotEmpty) ...[
                             const SizedBox(height: 10),
-                            GridView.builder(
-                              physics:
-                                  const NeverScrollableScrollPhysics(), // グリッド内でのスクロールを無効に
-                              shrinkWrap: true, // グリッドのサイズを内容に合わせる
-                              itemCount: widget.post.mediaUrl!.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2, // グリッドの列数を2に設定
-                              ),
-                              itemBuilder: (BuildContext context, int index) {
-                                final mediaUrl = widget.post.mediaUrl![index];
-                                return GestureDetector(
-                                  child: ClipRRect(
-                                    child: Image.network(
-                                      mediaUrl ??
-                                          'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
-                                      width: MediaQuery.of(context).size.width *
-                                          0.4, // 画像の幅を画面に合わせる
-                                      height: 150, // 固定高さ
-                                      fit: BoxFit.cover, // 画像のフィット方法
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return Image.network(
-                                          'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
-                                          width: 40,
-                                          height: 40,
-                                          fit: BoxFit.cover,
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                );
-                              },
+                            MediaDisplayWidget(
+                              mediaUrl: widget.post.mediaUrl,
+                              category: widget.post.category ?? '',
                             ),
                           ],
                         ],

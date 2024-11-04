@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'full_screen_image.dart';
+import 'dart:async';
 
 class MediaDisplayWidget extends StatefulWidget {
   final List<String>? mediaUrl;
@@ -186,34 +187,89 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
     );
   }
 
-  // メディアが1枚の場合の表示（画像）
+// メディアが1枚の場合の表示（画像）
   Widget _buildSingleMedia(BuildContext context, String mediaUrl) {
-    double screenWidth = MediaQuery.of(context).size.width * 0.9;
-    double maxHeight = screenWidth * 1.3;
+    return FutureBuilder<ImageInfo>(
+      future: _loadImageInfo(mediaUrl), // 画像の情報を取得する非同期関数
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done &&
+            snapshot.hasData) {
+          final imageWidth = snapshot.data!.image.width.toDouble();
+          final imageHeight = snapshot.data!.image.height.toDouble();
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          SlideDirectionPageRoute(
-            page: FullScreenImagePage(
-              imageUrls: [mediaUrl],
-              initialIndex: 0,
-            ),
-            isSwipeUp: true,
-          ),
-        );
+          double screenWidth = MediaQuery.of(context).size.width;
+
+          // アスペクト比を計算
+          double aspectRatio = imageWidth / imageHeight;
+
+          // 横長の場合 (アスペクト比が1以上)
+          if (aspectRatio >= 1) {
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  SlideDirectionPageRoute(
+                    page: FullScreenImagePage(
+                      imageUrls: [mediaUrl],
+                      initialIndex: 0,
+                    ),
+                    isSwipeUp: true,
+                  ),
+                );
+              },
+              child: Image.network(
+                mediaUrl,
+                width: screenWidth,
+                height: screenWidth / aspectRatio, // 横長の場合はアスペクト比に基づいて高さを計算
+                fit: BoxFit.cover,
+              ),
+            );
+          }
+          // 縦長の場合 (アスペクト比が1未満)
+          else {
+            double maxHeight = screenWidth * 0.8;
+
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  SlideDirectionPageRoute(
+                    page: FullScreenImagePage(
+                      imageUrls: [mediaUrl],
+                      initialIndex: 0,
+                    ),
+                    isSwipeUp: true,
+                  ),
+                );
+              },
+              child: Image.network(
+                mediaUrl,
+                width: screenWidth,
+                height: maxHeight, // 縦長の場合は幅と同じ高さ
+                fit: BoxFit.cover,
+              ),
+            );
+          }
+        } else {
+          // 画像が読み込まれていない場合の表示
+          return Center(child: CircularProgressIndicator());
+        }
       },
-      child: Image.network(
-        mediaUrl,
-        width: screenWidth,
-        height: maxHeight,
-        fit: BoxFit.cover,
-      ),
     );
   }
 
-  // メディアが1枚の場合の表示（動画）
+// 画像の情報を取得するための非同期関数
+  Future<ImageInfo> _loadImageInfo(String mediaUrl) async {
+    Completer<ImageInfo> completer = Completer();
+    final imageProvider = NetworkImage(mediaUrl);
+    imageProvider.resolve(ImageConfiguration()).addListener(
+      ImageStreamListener((ImageInfo imageInfo, bool synchronousCall) {
+        completer.complete(imageInfo);
+      }),
+    );
+    return completer.future;
+  }
+
   Widget _buildSingleVideo(BuildContext context, String mediaUrl) {
     final controller = _videoControllers[mediaUrl];
     if (controller == null || !controller.value.isInitialized) {
@@ -222,6 +278,11 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
 
     return GestureDetector(
       onTap: () {
+        if (controller.value.isPlaying) {
+          controller.pause(); // 動画が再生中の場合は一時停止
+        } else {
+          controller.play(); // 動画が停止中の場合は再生
+        }
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -233,17 +294,30 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
         key: Key(mediaUrl),
         onVisibilityChanged: (info) {
           if (info.visibleFraction > 0.5) {
-            _initializeVideo(mediaUrl); // 動画が50%以上表示されたら読み込み開始
+            if (!controller.value.isPlaying) {
+              // 動画が50%以上表示された場合、初期化のみ行い、自動再生はさせない
+              _initializeVideo(mediaUrl);
+            }
+          } else {
+            // 50%未満表示の場合、再生中なら一時停止
+            if (controller.value.isPlaying) {
+              controller.pause();
+            }
           }
         },
         child: Container(
-          height: 250, // タップ前の高さの上限
-          child: AspectRatio(
-            aspectRatio:
-                _videoControllers[mediaUrl]?.value.aspectRatio ?? 16 / 9,
-            child: _videoControllers[mediaUrl]?.value.isInitialized == true
-                ? VideoPlayer(_videoControllers[mediaUrl]!)
-                : const Center(child: CircularProgressIndicator()),
+          width: double.infinity,
+          height: MediaQuery.of(context).size.width,
+          child: ClipRect(
+            child: Align(
+              alignment: Alignment.center,
+              widthFactor: 1.0,
+              heightFactor: 1.0,
+              child: AspectRatio(
+                aspectRatio: controller.value.aspectRatio, // 動画のアスペクト比に合わせる
+                child: VideoPlayer(controller),
+              ),
+            ),
           ),
         ),
       ),
@@ -374,78 +448,87 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
-      body: GestureDetector(
-        onTap: _toggleControls,
-        child: FutureBuilder<void>(
-          future: _initializeVideoPlayerFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.done) {
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  AspectRatio(
-                    aspectRatio: _controller.value.aspectRatio,
-                    child: VideoPlayer(_controller),
-                  ),
-                  _controlsVisible
-                      ? Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: Column(
-                            children: [
-                              VideoProgressIndicator(
-                                _controller,
-                                allowScrubbing: true,
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _formatDuration(
-                                          _controller.value.position),
-                                      style:
-                                          const TextStyle(color: Colors.white),
-                                    ),
-                                    Text(
-                                      _formatDuration(
-                                          _controller.value.duration),
-                                      style:
-                                          const TextStyle(color: Colors.white),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                iconSize: 64,
-                                icon: Icon(
-                                  _controller.value.isPlaying
-                                      ? Icons.pause
-                                      : Icons.play_arrow,
-                                  color: Colors.white,
-                                ),
-                                onPressed: () {
-                                  setState(() {
+      backgroundColor: Colors.black, // 背景色を黒に設定
+      appBar: AppBar(
+        backgroundColor: Colors.black, // AppBarも黒に設定
+      ),
+      body: SafeArea(
+        child: GestureDetector(
+          onTap: _toggleControls,
+          child: FutureBuilder<void>(
+            future: _initializeVideoPlayerFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.done) {
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    AspectRatio(
+                      aspectRatio: _controller.value.aspectRatio,
+                      child: VideoPlayer(_controller),
+                    ),
+                    // 中央に再生・停止ボタンを配置
+                    Positioned(
+                      child: _controlsVisible
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                IconButton(
+                                  iconSize: 64,
+                                  icon: Icon(
                                     _controller.value.isPlaying
-                                        ? _controller.pause()
-                                        : _controller.play();
-                                  });
-                                },
-                              ),
-                            ],
+                                        ? Icons.pause
+                                        : Icons.play_arrow,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _controller.value.isPlaying
+                                          ? _controller.pause()
+                                          : _controller.play();
+                                    });
+                                  },
+                                ),
+                              ],
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                    // 最下部に時間のバーを配置
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Column(
+                        children: [
+                          VideoProgressIndicator(
+                            _controller,
+                            allowScrubbing: true,
                           ),
-                        )
-                      : const SizedBox.shrink(),
-                ],
-              );
-            } else {
-              return const Center(child: CircularProgressIndicator());
-            }
-          },
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _formatDuration(_controller.value.position),
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                                Text(
+                                  _formatDuration(_controller.value.duration),
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              } else {
+                return const Center(child: CircularProgressIndicator());
+              }
+            },
+          ),
         ),
       ),
     );

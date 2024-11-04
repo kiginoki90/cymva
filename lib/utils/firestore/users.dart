@@ -48,6 +48,7 @@ class UserFirestore {
         'image_path': newAccount.imagePath,
         'created_time': Timestamp.now(),
         'updated_time': Timestamp.now(),
+        'passwordChangeToken': Timestamp.now(),
         'lock_account': false,
       });
 

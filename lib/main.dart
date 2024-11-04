@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +34,7 @@ class InitialScreen extends StatefulWidget {
 
 class _InitialScreenState extends State<InitialScreen> {
   late Future<Widget> _initialScreenFuture;
+  final FlutterSecureStorage storage = FlutterSecureStorage();
 
   @override
   void initState() {
@@ -45,23 +47,24 @@ class _InitialScreenState extends State<InitialScreen> {
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user != null && user.emailVerified) {
-      // FirestoreからユーザーIDが存在するかチェック
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      // userIdをsecure storageから取得
+      String? userId = await storage.read(key: 'account_id') ??
+          FirebaseAuth.instance.currentUser?.uid;
 
-      if (userDoc.exists) {
-        // ユーザーIDが存在する場合タイムラインへ
-        return TimeLineBody(userId: user.uid);
-      } else {
-        // ユーザーIDが存在しない場合ログインページへ
-        return const LoginPage();
+      // FirestoreからユーザーIDが存在するかチェック
+      if (userId != null) {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .get();
+
+        if (userDoc.exists) {
+          return TimeLineBody(userId: userId);
+        }
       }
-    } else {
-      // ログインしていないかメール認証がされていない場合ログインページへ
-      return const LoginPage();
     }
+    // ログインしていないかメール認証がされていない場合、またはユーザーIDが存在しない場合
+    return const LoginPage();
   }
 
   @override

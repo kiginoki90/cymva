@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
 import 'package:image_picker/image_picker.dart';
@@ -158,13 +159,13 @@ class _ReplyPageState extends State<ReplyPage> {
                             borderRadius: BorderRadius.circular(8.0),
                             child: Image.network(
                               _postAccountIconUrl! ??
-                                  'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
+                                  'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
                               width: 40,
                               height: 40,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Image.network(
-                                  'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
+                                  'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
                                   width: 40,
                                   height: 40,
                                   fit: BoxFit.cover,
@@ -203,35 +204,9 @@ class _ReplyPageState extends State<ReplyPage> {
                   const SizedBox(height: 10),
                   if (widget.post.mediaUrl != null &&
                       widget.post.mediaUrl!.isNotEmpty)
-                    GridView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      shrinkWrap: true,
-                      itemCount: widget.post.mediaUrl!.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                      ),
-                      itemBuilder: (BuildContext context, int index) {
-                        final mediaUrl = widget.post.mediaUrl![index];
-                        return GestureDetector(
-                          child: ClipRRect(
-                            child: Image.network(
-                              mediaUrl,
-                              width: MediaQuery.of(context).size.width * 0.4,
-                              height: 150,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.network(
-                                  'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/Lr2K2MmxmyZNjXheJ7mPfT2vXNh2?alt=media&token=100952df-1a76-4d22-a1e7-bf4e726cc344',
-                                  width: 40,
-                                  height: 40,
-                                  fit: BoxFit.cover,
-                                );
-                              },
-                            ),
-                          ),
-                        );
-                      },
+                    MediaDisplayWidget(
+                      mediaUrl: widget.post.mediaUrl,
+                      category: widget.post.category ?? '',
                     ),
                   const SizedBox(height: 20),
                   TextField(

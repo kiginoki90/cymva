@@ -85,15 +85,10 @@ class _FavoriteListState extends State<FavoriteList> {
           Post post = _posts[index];
           Account postAccount = _accounts[post.postAccountId]!;
 
-          bool isFavorite = true; // お気に入りの投稿なので常にtrue
-
           // お気に入りユーザー数の初期化と更新
           _favoritePost.favoriteUsersNotifiers[post.id] ??=
               ValueNotifier<int>(0);
           _favoritePost.updateFavoriteUsersCount(post.id);
-
-          // リツイートの状態を管理するためのValueNotifierを初期化
-          ValueNotifier<bool> isRetweetedNotifier = ValueNotifier<bool>(false);
 
           return PostItemWidget(
             post: post,
@@ -107,8 +102,6 @@ class _FavoriteListState extends State<FavoriteList> {
               post.id,
               _favoritePost.favoritePostsNotifier.value.contains(post.id),
             ),
-            // リツイートの状態を渡す
-            isRetweetedNotifier: isRetweetedNotifier,
             // リツイートの状態をトグルする処理
             replyFlag: ValueNotifier<bool>(false),
             userId: widget.myAccount.userId,

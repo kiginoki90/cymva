@@ -109,8 +109,8 @@ class _AdminPageState extends State<AdminPage> {
                                     onFavoriteToggle: () {
                                       // 管理者ページではお気に入り機能を使わないか、または別のロジックを実装
                                     },
-                                    isRetweetedNotifier:
-                                        ValueNotifier<bool>(false),
+                                    // isRetweetedNotifier:
+                                    //     ValueNotifier<bool>(false),
                                     replyFlag: ValueNotifier<bool>(false),
                                     userId: postAccount.id,
                                   ),

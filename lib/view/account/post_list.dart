@@ -95,10 +95,6 @@ class _PostListState extends State<PostList> {
                                   ValueNotifier<int>(0);
                               _favoritePost.updateFavoriteUsersCount(post.id);
 
-                              // リツイートの状態を管理するためのValueNotifierを初期化
-                              ValueNotifier<bool> isRetweetedNotifier =
-                                  ValueNotifier<bool>(false);
-
                               return PostItemWidget(
                                 post: post,
                                 postAccount: widget.postAccount,
@@ -114,7 +110,7 @@ class _PostListState extends State<PostList> {
                                   _favoritePost.favoritePostsNotifier.value
                                       .contains(post.id),
                                 ),
-                                isRetweetedNotifier: isRetweetedNotifier,
+                                // isRetweetedNotifier: isRetweetedNotifier,
                                 replyFlag: ValueNotifier<bool>(false),
                                 userId: widget.myAccount.id,
                               );

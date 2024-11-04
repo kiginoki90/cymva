@@ -2,11 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/view/message/messes_page.dart';
 import 'package:cymva/view/post_page/post_page.dart';
 import 'package:cymva/view/search/search_page.dart';
+import 'package:cymva/view/start_up/login_page.dart';
 import 'package:cymva/view/time_line/timeline_body.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:async';
 
 class NavigationBarPage extends StatefulWidget {
   final int selectedIndex;
@@ -25,55 +27,127 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
   String? userId;
   List<Map<String, dynamic>> notifications = [];
   final FlutterSecureStorage storage = FlutterSecureStorage();
+  bool showChatIcon = true;
+  late StreamSubscription<DocumentSnapshot> _tokenSubscription;
+  Timestamp? lastPasswordChangeToken;
 
   @override
   void initState() {
     super.initState();
-    _loadUserId();
+    _loadUserIdAndAdminStatus();
     _loadNotifications();
   }
 
-  Future<void> _loadUserId() async {
+  Future<void> _loadUserIdAndAdminStatus() async {
     userId = await storage.read(key: 'account_id') ??
         FirebaseAuth.instance.currentUser?.uid;
 
-    // userIdが取得できたらpageListを初期化
-    setState(() {
-      pageList = [
-        TimeLineBody(userId: userId!),
-        AccountPage(postUserId: userId!),
-        SearchPage(userId: userId!),
-        MessesPage(userId: userId!),
-        PostPage(userId: userId!),
-      ];
-    });
+    if (userId != null) {
+      // Firestoreからadminレベルを取得し、4ならチャットアイコンを非表示に設定
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      setState(() {
+        showChatIcon = (userDoc['admin'] ?? 0) < 4;
+        pageList = [
+          TimeLineBody(userId: userId!),
+          AccountPage(postUserId: userId!),
+          SearchPage(userId: userId!),
+          MessesPage(userId: userId!),
+          if (showChatIcon) PostPage(userId: userId!),
+        ];
+      });
+
+      // パスワード変更トークンを監視する
+      _tokenSubscription = FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .snapshots()
+          .listen((userSnapshot) async {
+        if (userSnapshot.exists) {
+          final userData = userSnapshot.data();
+          final parentsId = userData?['parents_id'];
+
+          if (parentsId != null) {
+            // parents_idのドキュメントを取得し、パスワード変更トークンを監視
+            final parentSnapshot = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(parentsId)
+                .get();
+
+            final currentToken =
+                parentSnapshot['passwordChangeToken'] as Timestamp?;
+
+            // ローカルストレージから前回のトークンを取得
+            final lastTokenString =
+                await storage.read(key: 'passwordChangeToken');
+
+            if (lastTokenString == "null") {
+              _logoutIfPasswordChanged();
+            }
+
+            // lastTokenStringがnullまたは空の場合はnullとして扱う
+            final lastToken = (lastTokenString?.isNotEmpty ?? false)
+                ? Timestamp.fromMillisecondsSinceEpoch(
+                    int.parse(lastTokenString!))
+                : null;
+
+            // Firestoreのトークンとローカルストレージのトークンを比較
+            if (currentToken != null &&
+                (lastToken == null || currentToken != lastToken)) {
+              // ローカルストレージに新しいトークンを保存
+              await storage.write(
+                key: 'passwordChangeToken',
+                value: currentToken.millisecondsSinceEpoch.toString(),
+              );
+
+              // ログアウト処理を呼び出す
+              _logoutIfPasswordChanged();
+            } else if (lastToken == null) {
+              // lastTokenがnullの場合に直接ログアウト処理を実行
+              _logoutIfPasswordChanged();
+            }
+          } else {
+            print('parents_idが存在しません');
+          }
+        }
+      });
+    }
+  }
+
+  Future<void> _logoutIfPasswordChanged() async {
+    // ログアウト処理を実装
+    await FirebaseAuth.instance.signOut();
+    if (mounted) {
+      // ウィジェットがマウントされている場合のみ Navigator を使用
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+      );
+    }
   }
 
   Future<void> _loadNotifications() async {
     final firestore = FirebaseFirestore.instance;
-
-    // ユーザーのIDを取得
     String? userId = await storage.read(key: 'account_id') ??
         FirebaseAuth.instance.currentUser?.uid;
 
     if (userId != null) {
-      // Firestoreからmessageサブコレクションを取得
       QuerySnapshot messageSnapshot = await firestore
           .collection('users')
           .doc(userId)
           .collection('message')
           .get();
 
-      // notificationsをリセット
       notifications.clear();
 
-      // メッセージをループしてisReadの値を確認
       for (var doc in messageSnapshot.docs) {
-        final isRead = doc['isRead'] ?? true; // デフォルトはtrueとする
+        final isRead = doc['isRead'] ?? true;
         notifications.add({'isRead': isRead});
       }
 
-      // 状態を更新
       setState(() {});
     }
   }
@@ -82,14 +156,12 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
     final firestore = FirebaseFirestore.instance;
 
     if (userId != null) {
-      // Firestoreからmessageサブコレクションを取得
       QuerySnapshot messageSnapshot = await firestore
           .collection('users')
           .doc(userId)
           .collection('message')
           .get();
 
-      // すべてのメッセージのisReadフィールドをtrueに更新
       for (var doc in messageSnapshot.docs) {
         await firestore
             .collection('users')
@@ -99,19 +171,16 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
             .update({'isRead': true});
       }
 
-      // 既存のnotificationsリストを更新
       notifications = List.generate(
           messageSnapshot.docs.length, (index) => {'isRead': true});
 
-      // 状態を更新
       setState(() {});
     }
   }
 
   void _handleItemTapped(int index) async {
     if (index == 3) {
-      // 通知アイコンがタップされた場合
-      await _markNotificationsAsRead(); // isReadを全てtrueに更新
+      await _markNotificationsAsRead();
     }
     Navigator.pushReplacement(
       context,
@@ -126,10 +195,9 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
   @override
   Widget build(BuildContext context) {
     if (pageList == null) {
-      return Center(child: CircularProgressIndicator()); // ローディング中の表示
+      return Center(child: CircularProgressIndicator());
     }
 
-    // BottomNavigationBarの前にreturnを追加
     return BottomNavigationBar(
       items: [
         BottomNavigationBarItem(
@@ -148,7 +216,6 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
           icon: Stack(
             children: [
               Icon(Icons.notifications_outlined),
-              // 未読メッセージがある場合に赤丸を表示
               if (_hasUnreadNotifications())
                 Positioned(
                   right: 0,
@@ -163,7 +230,7 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
                       minHeight: 12,
                     ),
                     child: Text(
-                      '', // テキストは空（赤丸だけ）
+                      '',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 8,
@@ -176,19 +243,19 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
           ),
           label: '',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.chat_bubble_outline),
-          label: '',
-        ),
+        if (showChatIcon)
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline),
+            label: '',
+          ),
       ],
       currentIndex: widget.selectedIndex,
       type: BottomNavigationBarType.fixed,
-      onTap: _handleItemTapped, // タップされたときの処理
+      onTap: _handleItemTapped,
     );
   }
 
   bool _hasUnreadNotifications() {
-    // 実際の未読メッセージを判定するロジック
     return notifications.any((notification) => notification['isRead'] == false);
   }
 }

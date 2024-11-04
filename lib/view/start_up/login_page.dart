@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/view/time_line/timeline_body.dart';
 import 'package:flutter/gestures.dart';
@@ -19,7 +20,6 @@ class _LoginPageState extends State<LoginPage> {
   TextEditingController emailController = TextEditingController();
   TextEditingController passController = TextEditingController();
   String? errorMessage;
-  // Flutter Secure Storageのインスタンスを作成
   final storage = const FlutterSecureStorage();
 
   Future<void> _sendPasswordResetEmail() async {
@@ -33,6 +33,12 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await updatePasswordChangeToken(user.uid);
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('パスワードリセットのメールを送信しました')),
       );
@@ -43,14 +49,43 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  Future<void> updatePasswordChangeToken(String userId) async {
+    final firestore = FirebaseFirestore.instance;
+    await firestore.collection('users').doc(userId).update({
+      'passwordChangeToken': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> _saveAccountToStorage(Account account) async {
     try {
-      // セキュアストレージにアカウント情報を保存
       await storage.write(key: 'account_id', value: account.id);
       await storage.write(key: 'account_name', value: account.name);
       print('アカウント情報が保存されました: ${account.id}');
     } catch (e) {
       print('アカウント情報の保存に失敗しました: $e');
+    }
+  }
+
+  Future<void> _saveParentsTokenToStorage(String userId) async {
+    final firestore = FirebaseFirestore.instance;
+
+    // usersコレクションからparents_idを取得
+    final userDoc = await firestore.collection('users').doc(userId).get();
+    final parentsId = userDoc['parents_id'] as String?;
+
+    if (parentsId != null) {
+      // parents_idのpasswordChangeTokenを取得
+      final parentsDoc =
+          await firestore.collection('users').doc(parentsId).get();
+      final passwordChangeToken = parentsDoc['passwordChangeToken'];
+
+      // ストレージに保存
+      await storage.write(
+        key: 'passwordChangeToken',
+        value: passwordChangeToken.millisecondsSinceEpoch.toString(),
+      );
+    } else {
+      print('parents_idが見つかりません');
     }
   }
 
@@ -87,7 +122,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 SizedBox(height: 10),
-                if (errorMessage != null) // エラーメッセージがある場合に表示
+                if (errorMessage != null)
                   Text(
                     errorMessage!,
                     style: TextStyle(color: Colors.red),
@@ -127,11 +162,9 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(height: 70),
                 ElevatedButton(
                   onPressed: () async {
-                    // 既存のユーザー情報をリセット
                     Authentication.myAccount = null;
 
                     try {
-                      // 新しいログインの試行
                       var result = await Authentication.emailSinIn(
                         email: emailController.text,
                         pass: passController.text,
@@ -143,6 +176,10 @@ class _LoginPageState extends State<LoginPage> {
                               await UserFirestore.getUser(result.user!.uid);
                           if (_result != null) {
                             await _saveAccountToStorage(_result);
+
+                            // parents_idのpasswordChangeTokenを保存
+                            await _saveParentsTokenToStorage(result.user!.uid);
+
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
