@@ -12,6 +12,7 @@ class Account {
   Timestamp? createdTime;
   Timestamp? updatedTime;
   bool lockAccount;
+  bool followMessage;
 
   Account({
     this.admin = 3,
@@ -24,6 +25,7 @@ class Account {
     this.createdTime,
     this.updatedTime,
     this.lockAccount = false,
+    this.followMessage = true,
   });
 
   factory Account.fromDocument(DocumentSnapshot doc) {

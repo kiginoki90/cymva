@@ -54,6 +54,37 @@ class FollowService {
             .collection('followers')
             .doc(userId)
             .set({'followed_at': Timestamp.now()});
+
+        // 24時間以内に同じメッセージがあるか確認
+        final userDoc = await UserFirestore.users.doc(postUserId).get();
+        final userData = userDoc.data() as Map<String, dynamic>;
+        final followMessage = userData['follow_message'] ?? false;
+
+        if (followMessage) {
+          final cutoffTime =
+              Timestamp.now().toDate().subtract(Duration(hours: 24));
+          final recentMessagesQuery = await UserFirestore.users
+              .doc(postUserId)
+              .collection('message')
+              .where('request_user', isEqualTo: userId)
+              .where('message_type', isEqualTo: 3)
+              .where('timestamp',
+                  isGreaterThanOrEqualTo: Timestamp.fromDate(cutoffTime))
+              .get();
+
+          // メッセージがなければ、新しいメッセージを追加
+          if (recentMessagesQuery.docs.isEmpty) {
+            await UserFirestore.users
+                .doc(postUserId)
+                .collection('message')
+                .add({
+              'isRead': false,
+              'message_type': 3,
+              'request_user': userId,
+              'timestamp': Timestamp.now(),
+            });
+          }
+        }
       }
     } catch (e) {
       print('フォロー処理に失敗しました: $e');

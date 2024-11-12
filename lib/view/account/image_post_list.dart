@@ -88,7 +88,7 @@ class _ImagePostListState extends State<ImagePostList> {
                               // リツイートの状態を渡す
                               // isRetweetedNotifier: isRetweetedNotifier,
                               replyFlag: ValueNotifier<bool>(false),
-                              userId: widget.myAccount.userId,
+                              userId: widget.myAccount.id,
                             );
                           },
                         );

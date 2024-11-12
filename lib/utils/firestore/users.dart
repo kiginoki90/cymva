@@ -50,6 +50,7 @@ class UserFirestore {
         'updated_time': Timestamp.now(),
         'passwordChangeToken': Timestamp.now(),
         'lock_account': false,
+        'follow_message': true,
       });
 
       // await users
@@ -236,6 +237,18 @@ class UserFirestore {
     try {
       await _users.doc(userId).update({
         'lock_account': isPrivate, // lock_account フィールドを更新
+      });
+      print('lock_account updated successfully');
+    } catch (e) {
+      print('Error updating lock_account: $e');
+    }
+  }
+
+  static Future<void> updateFollowMessage(
+      String userId, bool followPrivate) async {
+    try {
+      await _users.doc(userId).update({
+        'follow_message': followPrivate,
       });
       print('lock_account updated successfully');
     } catch (e) {

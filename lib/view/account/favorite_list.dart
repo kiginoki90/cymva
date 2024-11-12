@@ -104,7 +104,7 @@ class _FavoriteListState extends State<FavoriteList> {
             ),
             // リツイートの状態をトグルする処理
             replyFlag: ValueNotifier<bool>(false),
-            userId: widget.myAccount.userId,
+            userId: widget.myAccount.id,
           );
         },
       ),

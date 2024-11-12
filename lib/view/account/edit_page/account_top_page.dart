@@ -36,6 +36,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
   List<Account> siblingAccounts = [];
   Account? postAccount;
   final FollowService followService = FollowService();
+  bool isFollowed = false;
 
   @override
   void initState() {
@@ -52,6 +53,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
     await _getPostAccount();
     await _getFollowCount();
     await _getFollowerCount();
+    fetchFollowStatus();
   }
 
   Future<void> _checkFollowStatus() async {
@@ -113,6 +115,27 @@ class _AccountTopPageState extends State<AccountTopPage> {
       });
     } catch (e) {
       print('同じparents_idを持つアカウントの取得に失敗しました: $e');
+    }
+  }
+
+  Future<void> fetchFollowStatus() async {
+    try {
+      // followersサブコレクション内にpostAccountIdがあるかをチェック
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .collection('followers')
+          .doc(widget.postAccountId)
+          .get();
+
+      // ドキュメントが存在する場合のみフォローされていますと表示
+      if (doc.exists) {
+        setState(() {
+          isFollowed = true;
+        });
+      }
+    } catch (e) {
+      print("エラーが発生しました: $e");
     }
   }
 
@@ -190,6 +213,13 @@ class _AccountTopPageState extends State<AccountTopPage> {
                   alignment: Alignment.centerRight,
                   child: _buildFollowButton(),
                 ),
+              if (isFollowed)
+                Text(
+                  'フォローされています',
+                  style: TextStyle(
+                    color: Colors.grey,
+                  ),
+                )
             ],
           ),
           Column(

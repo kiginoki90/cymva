@@ -21,6 +21,7 @@ class _LoginPageState extends State<LoginPage> {
   TextEditingController passController = TextEditingController();
   String? errorMessage;
   final storage = const FlutterSecureStorage();
+  bool _isObscured = true;
 
   Future<void> _sendPasswordResetEmail() async {
     String email = emailController.text;
@@ -89,6 +90,42 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // Future<void> _userAccountStorage(String userId) async {
+  //   final firestore = FirebaseFirestore.instance;
+  //   final storage = FlutterSecureStorage();
+
+  //   try {
+  //     // Firestoreからユーザー情報を取得
+  //     DocumentSnapshot userDoc =
+  //         await firestore.collection('users').doc(userId).get();
+
+  //     // ユーザー情報が存在する場合
+  //     if (userDoc.exists) {
+  //       // ユーザーデータを取得
+  //       var userData = userDoc.data() as Map<String, dynamic>;
+
+  //       // 必要なフィールドをローカルストレージに保存
+  //       await storage.write(
+  //           key: 'image_path', value: userData['image_path'] ?? '');
+  //       await storage.write(
+  //           key: 'key_account', value: userData['key_account'] ?? '');
+  //       await storage.write(key: 'name', value: userData['name'] ?? '');
+  //       await storage.write(
+  //           key: 'parents_id', value: userData['parents_id'] ?? '');
+  //       await storage.write(
+  //           key: 'self_introduction',
+  //           value: userData['self_introduction'] ?? '');
+  //       await storage.write(
+  //           key: 'updated_time', value: userData['updated_time'] ?? '');
+  //       await storage.write(key: 'user_id', value: userData['user_id'] ?? '');
+  //     } else {
+  //       print("ユーザー情報が見つかりませんでした");
+  //     }
+  //   } catch (e) {
+  //     print("Firestoreからデータを取得する際にエラーが発生しました: $e");
+  //   }
+  // }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -100,7 +137,7 @@ class _LoginPageState extends State<LoginPage> {
               children: [
                 SizedBox(height: 50),
                 Text(
-                  'title',
+                  'cymva city',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 Padding(
@@ -117,8 +154,20 @@ class _LoginPageState extends State<LoginPage> {
                   width: 300,
                   child: TextField(
                     controller: passController,
-                    decoration: InputDecoration(hintText: 'pass'),
-                    obscureText: true,
+                    decoration: InputDecoration(
+                      hintText: 'パスワード',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _isObscured ? Icons.visibility : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isObscured = !_isObscured;
+                          });
+                        },
+                      ),
+                    ),
+                    obscureText: _isObscured,
                   ),
                 ),
                 SizedBox(height: 10),
@@ -180,11 +229,15 @@ class _LoginPageState extends State<LoginPage> {
                             // parents_idのpasswordChangeTokenを保存
                             await _saveParentsTokenToStorage(result.user!.uid);
 
+                            // await _userAccountStorage(result.user!.uid);
+
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    TimeLineBody(userId: result.user!.uid),
+                                builder: (context) => TimeLineBody(
+                                  userId: result.user!.uid,
+                                  fromLogin: true,
+                                ),
                               ),
                             );
                           } else {

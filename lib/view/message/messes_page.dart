@@ -273,9 +273,37 @@ class _MessesPageState extends State<MessesPage> {
               if (notification['message_type'] == 2)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text(
-                    '@${user.userId}さんへのフォローリクエストが許可されました。',
-                    // style: TextStyle(color: Colors.green),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AccountPage(
+                              postUserId: notification['request_user']),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      '@${user.userId}さんへのフォローリクエストが許可されました。',
+                    ),
+                  ),
+                ),
+              if (notification['message_type'] == 3)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AccountPage(
+                              postUserId: notification['request_user']),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      '@${user.userId}さんからフォローされました。',
+                    ),
                   ),
                 ),
               Divider(),

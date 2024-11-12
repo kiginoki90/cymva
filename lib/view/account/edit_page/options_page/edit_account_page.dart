@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
@@ -18,6 +17,10 @@ class _EditAccountPageState extends State<EditAccountPage> {
   TextEditingController selfIntroductionController = TextEditingController();
   File? image;
   bool isPrivate = false;
+  bool followPrivate = true;
+
+  int _nameCharCount = 0;
+  int _introCharCount = 0;
 
   ImageProvider getImage() {
     if (image == null) {
@@ -34,8 +37,29 @@ class _EditAccountPageState extends State<EditAccountPage> {
     userIdController = TextEditingController(text: myAccount.userId);
     selfIntroductionController =
         TextEditingController(text: myAccount.selfIntroduction);
-
     isPrivate = myAccount.lockAccount;
+    followPrivate = myAccount.followMessage;
+
+    // 名前フィールドの文字数リスナー
+    nameController.addListener(() {
+      setState(() {
+        _nameCharCount = nameController.text.length;
+      });
+    });
+
+    // 自己紹介フィールドの文字数リスナー
+    selfIntroductionController.addListener(() {
+      setState(() {
+        _introCharCount = selfIntroductionController.text.length;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    selfIntroductionController.dispose();
+    super.dispose();
   }
 
   @override
@@ -97,25 +121,119 @@ class _EditAccountPageState extends State<EditAccountPage> {
             _buildTextField(
               controller: nameController,
               label: '名前',
-              hintText: 'Enter your name',
-              description: '名前を15字以内で記入してください',
+              hintText: 'あなたの名前を教えてね',
+              description: '名前を35字以内で記入してください',
+              currentCharCount: _nameCharCount,
             ),
-            // SizedBox(height: 20),
-            // _buildTextField(
-            //   controller: userIdController,
-            //   label: 'ユーザーID',
-            //   hintText: 'Enter your user ID',
-            //   description: 'ユーザーIDを20字以内で入力してください。',
-            // ),
             SizedBox(height: 20),
             _buildTextField(
               controller: selfIntroductionController,
               label: '自己紹介',
-              hintText: 'Enter your self introduction',
+              hintText: 'あなたのことを教えてね',
               description: '自己紹介を400字以内で入力してください。',
+              currentCharCount: _introCharCount,
             ),
-            SizedBox(height: 20),
-            // 公開/非公開切り替えスイッチ
+            SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.isEmpty ||
+                    userIdController.text.isEmpty ||
+                    selfIntroductionController.text.isEmpty) {
+                  // 未入力の項目がある場合の処理
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text('入力エラー'),
+                      content: Text('すべての項目を入力してください。'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                  return;
+                }
+
+                if (nameController.text.length > 35) {
+                  // 名前が35文字を超えた場合の警告
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text('名前の文字数制限'),
+                      content: Text('名前は35文字以内で入力してください。'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                  return;
+                }
+
+                if (selfIntroductionController.text.length > 400) {
+                  // 自己紹介が400文字を超えた場合の警告
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text('自己紹介の文字数制限'),
+                      content: Text('自己紹介は400文字以内で入力してください。'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                  return;
+                }
+
+                // 文字数のチェックが通ったら更新処理を実行
+                String? imagePath = '';
+
+                if (image == null) {
+                  imagePath = myAccount.imagePath ?? '';
+                } else {
+                  String? result = await FunctionUtils.uploadImage(
+                      myAccount.id, image!, context);
+                  if (result != null) {
+                    imagePath = result;
+                  } else {
+                    imagePath =
+                        'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7';
+                  }
+                }
+
+                Account updateAccount = Account(
+                  id: myAccount.id,
+                  name: nameController.text,
+                  userId: userIdController.text,
+                  selfIntroduction: selfIntroductionController.text,
+                  imagePath: imagePath,
+                  lockAccount: isPrivate,
+                );
+
+                Authentication.myAccount = updateAccount;
+                var result = await UserFirestore.updataUser(updateAccount);
+                if (result == true) {
+                  Navigator.pop(context, true);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueGrey,
+                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                textStyle: TextStyle(fontSize: 18),
+              ),
+              child: Text(
+                '更新',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            SizedBox(height: 30),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -127,62 +245,34 @@ class _EditAccountPageState extends State<EditAccountPage> {
                   value: isPrivate,
                   onChanged: (bool value) async {
                     setState(() {
-                      isPrivate = value; // スイッチの状態を更新
+                      isPrivate = value;
                     });
-
-                    // Firestoreにlock_accountを更新
                     await UserFirestore.updateLockAccount(
                         myAccount.id, isPrivate);
                   },
-                  activeColor: Colors.blueGrey, // スイッチがオンのときの色
+                  activeColor: Colors.blue,
                 ),
               ],
             ),
-            SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: () async {
-                if (nameController.text.isNotEmpty &&
-                    userIdController.text.isNotEmpty &&
-                    selfIntroductionController.text.isNotEmpty) {
-                  String? imagePath = '';
-
-                  if (image == null) {
-                    imagePath = myAccount.imagePath ?? '';
-                  } else {
-                    String? result = await FunctionUtils.uploadImage(
-                        myAccount.id, image!, context);
-                    if (result != null) {
-                      imagePath = result;
-                    } else {
-                      imagePath =
-                          'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7';
-                    }
-                  }
-                  Account updateAccount = Account(
-                      id: myAccount.id,
-                      name: nameController.text,
-                      userId: userIdController.text,
-                      selfIntroduction: selfIntroductionController.text,
-                      imagePath: imagePath,
-                      lockAccount: isPrivate);
-
-                  Authentication.myAccount = updateAccount;
-                  var result = await UserFirestore.updataUser(updateAccount);
-                  if (result == true) {
-                    Navigator.pop(context, true);
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueGrey,
-                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                textStyle: TextStyle(fontSize: 18),
-              ),
-              child: Text(
-                '更新',
-                style:
-                    TextStyle(color: const Color.fromARGB(255, 255, 255, 255)),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'フォローメッセージON/OFF',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                Switch(
+                  value: followPrivate,
+                  onChanged: (bool value) async {
+                    setState(() {
+                      followPrivate = value;
+                    });
+                    await UserFirestore.updateFollowMessage(
+                        myAccount.id, followPrivate);
+                  },
+                  activeColor: Colors.blue,
+                ),
+              ],
             ),
           ],
         ),
@@ -195,6 +285,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
     required String label,
     required String hintText,
     required String description,
+    required int currentCharCount,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,11 +302,17 @@ class _EditAccountPageState extends State<EditAccountPage> {
         SizedBox(height: 8),
         TextField(
           controller: controller,
+          maxLines: null,
           decoration: InputDecoration(
             hintText: hintText,
             border: OutlineInputBorder(),
             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           ),
+        ),
+        SizedBox(height: 8),
+        Text(
+          '現在の文字数: $currentCharCount',
+          style: TextStyle(color: Colors.grey[600], fontSize: 12),
         ),
       ],
     );

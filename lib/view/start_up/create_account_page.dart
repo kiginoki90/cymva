@@ -25,10 +25,17 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
 
   String? errorMessage; // エラーメッセージを保持するための変数
   int selfIntroCharCount = 0; // 自己紹介の現在の文字数
+  int nameCharCount = 0;
 
   @override
   void initState() {
     super.initState();
+
+    nameController.addListener(() {
+      setState(() {
+        nameCharCount = nameController.text.length;
+      });
+    });
     selfIntroductionController.addListener(() {
       setState(() {
         selfIntroCharCount = selfIntroductionController.text.length;
@@ -44,7 +51,6 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
 
   @override
   Widget build(BuildContext context) {
-    print('Image: $image');
     return Scaffold(
       appBar: WidgetUtils.createAppBer('新規登録'),
       body: SingleChildScrollView(
@@ -53,14 +59,15 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
           child: Column(
             children: [
               SizedBox(height: 30),
-              Container(
-                width: 300,
-                child: TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(hintText: '名前'),
-                  maxLength: 30,
-                ),
-              ),
+              // Container(
+              //   width: 300,
+              //   child: TextField(
+              //     controller: nameController,
+              //     decoration: const InputDecoration(hintText: '名前'),
+              //     maxLength: 30,
+              //   ),
+              // ),
+              _buildNameField(),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 20.0),
                 child: Container(
@@ -178,6 +185,34 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
   }
 
   // 自己紹介フィールド
+  Widget _buildNameField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 300,
+          child: TextField(
+            controller: nameController,
+            maxLines: null, // 自動改行を有効にするためにmaxLinesをnullに
+            decoration: InputDecoration(
+              hintText: '名前',
+              counterText: '', // デフォルトの文字カウンタを非表示に
+            ),
+            maxLength: 35,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(right: 20.0),
+          child: Text(
+            '$nameCharCount/35', // 現在の文字数と最大文字数を表示
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 自己紹介フィールド
   Widget _buildSelfIntroductionField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,13 +226,13 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
               hintText: '自己紹介',
               counterText: '', // デフォルトの文字カウンタを非表示に
             ),
-            maxLength: 300, // 文字数制限300文字
+            maxLength: 400, // 文字数制限300文字
           ),
         ),
         Padding(
           padding: const EdgeInsets.only(right: 20.0),
           child: Text(
-            '$selfIntroCharCount/300', // 現在の文字数と最大文字数を表示
+            '$selfIntroCharCount/400', // 現在の文字数と最大文字数を表示
             style: TextStyle(color: Colors.grey),
           ),
         ),
