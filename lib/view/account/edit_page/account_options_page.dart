@@ -41,7 +41,6 @@ class AccountOptionsPage extends StatelessWidget {
                 );
               },
             ),
-            const Divider(),
             _buildOptionItem(
               context,
               icon: Icons.lock,
@@ -55,7 +54,6 @@ class AccountOptionsPage extends StatelessWidget {
                 );
               },
             ),
-            const Divider(),
             // _buildOptionItem(
             //   context,
             //   icon: Icons.lock,
@@ -100,7 +98,6 @@ class AccountOptionsPage extends StatelessWidget {
                 );
               },
             ),
-            const Divider(),
             _buildOptionItem(
               context,
               icon: Icons.remove_moderator,
@@ -114,7 +111,6 @@ class AccountOptionsPage extends StatelessWidget {
                 );
               },
             ),
-            const Divider(),
             _buildOptionItem(
               context,
               icon: Icons.person_add,
@@ -128,7 +124,6 @@ class AccountOptionsPage extends StatelessWidget {
                 );
               },
             ),
-            const Divider(),
             _buildOptionItem(
               context,
               icon: Icons.delete_forever,
@@ -145,7 +140,6 @@ class AccountOptionsPage extends StatelessWidget {
                 );
               },
             ),
-            const Divider(),
           ],
         ),
       ),

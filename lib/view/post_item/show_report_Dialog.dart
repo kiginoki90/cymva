@@ -11,6 +11,7 @@ class ShowReportDialog extends StatefulWidget {
 }
 
 enum ReportReason {
+  human('人間'),
   inappropriate('不適切な内容'),
   spam('スパム'),
   fake('なりすまし'),
@@ -37,6 +38,19 @@ class _ShowReportDialogState extends State<ShowReportDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // ラジオボタンで理由を選択
+
+            ListTile(
+              title: Text(ReportReason.human.displayName),
+              leading: Radio<ReportReason>(
+                value: ReportReason.human,
+                groupValue: _selectedReason,
+                onChanged: (ReportReason? value) {
+                  setState(() {
+                    _selectedReason = value;
+                  });
+                },
+              ),
+            ),
             ListTile(
               title: Text(ReportReason.inappropriate.displayName),
               leading: Radio<ReportReason>(

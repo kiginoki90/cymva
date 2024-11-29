@@ -102,21 +102,33 @@ class _AccountHeaderState extends State<AccountHeader> {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8.0),
-                      child: Image.network(
-                        postAccount!.imagePath ??
-                            'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                        width: 50,
-                        height: 50,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          // 画像の取得に失敗した場合のエラービルダー
-                          return Image.network(
-                            'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                          );
-                        },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: postAccount!.admin >= 4
+                                ? Colors.grey
+                                : Colors.transparent,
+                            width:
+                                postAccount!.admin >= 4 ? 4.0 : 0.0, // 太い線を追加
+                          ),
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        child: Image.network(
+                          postAccount!.imagePath ??
+                              'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            // 画像の取得に失敗した場合のエラービルダー
+                            return Image.network(
+                              'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                            );
+                          },
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -166,7 +178,7 @@ class _AccountHeaderState extends State<AccountHeader> {
   }
 
   Widget _buildFollowOrEditButton() {
-    if (followService.userId == widget.postUserId) {
+    if (followService.userId == widget.postUserId && postAccount!.admin != 5) {
       // 自分のアカウントの場合
       return SizedBox(
         height: 25,
@@ -183,10 +195,10 @@ class _AccountHeaderState extends State<AccountHeader> {
               });
             }
           },
-          child: const Text('編集'),
+          child: const Icon(Icons.settings),
         ),
       );
-    } else {
+    } else if (postAccount!.admin != 5) {
       // 他ユーザーの場合
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -216,6 +228,9 @@ class _AccountHeaderState extends State<AccountHeader> {
           ),
         ),
       );
+    } else {
+      // adminが5の場合は何も表示しない
+      return SizedBox.shrink();
     }
   }
 

@@ -20,116 +20,151 @@ class PostList extends StatefulWidget {
 class _PostListState extends State<PostList> {
   late Future<List<String>> _favoritePostsFuture;
   final FavoritePost _favoritePost = FavoritePost();
+  final ScrollController _scrollController = ScrollController();
+  List<Post> _allPosts = [];
+  bool _hasMore = true;
+  bool _isLoading = false;
+  DocumentSnapshot? _lastDocument;
 
   @override
   void initState() {
     super.initState();
     _favoritePostsFuture = _favoritePost.getFavoritePosts(); // お気に入りの投稿を取得
+    _fetchInitialPosts();
+  }
+
+  Future<void> _fetchInitialPosts() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final clipTruePosts = await _fetchPosts(true);
+    final clipFalsePosts = await _fetchPosts(false);
+
+    if (mounted) {
+      setState(() {
+        _allPosts = [...clipTruePosts, ...clipFalsePosts];
+        if (_allPosts.isNotEmpty) {
+          _lastDocument = _allPosts.last.documentSnapshot;
+        }
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchMorePosts() async {
+    if (_isLoading || !_hasMore) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final clipTruePosts = await _fetchPosts(true);
+    final clipFalsePosts = await _fetchPosts(false);
+
+    if (clipTruePosts.isNotEmpty || clipFalsePosts.isNotEmpty) {
+      setState(() {
+        _allPosts.addAll([...clipTruePosts, ...clipFalsePosts]);
+        if (_allPosts.isNotEmpty) {
+          _lastDocument = _allPosts.last.documentSnapshot;
+        }
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _hasMore = false;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<List<Post>> _fetchPosts(bool clip) async {
+    Query query = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.postAccount.id)
+        .collection('my_posts')
+        .where('clip', isEqualTo: clip)
+        .orderBy(clip ? 'clipTime' : 'created_time', descending: true)
+        .limit(30);
+
+    if (_lastDocument != null) {
+      query = query.startAfterDocument(_lastDocument!);
+    }
+
+    final querySnapshot = await query.get();
+    List<Post> posts = [];
+    for (var doc in querySnapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final postId = data['post_id'] as String;
+      final postDoc = await FirebaseFirestore.instance
+          .collection('posts')
+          .doc(postId)
+          .get();
+      if (postDoc.exists) {
+        final postData = postDoc.data() as Map<String, dynamic>;
+        posts.add(Post.fromMap(postData, documentSnapshot: postDoc));
+      }
+    }
+    return posts;
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.postAccount.id)
-          .collection('my_posts')
-          .where('clip', isEqualTo: true)
-          .orderBy('clipTime', descending: true)
-          .snapshots(),
-      builder: (context, clipTrueSnapshot) {
-        if (!clipTrueSnapshot.hasData) {
+    return FutureBuilder<List<String>>(
+      future: _favoritePostsFuture,
+      builder: (context, favoriteSnapshot) {
+        if (favoriteSnapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // clipがtrueの投稿を取得
-        List<DocumentSnapshot> clipTruePosts = clipTrueSnapshot.data!.docs;
+        if (favoriteSnapshot.hasError) {
+          return const Center(child: Text('データの取得に失敗しました'));
+        }
 
-        // clipがfalseの投稿を取得
-        return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(widget.postAccount.id)
-              .collection('my_posts')
-              .where('clip', isEqualTo: false)
-              .orderBy('created_time', descending: true)
-              .snapshots(),
-          builder: (context, clipFalseSnapshot) {
-            if (!clipFalseSnapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
+        if (favoriteSnapshot.hasData) {
+          return ListView.builder(
+            controller: _scrollController,
+            itemCount: _allPosts.length + 1,
+            itemBuilder: (context, index) {
+              if (index == _allPosts.length) {
+                return _hasMore
+                    ? TextButton(
+                        onPressed: _fetchMorePosts,
+                        child: const Text("もっと読み込む"),
+                      )
+                    : const Center(child: Text("結果は以上です"));
+              }
 
-            // clipがfalseの投稿を取得
-            List<DocumentSnapshot> clipFalsePosts =
-                clipFalseSnapshot.data!.docs;
+              final post = _allPosts[index];
+              // bool isFavorite = favoriteSnapshot.data!.contains(post.postId);
 
-            // すべての投稿を結合する
-            List<DocumentSnapshot> allPosts = [
-              ...clipTruePosts,
-              ...clipFalsePosts
-            ];
+              // お気に入りユーザー数の初期化と更新
+              _favoritePost.favoriteUsersNotifiers[post.postId] ??=
+                  ValueNotifier<int>(0);
+              _favoritePost.updateFavoriteUsersCount(post.postId);
 
-            return FutureBuilder<List<Post>?>(
-              future: PostFirestore.getPostsFromIds(
-                  allPosts.map((doc) => doc.id).toList()),
-              builder: (context, postSnapshot) {
-                if (postSnapshot.hasData) {
-                  if (postSnapshot.data!.isEmpty) {
-                    return const Center(child: Text('まだ投稿がありません'));
-                  } else {
-                    return FutureBuilder<List<String>>(
-                      future: _favoritePostsFuture,
-                      builder: (context, favoriteSnapshot) {
-                        if (favoriteSnapshot.connectionState ==
-                                ConnectionState.done &&
-                            favoriteSnapshot.hasData) {
-                          return ListView.builder(
-                            itemCount: postSnapshot.data!.length,
-                            itemBuilder: (context, index) {
-                              Post post = postSnapshot.data![index];
-                              bool isFavorite =
-                                  favoriteSnapshot.data!.contains(post.id);
-
-                              // お気に入りユーザー数の初期化と更新
-                              _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                                  ValueNotifier<int>(0);
-                              _favoritePost.updateFavoriteUsersCount(post.id);
-
-                              return PostItemWidget(
-                                post: post,
-                                postAccount: widget.postAccount,
-                                favoriteUsersNotifier: _favoritePost
-                                    .favoriteUsersNotifiers[post.id]!,
-                                isFavoriteNotifier: ValueNotifier<bool>(
-                                  _favoritePost.favoritePostsNotifier.value
-                                      .contains(post.id),
-                                ),
-                                onFavoriteToggle: () =>
-                                    _favoritePost.toggleFavorite(
-                                  post.id,
-                                  _favoritePost.favoritePostsNotifier.value
-                                      .contains(post.id),
-                                ),
-                                // isRetweetedNotifier: isRetweetedNotifier,
-                                replyFlag: ValueNotifier<bool>(false),
-                                userId: widget.myAccount.id,
-                              );
-                            },
-                          );
-                        } else {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-                      },
-                    );
-                  }
-                } else {
-                  return const Center(child: CircularProgressIndicator());
-                }
-              },
-            );
-          },
-        );
+              return PostItemWidget(
+                post: post,
+                postAccount: widget.postAccount,
+                favoriteUsersNotifier:
+                    _favoritePost.favoriteUsersNotifiers[post.postId]!,
+                isFavoriteNotifier: ValueNotifier<bool>(
+                  _favoritePost.favoritePostsNotifier.value
+                      .contains(post.postId),
+                ),
+                onFavoriteToggle: () => _favoritePost.toggleFavorite(
+                  post.postId,
+                  _favoritePost.favoritePostsNotifier.value
+                      .contains(post.postId),
+                ),
+                replyFlag: ValueNotifier<bool>(false),
+                userId: widget.myAccount.id,
+              );
+            },
+          );
+        } else {
+          return const Center(child: CircularProgressIndicator());
+        }
       },
     );
   }

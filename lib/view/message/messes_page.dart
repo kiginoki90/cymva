@@ -39,20 +39,41 @@ class _MessesPageState extends State<MessesPage> {
         snapshot.docs.map((doc) {
       return {
         'id': doc.id,
-        'request_user': doc['request_user'],
+        'request_user':
+            doc.data().containsKey('request_user') ? doc['request_user'] : null,
         'message_type': doc['message_type'],
         'request_userId': doc.data().containsKey('request_userId')
             ? doc['request_userId']
             : null,
+        'title': doc.data().containsKey('title') ? doc['title'] : null,
+        'content': doc.data().containsKey('content') ? doc['content'] : null,
+        'message_read':
+            doc.data().containsKey('message_read') ? doc['message_read'] : null,
+        'timestamp': doc['timestamp'],
       };
     }).toList();
 
     // 非同期でユーザー情報を取得
     for (var notification in tempNotifications) {
       final userId = notification['request_user'];
-      final user = await UserFirestore.getUser(userId); // 非同期でユーザー情報を取得
-      notification['user'] = user; // ユーザー情報を通知に追加
+      try {
+        final user = await UserFirestore.getUser(userId); // 非同期でユーザー情報を取得
+        notification['user'] = user; // ユーザー情報を通知に追加
+      } catch (e) {
+        notification['user'] = widget.userId; // エラーが発生した場合はwidget.userIdを使用
+      }
     }
+
+    // ソート処理
+    tempNotifications.sort((a, b) {
+      if (a['message_type'] == 4 && b['message_type'] != 4) {
+        return -1; // a を b の前に
+      } else if (a['message_type'] != 4 && b['message_type'] == 4) {
+        return 1; // b を a の前に
+      } else {
+        return b['timestamp'].compareTo(a['timestamp']); // timestamp の新しい順
+      }
+    });
 
     setState(() {
       notifications = tempNotifications;
@@ -175,6 +196,61 @@ class _MessesPageState extends State<MessesPage> {
     );
   }
 
+  Future<void> _showAdminMessageDialog(String title, String content,
+      String messageId, Timestamp timestamp) async {
+    final currentUserId = await storage.read(key: 'account_id');
+    final now = Timestamp.now();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Align(
+                alignment: Alignment.topRight,
+                child: Text(
+                  _formatTimestamp(timestamp),
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(content),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: Text('閉じる'),
+              onPressed: () async {
+                // メッセージを既読にする
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(currentUserId)
+                    .collection('message')
+                    .doc(messageId)
+                    .update({'message_read': now});
+
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _formatTimestamp(Timestamp timestamp) {
+    final DateTime dateTime = timestamp.toDate();
+    final String formattedDate =
+        "${dateTime.year}-${dateTime.month}-${dateTime.day}";
+    final String formattedTime =
+        "${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}";
+    return "$formattedDate $formattedTime";
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -186,6 +262,23 @@ class _MessesPageState extends State<MessesPage> {
           final requestUser = notification['request_user'];
           final user = notification['user'];
           final requestUserId = notification['request_userId'];
+          final messageId = notification['id'];
+          final title = notification['title'];
+          final content = notification['content'];
+          final messageRead = notification['message_read'];
+
+          // メッセージが24時間経過しているか確認
+          if (messageRead != null &&
+              Timestamp.now().seconds - messageRead.seconds > 86400) {
+            // メッセージを削除
+            FirebaseFirestore.instance
+                .collection('users')
+                .doc(widget.userId)
+                .collection('message')
+                .doc(messageId)
+                .delete();
+            return SizedBox.shrink();
+          }
 
           return Column(
             children: [
@@ -303,6 +396,45 @@ class _MessesPageState extends State<MessesPage> {
                     },
                     child: Text(
                       '@${user.userId}さんからフォローされました。',
+                    ),
+                  ),
+                ),
+              if (notification['message_type'] == 4)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: GestureDetector(
+                    onTap: () {
+                      _showAdminMessageDialog(
+                          title, content, messageId, notification['timestamp']);
+                    },
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                              vertical: 4.0, horizontal: 8.0),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.blue),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '運営より',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

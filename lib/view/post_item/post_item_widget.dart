@@ -160,7 +160,8 @@ class _PostItemWidgetState extends State<PostItemWidget> {
     }
     if ((widget.post.category == '写真' || widget.post.category == 'イラスト') &&
         widget.post.mediaUrl != null &&
-        widget.post.mediaUrl!.length == 1) {
+        widget.post.mediaUrl!.length == 1 &&
+        widget.post.content.isEmpty) {
       // 投稿欄全体に画像を表示
       return GestureDetector(
         onTap: () {

@@ -28,9 +28,30 @@ class _PostPageState extends State<PostPage> {
   final picker = ImagePicker();
   final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
+  Map<String, dynamic>? accountData;
 
   String? selectedCategory;
-  final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真', '俳句・短歌'];
+  final List<String> categories = [
+    '',
+    '動物',
+    'AI',
+    '漫画',
+    'イラスト',
+    '写真',
+    '俳句・短歌',
+    '改修要望/バグ'
+  ];
+  final List<String> adminCategories = [
+    '',
+    'cymva',
+    '動物',
+    'AI',
+    '漫画',
+    'イラスト',
+    '写真',
+    '俳句・短歌',
+    '改修要望/バグ'
+  ];
   String? userProfileImageUrl;
   bool isPosting = false;
 
@@ -38,6 +59,7 @@ class _PostPageState extends State<PostPage> {
   void initState() {
     super.initState();
     fetchUserProfileImage();
+    _fetchAccountData();
   }
 
   Future<void> fetchUserProfileImage() async {
@@ -74,6 +96,18 @@ class _PostPageState extends State<PostPage> {
               setState(() {});
             });
         }
+      });
+    }
+  }
+
+  Future<void> _fetchAccountData() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .get();
+    if (doc.exists) {
+      setState(() {
+        accountData = doc.data();
       });
     }
   }
@@ -166,20 +200,45 @@ class _PostPageState extends State<PostPage> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: SizedBox(
-                      width: 110,
+                      width: 120,
                       child: DropdownButtonFormField<String>(
                         value: selectedCategory,
                         decoration: InputDecoration(
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 6),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                            borderSide: BorderSide(
+                              color: Colors.blueAccent,
+                              width: 2.0,
+                            ),
+                          ),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                         ),
-                        items: categories.map((category) {
-                          return DropdownMenuItem(
-                            value: category,
-                            child:
-                                Text(category, style: TextStyle(fontSize: 12)),
-                          );
-                        }).toList(),
+                        items: (accountData == null ||
+                                accountData!['admin'] == 3 ||
+                                accountData!['admin'] == 4)
+                            ? categories.map((category) {
+                                return DropdownMenuItem(
+                                  value: category,
+                                  child: Padding(
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 0),
+                                    child: Text(category,
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                );
+                              }).toList()
+                            : adminCategories.map((category) {
+                                return DropdownMenuItem(
+                                  value: category,
+                                  child: Padding(
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 0),
+                                    child: Text(category,
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                );
+                              }).toList(),
                         onChanged: (value) {
                           setState(() {
                             selectedCategory = value;
@@ -189,6 +248,10 @@ class _PostPageState extends State<PostPage> {
                           'カテゴリー',
                           style: TextStyle(fontSize: 12),
                         ),
+                        dropdownColor: Colors.white,
+                        icon: Icon(Icons.arrow_drop_down,
+                            color: Colors.blueAccent),
+                        style: TextStyle(color: Colors.black, fontSize: 12),
                       ),
                     ),
                   ),

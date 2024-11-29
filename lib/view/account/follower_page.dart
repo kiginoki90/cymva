@@ -26,9 +26,8 @@ class FollowerPage extends StatelessWidget {
           }
           final followerDocs = snapshot.data?.docs ?? [];
 
-          return ListView.separated(
+          return ListView.builder(
             itemCount: followerDocs.length,
-            separatorBuilder: (context, index) => const Divider(),
             itemBuilder: (context, index) {
               final followerDoc = followerDocs[index];
               final followerId = followerDoc.id;
@@ -91,7 +90,7 @@ class FollowerPage extends StatelessWidget {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 30),
                           Expanded(
                             child: InkWell(
                               onTap: () {

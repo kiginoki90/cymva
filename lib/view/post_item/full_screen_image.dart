@@ -67,10 +67,11 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                         },
                       ),
                       SizedBox(width: 20),
-                      Text(
-                        '${_currentIndex + 1}/${widget.imageUrls.length}',
-                        style: TextStyle(color: Colors.white),
-                      ),
+                      if (widget.imageUrls.length > 1)
+                        Text(
+                          '${_currentIndex + 1}/${widget.imageUrls.length}',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       Spacer(),
                     ],
                   ),

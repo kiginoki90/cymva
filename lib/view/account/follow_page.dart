@@ -26,9 +26,8 @@ class FollowPage extends StatelessWidget {
           }
           final followDocs = snapshot.data?.docs ?? [];
 
-          return ListView.separated(
+          return ListView.builder(
             itemCount: followDocs.length,
-            separatorBuilder: (context, index) => const Divider(),
             itemBuilder: (context, index) {
               final followDoc = followDocs[index];
               final followId = followDoc.id;

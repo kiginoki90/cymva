@@ -696,7 +696,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     ),
                     Row(
                       children: [
-                        // Display retweet count
                         StreamBuilder<QuerySnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection('posts')
@@ -705,16 +704,13 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               .snapshots(),
                           builder: (context, snapshot) {
                             if (!snapshot.hasData) {
-                              // Display 0 if there is no data
                               return Text('0');
                             }
-                            // Show the number of documents in the repost subcollection
                             final repostCount = snapshot.data!.docs.length;
                             return Text(repostCount.toString());
                           },
                         ),
                         const SizedBox(width: 5),
-                        // Button to navigate to RepostPage
                         GestureDetector(
                           onTap: () {
                             Navigator.push(

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
+import 'package:cymva/view/search/search_item.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
@@ -18,6 +19,7 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
+  final SearchItem _searchItem = SearchItem(FirebaseFirestore.instance);
   final PageController _pageController = PageController();
   List<DocumentSnapshot> _postSearchResults = []; // コンテンツ検索結果用
   List<DocumentSnapshot> _recentFavoritesResults = []; // 人気検索結果用
@@ -38,13 +40,33 @@ class _SearchPageState extends State<SearchPage> {
       _searchController.text = widget.initialHashtag!;
 
       if (_currentPage == 0) {
-        _searchPosts(_searchController.text);
+        _searchItem.searchPosts(
+            _searchController.text, _selectedCategory, null, 5, (results) {
+          setState(() {
+            _postSearchResults = results;
+          });
+        });
       } else if (_currentPage == 1) {
-        _searchAccounts(_searchController.text);
+        _searchItem.searchAccounts(_searchController.text, (results) {
+          setState(() {
+            _accountSearchResults = results;
+          });
+        });
       } else if (_currentPage == 2) {
-        _fetchRecentFavorites(_searchController.text);
+        _searchItem.fetchRecentFavorites(
+            _searchController.text, _selectedCategory, _postFavoriteCounts,
+            (results) {
+          setState(() {
+            _recentFavoritesResults = results;
+          });
+        });
       } else if (_currentPage == 3) {
-        _searchImagePosts(_searchController.text);
+        _searchItem.searchImagePosts(_searchController.text, _selectedCategory,
+            (results) {
+          setState(() {
+            _recentImageResults = results;
+          });
+        });
       }
     }
 
@@ -52,13 +74,31 @@ class _SearchPageState extends State<SearchPage> {
       _lastQuery = _searchController.text;
 
       if (_currentPage == 0) {
-        _searchPosts(_lastQuery);
+        _searchItem.searchPosts(
+            _searchController.text, _selectedCategory, null, 5, (results) {
+          setState(() {
+            _postSearchResults = results;
+          });
+        });
       } else if (_currentPage == 1) {
-        _searchAccounts(_lastQuery);
+        _searchItem.searchAccounts(_lastQuery, (results) {
+          setState(() {
+            _accountSearchResults = results;
+          });
+        });
       } else if (_currentPage == 2) {
-        _fetchRecentFavorites(_lastQuery);
+        _searchItem.fetchRecentFavorites(
+            _lastQuery, _selectedCategory, _postFavoriteCounts, (results) {
+          setState(() {
+            _recentFavoritesResults = results;
+          });
+        });
       } else if (_currentPage == 3) {
-        _searchImagePosts(_lastQuery);
+        _searchItem.searchImagePosts(_lastQuery, _selectedCategory, (results) {
+          setState(() {
+            _recentImageResults = results;
+          });
+        });
       }
     });
 
@@ -85,19 +125,39 @@ class _SearchPageState extends State<SearchPage> {
                 style: const TextStyle(color: Colors.black), // テキストの色
                 onSubmitted: (query) {
                   if (_currentPage == 0) {
-                    _searchPosts(query);
+                    _searchItem.searchPosts(query, _selectedCategory, null, 5,
+                        (results) {
+                      setState(() {
+                        _postSearchResults = results;
+                      });
+                    });
                   } else if (_currentPage == 1) {
-                    _searchAccounts(query);
+                    _searchItem.searchAccounts(query, (results) {
+                      setState(() {
+                        _accountSearchResults = results;
+                      });
+                    });
                   } else if (_currentPage == 2) {
-                    _fetchRecentFavorites(query);
+                    _searchItem.fetchRecentFavorites(
+                        query, _selectedCategory, _postFavoriteCounts,
+                        (results) {
+                      setState(() {
+                        _recentFavoritesResults = results;
+                      });
+                    });
                   } else if (_currentPage == 3) {
-                    _searchImagePosts(query);
+                    _searchItem.searchImagePosts(query, _selectedCategory,
+                        (results) {
+                      setState(() {
+                        _recentImageResults = results;
+                      });
+                    });
                   }
                 },
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.category),
+              icon: const Icon(Icons.widgets),
               onPressed: () {
                 _showCategoryDialog();
               },
@@ -185,7 +245,7 @@ class _SearchPageState extends State<SearchPage> {
               final post = Post.fromDocument(postDoc);
 
               return FutureBuilder<Account?>(
-                future: _getPostAccount(post.postAccountId),
+                future: _searchItem.getPostAccount(post.postAccountId),
                 builder: (context, accountSnapshot) {
                   if (accountSnapshot.connectionState ==
                       ConnectionState.waiting) {
@@ -245,7 +305,12 @@ class _SearchPageState extends State<SearchPage> {
 // リストを更新するメソッド
   Future<void> _refreshSearchResults() async {
     // データを再取得して_stateを更新する
-    await _searchPosts(_lastQuery);
+    await _searchItem.searchPosts(
+        _searchController.text, _selectedCategory, null, 5, (results) {
+      setState(() {
+        _postSearchResults = results;
+      });
+    });
   }
 
   Widget _buildSearchByAccountNamePage() {
@@ -378,7 +443,7 @@ class _SearchPageState extends State<SearchPage> {
               final post = Post.fromDocument(postDoc);
 
               return FutureBuilder<Account?>(
-                future: _getPostAccount(post.postAccountId),
+                future: _searchItem.getPostAccount(post.postAccountId),
                 builder: (context, accountSnapshot) {
                   if (accountSnapshot.connectionState ==
                       ConnectionState.waiting) {
@@ -438,7 +503,12 @@ class _SearchPageState extends State<SearchPage> {
   // リストを更新するメソッド
   Future<void> _refreshRecentFavorites() async {
     // データを再取得して_stateを更新する
-    await _fetchRecentFavorites(_lastQuery);
+    await _searchItem.fetchRecentFavorites(
+        _lastQuery, _selectedCategory, _postFavoriteCounts, (results) {
+      setState(() {
+        _recentFavoritesResults = results;
+      });
+    });
   }
 
   // 検索結果を表示するWidget
@@ -475,7 +545,7 @@ class _SearchPageState extends State<SearchPage> {
               }
 
               return FutureBuilder<Account?>(
-                future: _getPostAccount(post.postAccountId),
+                future: _searchItem.getPostAccount(post.postAccountId),
                 builder: (context, accountSnapshot) {
                   if (accountSnapshot.connectionState ==
                       ConnectionState.waiting) {
@@ -535,241 +605,44 @@ class _SearchPageState extends State<SearchPage> {
 // リストを更新するメソッド
   Future<void> _refreshPosts() async {
     // データを再取得して_stateを更新する
-    await _searchImagePosts(_lastQuery);
+    await _searchItem.searchImagePosts(_lastQuery, _selectedCategory,
+        (results) {
+      setState(() {
+        _recentImageResults = results;
+      });
+    });
   }
 
   void _onPageChanged() {
     _lastQuery = _searchController.text;
 
     if (_currentPage == 0 && _postSearchResults.isEmpty) {
-      _searchPosts(_lastQuery);
+      _searchItem.searchPosts(
+          _searchController.text, _selectedCategory, null, 5, (results) {
+        setState(() {
+          _postSearchResults = results;
+        });
+      });
     } else if (_currentPage == 1 && _accountSearchResults.isEmpty) {
-      _searchAccounts(_lastQuery);
+      _searchItem.searchAccounts(_lastQuery, (results) {
+        setState(() {
+          _accountSearchResults = results;
+        });
+      });
     } else if (_currentPage == 2 && _recentFavoritesResults.isEmpty) {
-      _fetchRecentFavorites(_lastQuery);
+      _searchItem.fetchRecentFavorites(
+          _lastQuery, _selectedCategory, _postFavoriteCounts, (results) {
+        setState(() {
+          _recentFavoritesResults = results;
+        });
+      });
     } else if (_currentPage == 3 && _recentImageResults.isEmpty) {
-      _searchImagePosts(_lastQuery);
-    }
-  }
-
-  Future<void> _searchPosts(String query) async {
-    if (query.isEmpty &&
-        (_selectedCategory == null || _selectedCategory!.isEmpty)) {
-      setState(() {
-        _postSearchResults = [];
+      _searchItem.searchImagePosts(_lastQuery, _selectedCategory, (results) {
+        setState(() {
+          _recentImageResults = results;
+        });
       });
-      return;
     }
-
-    final firestore = FirebaseFirestore.instance;
-
-    // 投稿コレクションのクエリ
-    Query queryRef =
-        firestore.collection('posts').orderBy('created_time', descending: true);
-
-    // カテゴリーが選択されている場合はカテゴリーでフィルタリング
-    if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
-      queryRef = queryRef.where('category', isEqualTo: _selectedCategory);
-    }
-
-    // クエリを使って、候補となるドキュメントを取得
-    final querySnapshot = await queryRef.get();
-
-    // クエリを小文字に変換し、スペースで分割
-    final lowerCaseQuery = query.toLowerCase();
-    final queryWords = lowerCaseQuery.split(' ');
-
-    // 取得したドキュメントに対して、すべての単語が含まれているかをフィルタリング
-    final filteredPosts = querySnapshot.docs.where((doc) {
-      final content = (doc['content'] as String).toLowerCase(); // コンテンツを小文字に変換
-      return queryWords.every((word) => content.contains(word));
-    }).toList();
-
-    setState(() {
-      _postSearchResults = filteredPosts;
-    });
-  }
-
-  Future<void> _searchAccounts(String query) async {
-    if (query.isEmpty) {
-      setState(() {
-        _accountSearchResults = [];
-      });
-      return;
-    }
-
-    final firestore = FirebaseFirestore.instance;
-
-    // クエリを小文字に変換
-    final lowerCaseQuery = query.toLowerCase();
-    final queryWords = lowerCaseQuery.split(' ');
-
-    // 検索結果を格納するリスト
-    final Set<String> uniqueAccountIds = {}; // 重複を防ぐためのセット
-    final List<DocumentSnapshot> allDocs = [];
-
-    // ユーザー名に対するクエリ
-    Query nameQuery = firestore.collection('users');
-    // ユーザーIDに対するクエリ
-    Query userIdQuery = firestore.collection('users');
-
-    for (String word in queryWords) {
-      if (word.isNotEmpty) {
-        nameQuery = nameQuery
-            .where('name', isGreaterThanOrEqualTo: word)
-            .where('name', isLessThanOrEqualTo: word + '\uf8ff');
-        userIdQuery = userIdQuery
-            .where('user_id', isGreaterThanOrEqualTo: word)
-            .where('user_id', isLessThanOrEqualTo: word + '\uf8ff');
-      }
-    }
-
-    // `name`フィールドに対するクエリ
-    final nameQuerySnapshot = await nameQuery.get();
-    // `user_id`フィールドに対するクエリ
-    final userIdQuerySnapshot = await userIdQuery.get();
-
-    // 名前の結果を追加
-    for (var doc in nameQuerySnapshot.docs) {
-      if (uniqueAccountIds.add(doc.id)) {
-        allDocs.add(doc);
-      }
-    }
-
-    // ユーザーIDの結果を追加
-    for (var doc in userIdQuerySnapshot.docs) {
-      if (uniqueAccountIds.add(doc.id)) {
-        allDocs.add(doc);
-      }
-    }
-
-    setState(() {
-      _accountSearchResults = allDocs.map((doc) {
-        return Account.fromDocument(doc);
-      }).toList();
-    });
-  }
-
-  Future<Account?> _getPostAccount(String accountId) async {
-    final firestore = FirebaseFirestore.instance;
-
-    final doc = await firestore.collection('users').doc(accountId).get();
-
-    if (doc.exists) {
-      return Account.fromDocument(doc);
-    } else {
-      return null;
-    }
-  }
-
-  Future<void> _fetchRecentFavorites(String query) async {
-    final firestore = FirebaseFirestore.instance;
-    Query queryRef = firestore.collection('posts');
-
-    // カテゴリーが選択されている場合は、カテゴリーでフィルタリング
-    if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
-      queryRef = queryRef.where('category', isEqualTo: _selectedCategory);
-    }
-
-    try {
-      final querySnapshot = await queryRef.get();
-
-      final List<DocumentSnapshot> postWithFavorites = [];
-
-      // クエリを小文字に変換し、スペースで分割
-      final lowerCaseQuery = query.toLowerCase();
-      final queryWords = lowerCaseQuery.split(' ');
-
-      // 各投稿に対してFutureのリストを作成
-      final futures = querySnapshot.docs.map((doc) async {
-        final postId = doc.id;
-
-        // お気に入りユーザーを取得
-        final favoriteUsersSnapshot = await firestore
-            .collection('posts')
-            .doc(postId)
-            .collection('favorite_users')
-            .where('added_at',
-                isGreaterThanOrEqualTo:
-                    DateTime.now().subtract(Duration(hours: 24)))
-            .get();
-
-        final recentFavoriteCount = favoriteUsersSnapshot.size;
-
-        // 投稿の内容がクエリに含まれているかをチェック
-        final content =
-            (doc['content'] as String).toLowerCase(); // コンテンツを小文字に変換
-        if (query.isNotEmpty &&
-            !queryWords.every((word) => content.contains(word))) {
-          return;
-        }
-
-        // お気に入り数を記録しておく
-        postWithFavorites.add(doc);
-        _postFavoriteCounts[postId] = recentFavoriteCount;
-      });
-
-      // すべてのFutureが完了するのを待つ
-      await Future.wait(futures);
-
-      // お気に入りの数で降順に並べ替え
-      postWithFavorites.sort((a, b) {
-        final countA = _postFavoriteCounts[a.id] ?? 0;
-        final countB = _postFavoriteCounts[b.id] ?? 0;
-        return countB.compareTo(countA);
-      });
-
-      setState(() {
-        _recentFavoritesResults = postWithFavorites;
-      });
-    } catch (error) {
-      // エラーハンドリング
-      print('Error fetching recent favorites: $error');
-    }
-  }
-
-  // 画像を検索するメソッド
-  Future<void> _searchImagePosts(String query) async {
-    if (query.isEmpty &&
-        (_selectedCategory == null || _selectedCategory!.isEmpty)) {
-      setState(() {
-        _postSearchResults = [];
-      });
-      return;
-    }
-
-    final firestore = FirebaseFirestore.instance;
-
-    // 投稿コレクションのクエリ
-    Query queryRef =
-        firestore.collection('posts').orderBy('created_time', descending: true);
-
-    // カテゴリーが選択されている場合はカテゴリーでフィルタリング
-    if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
-      queryRef = queryRef.where('category', isEqualTo: _selectedCategory);
-    }
-
-    // クエリを使って、候補となるドキュメントを取得
-    final querySnapshot = await queryRef.get();
-
-    // クエリを小文字に変換し、スペースで分割
-    final lowerCaseQuery = query.toLowerCase();
-    final queryWords = lowerCaseQuery.split(' ');
-
-    // 取得したドキュメントに対して、文字列に query が含まれているかをフィルタリング
-    final filteredPosts = querySnapshot.docs.where((doc) {
-      final content = (doc['content'] as String).toLowerCase(); // コンテンツを小文字に変換
-      final mediaUrl = doc['media_url'] as List<dynamic>?; // media_urlのフィールド
-
-      // 投稿の内容がすべての単語を含むかつmedia_urlが存在するかをチェック
-      return queryWords.every((word) => content.contains(word)) &&
-          mediaUrl != null &&
-          mediaUrl.isNotEmpty;
-    }).toList();
-
-    setState(() {
-      _recentImageResults = filteredPosts;
-    });
   }
 
   Widget _buildNavigationBar() {
@@ -867,8 +740,20 @@ class _SearchPageState extends State<SearchPage> {
                   onTap: () {
                     setState(() {
                       _selectedCategory = category;
-                      _searchPosts(_lastQuery);
-                      _fetchRecentFavorites(_lastQuery);
+                      _searchItem.searchPosts(
+                          _searchController.text, _selectedCategory, null, 5,
+                          (results) {
+                        setState(() {
+                          _postSearchResults = results;
+                        });
+                      });
+                      _searchItem.fetchRecentFavorites(
+                          _lastQuery, _selectedCategory, _postFavoriteCounts,
+                          (results) {
+                        setState(() {
+                          _recentFavoritesResults = results;
+                        });
+                      });
                       Navigator.of(context).pop();
                     });
                   },

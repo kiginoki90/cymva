@@ -2,9 +2,11 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/utils/follow_service.dart';
 import 'package:cymva/view/account/edit_page/account_options_page.dart';
+import 'package:cymva/view/account/edit_page/custom_link_text.dart';
 import 'package:cymva/view/account/follow_page.dart';
 import 'package:cymva/view/account/follower_page.dart';
 import 'package:cymva/view/admin/admin_page.dart';
+import 'package:cymva/view/post_item/full_screen_image.dart';
 import 'package:cymva/view/post_item/show_account_report_dialog.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:flutter/material.dart';
@@ -436,24 +438,25 @@ class _AccountTopPageState extends State<AccountTopPage> {
               Column(
                 children: [
                   SizedBox(height: 20),
-                  SizedBox(
-                    height: 25,
-                    width: 110,
-                    child: OutlinedButton(
-                      onPressed: () async {
-                        var result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => AccountOptionsPage()));
-                        // if (result == true) {
-                        //   setState(() {
-                        //     myAccount = Authentication.myAccount!;
-                        //   });
-                        // }
-                      },
-                      child: const Text('編集'),
+                  if (postAccount!.admin != 5)
+                    SizedBox(
+                      height: 25,
+                      width: 110,
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          var result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => AccountOptionsPage()));
+                          // if (result == true) {
+                          //   setState(() {
+                          //     myAccount = Authentication.myAccount!;
+                          //   });
+                          // }
+                        },
+                        child: const Icon(Icons.settings),
+                      ),
                     ),
-                  ),
                   SizedBox(height: 20),
                   if (myAccount?.admin == 1)
                     SizedBox(
@@ -537,20 +540,31 @@ class _AccountTopPageState extends State<AccountTopPage> {
           GestureDetector(
             onTap: () {
               Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        AccountPage(postUserId: postAccount!.id)),
-              );
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => FullScreenImagePage(
+                      imageUrls: postAccount?.imagePath != null
+                          ? [postAccount!.imagePath]
+                          : [],
+                      initialIndex: 0,
+                    ),
+                  ));
             },
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8.0),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: postAccount!.admin >= 4
+                      ? Colors.grey
+                      : Colors.transparent,
+                  width: postAccount!.admin >= 4 ? 4.0 : 0.0,
+                ),
+                borderRadius: BorderRadius.circular(8.0),
+              ),
               child: Image.network(
-                postAccount!.imagePath.isNotEmpty == true
-                    ? postAccount!.imagePath
-                    : 'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                width: 70,
-                height: 70,
+                postAccount!.imagePath ??
+                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                width: 50,
+                height: 50,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   // 画像の取得に失敗した場合のエラービルダー
@@ -648,12 +662,11 @@ class _AccountTopPageState extends State<AccountTopPage> {
   Widget _buildSelfIntroduction() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Text(
-        postAccount!.selfIntroduction.isNotEmpty
+      child: CustomLinkText(
+        text: postAccount!.selfIntroduction.isNotEmpty
             ? postAccount!.selfIntroduction
             : '',
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 12, color: Colors.grey),
+        userId: followService.userId!,
       ),
     );
   }

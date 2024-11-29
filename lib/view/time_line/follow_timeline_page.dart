@@ -23,9 +23,13 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
   final FavoritePost _favoritePost = FavoritePost();
   String? loginUserId;
   final FlutterSecureStorage storage = FlutterSecureStorage();
-  late Future<Map<String, Account?>> _accountsFuture;
-  late Future<List<QueryDocumentSnapshot>> _followedPostsFuture =
-      Future.value([]);
+  List<QueryDocumentSnapshot> _followedPosts = [];
+  List<QueryDocumentSnapshot> _currentPosts = [];
+  Map<String, Account?> _accounts = {};
+  bool _hasMore = true;
+  bool _isLoading = false;
+  DocumentSnapshot? _lastDocument;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -38,14 +42,54 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
   Future<void> _loadLoginUserId() async {
     loginUserId = await storage.read(key: 'account_id');
     if (loginUserId != null) {
+      _fetchInitialPosts();
+    }
+  }
+
+  Future<void> _fetchInitialPosts() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final posts = await _fetchFollowedPosts();
+    final accountIds = posts
+        .map((doc) => Post.fromDocument(doc).postAccountId)
+        .toSet()
+        .toList();
+    final accounts = await _fetchAccounts(accountIds);
+
+    setState(() {
+      _followedPosts = posts;
+      _accounts = accounts;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _fetchMorePosts() async {
+    if (_isLoading || !_hasMore) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final posts = await _fetchFollowedPosts();
+    if (posts.isNotEmpty) {
+      final accountIds = posts
+          .map((doc) => Post.fromDocument(doc).postAccountId)
+          .toSet()
+          .toList();
+      final accounts = await _fetchAccounts(accountIds);
+
       setState(() {
-        _followedPostsFuture = _fetchFollowedPosts();
-        _accountsFuture = _fetchAccountsForFollowedPosts();
+        _followedPosts.addAll(posts);
+        _accounts.addAll(accounts);
+        _lastDocument = posts.last;
+        _isLoading = false;
       });
     } else {
-      // loginUserIdがnullの場合は空のFutureを設定
       setState(() {
-        _followedPostsFuture = Future.value([]);
+        _hasMore = false;
+        _isLoading = false;
       });
     }
   }
@@ -57,14 +101,12 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
         .collection('blockUsers')
         .get();
 
-    // ブロックされたアカウントのparentsIdをリストに変換して返す
     return snapshot.docs
         .map((doc) => doc['blocked_user_id'] as String)
         .toList();
   }
 
   Future<List<QueryDocumentSnapshot>> _fetchFollowedPosts() async {
-    // フォローしているユーザーのIDリストを取得
     final followSnapshot = await FirebaseFirestore.instance
         .collection('users')
         .doc(widget.userId)
@@ -74,10 +116,8 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
     List<String> followedUserIds =
         followSnapshot.docs.map((doc) => doc.id).toList();
 
-    // フォローしているユーザーがいない場合は空のリストを返す
     if (followedUserIds.isEmpty) return [];
 
-    // ブロックしたユーザーのIDリストを取得
     final blockSnapshot = await FirebaseFirestore.instance
         .collection('users')
         .doc(widget.userId)
@@ -88,30 +128,33 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
         .map((doc) => doc['blocked_user_id'] as String)
         .toList();
 
-    // フォローしているユーザーのIDリストからブロックしたユーザーのIDを削除
     followedUserIds.removeWhere((userId) => blockedUserIds.contains(userId));
 
-    // フォローしているユーザーの投稿を取得し、created_timeで降順にソート
     if (followedUserIds.isEmpty) return [];
 
-    final postSnapshot = await FirebaseFirestore.instance
+    Query query = FirebaseFirestore.instance
         .collection('posts')
         .where('post_account_id', whereIn: followedUserIds)
         .where('hide', isEqualTo: false)
-        .orderBy('created_time', descending: true) // ここで降順にソート
-        .get();
+        .orderBy('created_time', descending: true)
+        .limit(30);
 
+    if (_lastDocument != null) {
+      query = query.startAfterDocument(_lastDocument!);
+    }
+
+    final postSnapshot = await query.get();
     return postSnapshot.docs;
   }
 
-  Future<Map<String, Account?>> _fetchAccountsForFollowedPosts() async {
-    final posts = await _fetchFollowedPosts();
-    final accountIds = posts
-        .map((doc) => Post.fromDocument(doc).postAccountId)
-        .toSet()
-        .toList();
-    return await _fetchAccounts(accountIds);
-  }
+  // Future<Map<String, Account?>> _fetchAccountsForFollowedPosts() async {
+  //   final posts = await _fetchFollowedPosts();
+  //   final accountIds = posts
+  //       .map((doc) => Post.fromDocument(doc).postAccountId)
+  //       .toSet()
+  //       .toList();
+  //   return await _fetchAccounts(accountIds);
+  // }
 
   Future<Map<String, Account?>> _fetchAccounts(List<String> accountIds) async {
     final Map<String, Account?> accounts = {};
@@ -135,11 +178,12 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
 
   Future<void> _refreshPosts() async {
     setState(() {
-      // リフレッシュ時にフォロー投稿を再取得
-      _followedPostsFuture = _fetchFollowedPosts();
-      _accountsFuture = _fetchAccountsForFollowedPosts(); // アカウント情報も再取得
+      _followedPosts = [];
+      _accounts = {};
+      _lastDocument = null;
+      _hasMore = true;
     });
-    await Future.delayed(const Duration(seconds: 1));
+    await _fetchInitialPosts();
   }
 
   @override
@@ -147,80 +191,49 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: _refreshPosts,
-        child: FutureBuilder<List<QueryDocumentSnapshot>>(
-          future: _followedPostsFuture,
-          builder: (context, postSnapshot) {
-            if (postSnapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (postSnapshot.hasError) {
-              return const Center(child: Text('データの取得に失敗しました'));
-            }
-
-            if (postSnapshot.hasData && postSnapshot.data!.isNotEmpty) {
-              return FutureBuilder<Map<String, Account?>>(
-                future: _accountsFuture,
-                builder: (context, accountSnapshot) {
-                  if (accountSnapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+        child: _followedPosts.isEmpty
+            ? const Center(child: Text("まだ投稿がありません"))
+            : ListView.builder(
+                controller: _scrollController,
+                itemCount: _followedPosts.length + 1,
+                itemBuilder: (context, int index) {
+                  if (index == _followedPosts.length) {
+                    return _hasMore
+                        ? TextButton(
+                            onPressed: _fetchMorePosts,
+                            child: const Text("もっと読み込む"),
+                          )
+                        : const Center(child: Text("結果は以上です"));
                   }
 
-                  if (accountSnapshot.hasError) {
-                    return const Center(child: Text('アカウント情報の取得に失敗しました'));
-                  }
+                  final postDoc = _followedPosts[index];
+                  final post = Post.fromDocument(postDoc);
+                  final postAccount = _accounts[post.postAccountId];
 
-                  final accounts = accountSnapshot.data ?? {};
+                  _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                      ValueNotifier<int>(0);
+                  _favoritePost.updateFavoriteUsersCount(post.id);
 
-                  // フィルタリングされた投稿リスト
-                  final visiblePosts = postSnapshot.data!.where((doc) {
-                    Post post = Post.fromDocument(doc);
-                    return accounts
-                        .containsKey(post.postAccountId); // アカウント情報が存在するかチェック
-                  }).toList();
-
-                  if (visiblePosts.isEmpty) {
-                    return const Center(child: Text('アカウント情報が見つかりません'));
-                  }
-
-                  return ListView.builder(
-                    itemCount: visiblePosts.length,
-                    itemBuilder: (context, index) {
-                      Post post = Post.fromDocument(visiblePosts[index]);
-                      Account? postAccount = accounts[post.postAccountId];
-
-                      _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      _favoritePost.updateFavoriteUsersCount(post.id);
-
-                      return PostItemWidget(
-                        post: post,
-                        postAccount: postAccount!,
-                        favoriteUsersNotifier:
-                            _favoritePost.favoriteUsersNotifiers[post.id]!,
-                        isFavoriteNotifier: ValueNotifier<bool>(
-                          _favoritePost.favoritePostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        onFavoriteToggle: () => _favoritePost.toggleFavorite(
-                          post.id,
-                          _favoritePost.favoritePostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        // isRetweetedNotifier: ValueNotifier<bool>(false),
-                        replyFlag: ValueNotifier<bool>(false),
-                        userId: widget.userId,
-                      );
-                    },
+                  return PostItemWidget(
+                    key: PageStorageKey(post.id),
+                    post: post,
+                    postAccount: postAccount!,
+                    favoriteUsersNotifier:
+                        _favoritePost.favoriteUsersNotifiers[post.id]!,
+                    isFavoriteNotifier: ValueNotifier<bool>(
+                      _favoritePost.favoritePostsNotifier.value
+                          .contains(post.id),
+                    ),
+                    onFavoriteToggle: () => _favoritePost.toggleFavorite(
+                      post.id,
+                      _favoritePost.favoritePostsNotifier.value
+                          .contains(post.id),
+                    ),
+                    replyFlag: ValueNotifier<bool>(false),
+                    userId: widget.userId,
                   );
                 },
-              );
-            } else {
-              return const Center(child: Text('投稿がありません'));
-            }
-          },
-        ),
+              ),
       ),
     );
   }

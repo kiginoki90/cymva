@@ -14,6 +14,7 @@ class Post {
   bool hide;
   bool clip;
   Timestamp? clipTime;
+  DocumentSnapshot? documentSnapshot;
 
   Post({
     this.id = '',
@@ -29,6 +30,7 @@ class Post {
     this.hide = false,
     this.clip = false,
     this.clipTime,
+    this.documentSnapshot,
   });
 
   Map<String, dynamic> toMap() {
@@ -67,12 +69,15 @@ class Post {
       hide: data.containsKey('hide') ? data['hide'] as bool : false,
       clip: data.containsKey('clip') ? data['clip'] as bool : false,
       clipTime: data['clip_time'] as Timestamp?,
+      documentSnapshot: doc,
     );
   }
 
   // Create a Post from a Map
-  factory Post.fromMap(Map<String, dynamic> data) {
+  factory Post.fromMap(Map<String, dynamic> data,
+      {DocumentSnapshot? documentSnapshot}) {
     return Post(
+      id: documentSnapshot?.id ?? '',
       content: data['content'] ?? '',
       postAccountId: data['post_account_id'] ?? '',
       createdTime: data['created_time'] as Timestamp?,
@@ -85,6 +90,7 @@ class Post {
       hide: data.containsKey('hide') ? data['hide'] as bool : false,
       clip: data.containsKey('clip') ? data['clip'] as bool : false,
       clipTime: data['clip_time'] as Timestamp?,
+      documentSnapshot: documentSnapshot,
     );
   }
 }

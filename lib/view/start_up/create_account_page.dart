@@ -26,6 +26,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
   String? errorMessage; // エラーメッセージを保持するための変数
   int selfIntroCharCount = 0; // 自己紹介の現在の文字数
   int nameCharCount = 0;
+  String? userIdErrorMessage; // ユーザーIDのエラーメッセージを保持するための変数
 
   @override
   void initState() {
@@ -49,6 +50,12 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
     return result == null; // 結果がnullならそのuser_idはユニーク
   }
 
+  // ユーザーIDの検証
+  bool isValidUserId(String userId) {
+    final validCharacters = RegExp(r'^[a-zA-Z0-9!@#\$&*~]+$');
+    return validCharacters.hasMatch(userId);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,14 +66,6 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
           child: Column(
             children: [
               SizedBox(height: 30),
-              // Container(
-              //   width: 300,
-              //   child: TextField(
-              //     controller: nameController,
-              //     decoration: const InputDecoration(hintText: '名前'),
-              //     maxLength: 30,
-              //   ),
-              // ),
               _buildNameField(),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 20.0),
@@ -74,8 +73,20 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                   width: 300,
                   child: TextField(
                     controller: userIdController,
-                    decoration: InputDecoration(hintText: 'ユーザーID'),
+                    decoration: InputDecoration(
+                      hintText: 'ユーザーID',
+                      errorText: userIdErrorMessage,
+                    ),
                     maxLength: 30,
+                    onChanged: (value) {
+                      setState(() {
+                        if (isValidUserId(value)) {
+                          userIdErrorMessage = null;
+                        } else {
+                          userIdErrorMessage = 'ユーザーIDは英数字と記号のみ使用できます';
+                        }
+                      });
+                    },
                   ),
                 ),
               ),
@@ -112,61 +123,69 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       selfIntroductionController.text.isNotEmpty &&
                       emailController.text.isNotEmpty &&
                       passController.text.isNotEmpty) {
-                    bool isUnique = await isUserIdUnique(userIdController.text);
-                    if (isUnique) {
-                      try {
-                        var result = await Authentication.signUp(
-                            email: emailController.text,
-                            pass: passController.text);
-                        if (result is UserCredential) {
-                          Account newAccount = Account(
-                            id: result.user!.uid,
-                            name: nameController.text,
-                            userId: userIdController.text,
-                            selfIntroduction: selfIntroductionController.text,
-                            imagePath: '',
-                          );
-                          var _result = await UserFirestore.setUser(newAccount);
-                          if (_result == true) {
-                            result.user!.sendEmailVerification();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => CheckEmailPage(
-                                    email: emailController.text,
-                                    pass: passController.text),
-                              ),
+                    if (userIdErrorMessage == null) {
+                      bool isUnique =
+                          await isUserIdUnique(userIdController.text);
+                      if (isUnique) {
+                        try {
+                          var result = await Authentication.signUp(
+                              email: emailController.text,
+                              pass: passController.text);
+                          if (result is UserCredential) {
+                            Account newAccount = Account(
+                              id: result.user!.uid,
+                              name: nameController.text,
+                              userId: userIdController.text,
+                              selfIntroduction: selfIntroductionController.text,
+                              imagePath: '',
                             );
+                            var _result =
+                                await UserFirestore.setUser(newAccount);
+                            if (_result == true) {
+                              result.user!.sendEmailVerification();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => CheckEmailPage(
+                                      email: emailController.text,
+                                      pass: passController.text),
+                                ),
+                              );
+                            }
                           }
+                        } on FirebaseAuthException catch (e) {
+                          // FirebaseAuthExceptionのエラーメッセージをハンドリング
+                          if (e.code == 'email-already-in-use') {
+                            setState(() {
+                              errorMessage = 'このメールアドレスは既に使用されています';
+                            });
+                          } else if (e.code == 'weak-password') {
+                            setState(() {
+                              errorMessage = 'パスワードは6文字以上で入力してください';
+                            });
+                          } else if (e.code == 'invalid-email') {
+                            setState(() {
+                              errorMessage = '無効なメールアドレスです';
+                            });
+                          } else {
+                            setState(() {
+                              errorMessage = 'アカウント作成に失敗しました: ${e.message}';
+                            });
+                          }
+                        } catch (e) {
+                          // その他のエラーハンドリング
+                          setState(() {
+                            errorMessage = 'アカウント作成に失敗しました: ${e.toString()}';
+                          });
                         }
-                      } on FirebaseAuthException catch (e) {
-                        // FirebaseAuthExceptionのエラーメッセージをハンドリング
-                        if (e.code == 'email-already-in-use') {
-                          setState(() {
-                            errorMessage = 'このメールアドレスは既に使用されています';
-                          });
-                        } else if (e.code == 'weak-password') {
-                          setState(() {
-                            errorMessage = 'パスワードは6文字以上で入力してください';
-                          });
-                        } else if (e.code == 'invalid-email') {
-                          setState(() {
-                            errorMessage = '無効なメールアドレスです';
-                          });
-                        } else {
-                          setState(() {
-                            errorMessage = 'アカウント作成に失敗しました: ${e.message}';
-                          });
-                        }
-                      } catch (e) {
-                        // その他のエラーハンドリング
+                      } else {
                         setState(() {
-                          errorMessage = 'アカウント作成に失敗しました: ${e.toString()}';
+                          errorMessage = 'そのユーザーIDは既に使われています';
                         });
                       }
                     } else {
                       setState(() {
-                        errorMessage = 'そのユーザーIDは既に使われています';
+                        errorMessage = 'ユーザーIDに無効な文字が含まれています';
                       });
                     }
                   } else {
@@ -184,7 +203,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
     );
   }
 
-  // 自己紹介フィールド
+  // 名前フィールド
   Widget _buildNameField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

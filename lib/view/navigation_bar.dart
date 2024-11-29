@@ -84,25 +84,35 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
             final lastTokenString =
                 await storage.read(key: 'passwordChangeToken');
 
-            if (lastTokenString == "null") {
-              _logoutIfPasswordChanged();
-            }
-
             // lastTokenStringがnullまたは空の場合はnullとして扱う
-            final lastToken = (lastTokenString?.isNotEmpty ?? false)
+            final lastToken = (lastTokenString != null &&
+                    lastTokenString != "null" &&
+                    lastTokenString.isNotEmpty)
                 ? Timestamp.fromMillisecondsSinceEpoch(
-                    int.parse(lastTokenString!))
+                    int.parse(lastTokenString))
                 : null;
 
             // Firestoreのトークンとローカルストレージのトークンを比較
             if (currentToken != null &&
-                (lastToken == null || currentToken != lastToken)) {
+                (lastTokenString == null ||
+                    currentToken.millisecondsSinceEpoch.toString() !=
+                        lastTokenString)) {
               // ローカルストレージに新しいトークンを保存
               await storage.write(
                 key: 'passwordChangeToken',
                 value: currentToken.millisecondsSinceEpoch.toString(),
               );
 
+              final newTokenString =
+                  await storage.read(key: 'passwordChangeToken');
+
+              if (newTokenString != null &&
+                  newTokenString ==
+                      currentToken.millisecondsSinceEpoch.toString()) {
+                print('トークンが正しく保存されました: $newTokenString');
+              } else {
+                print('トークンの保存に失敗しました');
+              }
               // ログアウト処理を呼び出す
               _logoutIfPasswordChanged();
             } else if (lastToken == null) {

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/view/admin/admin_natification_page.dart';
 import 'package:cymva/view/admin/hidden_post_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
@@ -34,6 +35,15 @@ class _AdminPageState extends State<AdminPage> {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => HiddenPostsPage()),
+            );
+          },
+        ),
+        IconButton(
+          icon: Icon(Icons.mail),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => AdminNotificationPage()),
             );
           },
         ),

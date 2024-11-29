@@ -1,13 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cymva/utils/firestore/users.dart';
+import 'viewModel.dart';
 
-class TimeLinePage extends StatefulWidget {
+class TimeLinePage extends ConsumerStatefulWidget {
   final String userId;
   const TimeLinePage({
     super.key,
@@ -15,137 +17,82 @@ class TimeLinePage extends StatefulWidget {
   });
 
   @override
-  State<TimeLinePage> createState() => _TimeLineState();
+  _TimeLinePageState createState() => _TimeLinePageState();
 }
 
-class _TimeLineState extends State<TimeLinePage> {
-  late Future<List<String>>? _favoritePostsFuture;
-  late Future<List<String>>? _blockedAccountsFuture;
-  final FavoritePost _favoritePost = FavoritePost();
-
-  Future<List<QueryDocumentSnapshot>> _fetchPosts() async {
-    final querySnapshot = await PostFirestore.posts
-        .orderBy('created_time', descending: true)
-        .get();
-    return querySnapshot.docs;
-  }
-
-  Future<void> _refreshPosts() async {
-    setState(() {});
-    await Future.delayed(const Duration(seconds: 1));
-  }
-
-  Future<List<String>> _fetchBlockedAccounts(String userId) async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('blockUsers')
-        .get();
-
-    // ブロックされたアカウントのparentsIdをリストに変換して返す
-    return snapshot.docs
-        .map((doc) => doc['blocked_user_id'] as String)
-        .toList();
-  }
+class _TimeLinePageState extends ConsumerState<TimeLinePage> {
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _favoritePostsFuture = _favoritePost.getFavoritePosts();
-    _blockedAccountsFuture = _fetchBlockedAccounts(widget.userId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(viewModelProvider).getPosts(widget.userId);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final model = ref.watch(viewModelProvider);
+    final _favoritePost = FavoritePost();
+
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: _refreshPosts,
-        child: FutureBuilder<List<QueryDocumentSnapshot>>(
-          future: _fetchPosts(),
-          builder: (context, postSnapshot) {
-            if (postSnapshot.hasData) {
-              List<String> postAccountIds = [];
-              postSnapshot.data!.forEach((doc) {
-                Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-                if (!postAccountIds.contains(data['post_account_id'])) {
-                  postAccountIds.add(data['post_account_id']);
-                }
-              });
-
-              return FutureBuilder<Map<String, Account>?>(
-                future: UserFirestore.getPostUserMap(postAccountIds),
-                builder: (context, userSnapshot) {
-                  if (userSnapshot.hasData &&
-                      userSnapshot.connectionState == ConnectionState.done) {
-                    return FutureBuilder<List<String>>(
-                      future: _blockedAccountsFuture, // ブロックされたアカウントの取得
-                      builder: (context, blockedSnapshot) {
-                        if (blockedSnapshot.connectionState ==
-                                ConnectionState.done &&
-                            blockedSnapshot.hasData) {
-                          List<String> blockedAccounts = blockedSnapshot.data!;
-
-                          List<Post> visiblePosts = postSnapshot.data!
-                              .map((doc) => Post.fromDocument(doc))
-                              .where((post) {
-                            Account postAccount =
-                                userSnapshot.data![post.postAccountId]!;
-
-                            // アカウントが鍵アカウントまたはブロックされているか、または reply が null でないかをチェック
-                            return !(postAccount.lockAccount ||
-                                blockedAccounts.contains(postAccount.id) ||
-                                post.reply != null ||
-                                post.hide);
-                          }).toList();
-
-                          return ListView.builder(
-                            itemCount: visiblePosts.length,
-                            itemBuilder: (context, index) {
-                              Post post = visiblePosts[index];
-                              Account postAccount =
-                                  userSnapshot.data![post.postAccountId]!;
-
-                              _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                                  ValueNotifier<int>(0);
-                              _favoritePost.updateFavoriteUsersCount(post.id);
-
-                              return PostItemWidget(
-                                post: post,
-                                postAccount: postAccount,
-                                favoriteUsersNotifier: _favoritePost
-                                    .favoriteUsersNotifiers[post.id]!,
-                                isFavoriteNotifier: ValueNotifier<bool>(
-                                  _favoritePost.favoritePostsNotifier.value
-                                      .contains(post.id),
-                                ),
-                                onFavoriteToggle: () =>
-                                    _favoritePost.toggleFavorite(
-                                  post.id,
-                                  _favoritePost.favoritePostsNotifier.value
-                                      .contains(post.id),
-                                ),
-                                // isRetweetedNotifier: isRetweetedNotifier,
-                                replyFlag: ValueNotifier<bool>(false),
-                                userId: widget.userId,
-                              );
+        onRefresh: () => model.getPosts(widget.userId),
+        child: model.stackedPostList.isEmpty
+            ? const Center(child: Text("まだ投稿がありません"))
+            : ListView.builder(
+                controller: _scrollController,
+                itemCount: model.stackedPostList.length + 1,
+                itemBuilder: (context, int index) {
+                  if (index == model.stackedPostList.length) {
+                    return model.currentPostList.isNotEmpty
+                        ? TextButton(
+                            onPressed: () async {
+                              final currentScrollPosition =
+                                  _scrollController.position.pixels;
+                              await model.getPostsNext(widget.userId);
+                              _scrollController.jumpTo(currentScrollPosition);
                             },
-                          );
-                        } else {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-                      },
-                    );
-                  } else {
-                    return const Center(child: CircularProgressIndicator());
+                            child: const Text("もっと読み込む"),
+                          )
+                        : const Center(child: Text("結果は以上です"));
                   }
+
+                  if (index >= model.stackedPostList.length) {
+                    return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+                  }
+
+                  final postDoc = model.stackedPostList[index];
+                  final post = Post.fromDocument(postDoc);
+                  final postAccount = model.postUserMap[post.postAccountId];
+
+                  if (postAccount == null || postAccount.lockAccount) {
+                    return Container(); // lockAccountがtrueの場合は表示をスキップ
+                  }
+
+                  _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                      ValueNotifier<int>(0);
+                  _favoritePost.updateFavoriteUsersCount(post.id);
+
+                  return PostItemWidget(
+                    key: PageStorageKey(post.id),
+                    post: post,
+                    postAccount: postAccount,
+                    favoriteUsersNotifier:
+                        _favoritePost.favoriteUsersNotifiers[post.id]!,
+                    isFavoriteNotifier: ValueNotifier<bool>(
+                      model.favoritePosts.contains(post.id),
+                    ),
+                    onFavoriteToggle: () => _favoritePost.toggleFavorite(
+                      post.id,
+                      model.favoritePosts.contains(post.id),
+                    ),
+                    replyFlag: ValueNotifier<bool>(false),
+                    userId: widget.userId,
+                  );
                 },
-              );
-            } else {
-              return const Center(child: CircularProgressIndicator());
-            }
-          },
-        ),
+              ),
       ),
     );
   }

@@ -71,8 +71,12 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'アカウントを削除するにはパスワードを入力してください。',
-              style: TextStyle(fontSize: 16),
+              'メールアドレスに紐づいた全てのアカウントが消えます。',
+              style: TextStyle(fontSize: 13),
+            ),
+            const Text(
+              'それでもアカウントを削除するにはパスワードを入力してください。',
+              style: TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 16),
             TextField(

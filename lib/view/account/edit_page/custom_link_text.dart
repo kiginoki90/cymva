@@ -1,16 +1,15 @@
-import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/account/edit_page/account_top_page.dart';
-import 'package:cymva/view/search/search_page.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/view/search/search_page.dart';
 
-class LinkText extends StatelessWidget {
+class CustomLinkText extends StatelessWidget {
   final String text;
   final String userId;
 
-  LinkText({required this.text, required this.userId});
+  CustomLinkText({required this.text, required this.userId});
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +21,6 @@ class LinkText extends StatelessWidget {
     final List<InlineSpan> children = [];
     int start = 0;
 
-    // Handle URLs first
     for (final match in matches) {
       if (match.start > start) {
         children.addAll(_processTextWithHashtagsAndMentions(
@@ -38,7 +36,7 @@ class LinkText extends StatelessWidget {
       children.add(TextSpan(
         text: urlString,
         style: const TextStyle(
-          fontSize: 18,
+          fontSize: 12,
           color: Colors.blue,
           decoration: TextDecoration.underline,
         ),
@@ -63,7 +61,7 @@ class LinkText extends StatelessWidget {
     return RichText(
       text: TextSpan(
         children: children,
-        style: DefaultTextStyle.of(context).style,
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
       ),
     );
   }
@@ -83,7 +81,7 @@ class LinkText extends StatelessWidget {
       if (match.start > textStart) {
         spans.add(TextSpan(
           text: inputText.substring(textStart, match.start),
-          style: const TextStyle(fontSize: 18),
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
         ));
       }
 
@@ -92,7 +90,7 @@ class LinkText extends StatelessWidget {
         spans.add(TextSpan(
           text: matchedText,
           style: const TextStyle(
-            fontSize: 18,
+            fontSize: 12,
             color: Colors.blue,
           ),
           recognizer: TapGestureRecognizer()
@@ -112,7 +110,7 @@ class LinkText extends StatelessWidget {
         spans.add(TextSpan(
           text: matchedText,
           style: const TextStyle(
-            fontSize: 18,
+            fontSize: 12,
             color: Colors.blue,
           ),
           recognizer: TapGestureRecognizer()
@@ -128,8 +126,9 @@ class LinkText extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => AccountPage(
-                      postUserId: postAccountId,
+                    builder: (context) => AccountTopPage(
+                      postAccountId: postAccountId,
+                      userId: this.userId,
                     ),
                   ),
                 );
@@ -144,7 +143,7 @@ class LinkText extends StatelessWidget {
     if (textStart < inputText.length) {
       spans.add(TextSpan(
         text: inputText.substring(textStart),
-        style: const TextStyle(fontSize: 18),
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
       ));
     }
 

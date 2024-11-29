@@ -12,6 +12,7 @@ class ShowAccountReportDialog extends StatefulWidget {
 }
 
 enum AccountReportReason {
+  human('人間'),
   inappropriate('不適切な内容'),
   spam('スパム'),
   fake('なりすまし'),

@@ -118,7 +118,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
               future: _isVideo(mediaUrl),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return _buildPlaceholder(context);
                 } else if (snapshot.hasError) {
                   return const Text('Error loading media');
                 } else {
@@ -252,9 +252,19 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
           }
         } else {
           // 画像が読み込まれていない場合の表示
-          return Center(child: CircularProgressIndicator());
+          return _buildPlaceholder(context);
         }
       },
+    );
+  }
+
+  // プレースホルダーを表示するウィジェット
+  Widget _buildPlaceholder(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    return Container(
+      width: screenWidth,
+      height: screenWidth,
+      color: Colors.grey[300],
     );
   }
 
@@ -273,7 +283,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
   Widget _buildSingleVideo(BuildContext context, String mediaUrl) {
     final controller = _videoControllers[mediaUrl];
     if (controller == null || !controller.value.isInitialized) {
-      return const Center(child: CircularProgressIndicator());
+      return _buildPlaceholder(context);
     }
 
     return GestureDetector(
@@ -308,16 +318,20 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
         child: Container(
           width: double.infinity,
           height: MediaQuery.of(context).size.width,
-          child: ClipRect(
-            child: Align(
-              alignment: Alignment.center,
-              widthFactor: 1.0,
-              heightFactor: 1.0,
-              child: AspectRatio(
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              AspectRatio(
                 aspectRatio: controller.value.aspectRatio, // 動画のアスペクト比に合わせる
                 child: VideoPlayer(controller),
               ),
-            ),
+              if (!controller.value.isPlaying)
+                Icon(
+                  Icons.pause_circle_filled,
+                  color: Colors.white,
+                  size: 64,
+                ),
+            ],
           ),
         ),
       ),
@@ -339,7 +353,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
           future: _isVideo(mediaUrl),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return _buildPlaceholder(context);
             } else if (snapshot.hasError) {
               return const Text('Error loading media');
             } else {
@@ -445,6 +459,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     });
   }
 
+//動画の表示画面
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -525,12 +540,22 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ],
                 );
               } else {
-                return const Center(child: CircularProgressIndicator());
+                return _buildPlaceholder(context);
               }
             },
           ),
         ),
       ),
+    );
+  }
+
+  // プレースホルダーを表示するウィジェット
+  Widget _buildPlaceholder(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    return Container(
+      width: screenWidth,
+      height: screenWidth,
+      color: Colors.white,
     );
   }
 }

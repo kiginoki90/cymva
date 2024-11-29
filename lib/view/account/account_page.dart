@@ -224,7 +224,7 @@ class _AccountPageState extends State<AccountPage> {
                             children: [
                               PostList(
                                   postAccount: postAccount!,
-                                  myAccount: myAccount!),
+                                  myAccount: myAccount),
                               ImagePostList(myAccount: postAccount!),
                               FavoriteList(myAccount: postAccount!)
                             ],
