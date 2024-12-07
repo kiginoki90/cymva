@@ -5,10 +5,9 @@ import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/utils/favorite_post.dart';
-import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cymva/utils/firestore/users.dart';
-import 'viewModel.dart';
 
+// TimeLinePage クラス
 class TimeLinePage extends ConsumerStatefulWidget {
   final String userId;
   const TimeLinePage({
@@ -22,19 +21,21 @@ class TimeLinePage extends ConsumerStatefulWidget {
 
 class _TimeLinePageState extends ConsumerState<TimeLinePage> {
   final ScrollController _scrollController = ScrollController();
+  late Future<List<String>>? _favoritePostsFuture;
+  final FavoritePost _favoritePost = FavoritePost();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(viewModelProvider).getPosts(widget.userId);
+    _favoritePostsFuture = _favoritePost.getFavoritePosts();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(viewModelProvider).getPosts(widget.userId);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final model = ref.watch(viewModelProvider);
-    final _favoritePost = FavoritePost();
 
     return Scaffold(
       body: RefreshIndicator(
@@ -67,8 +68,11 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
                   final post = Post.fromDocument(postDoc);
                   final postAccount = model.postUserMap[post.postAccountId];
 
-                  if (postAccount == null || postAccount.lockAccount) {
-                    return Container(); // lockAccountがtrueの場合は表示をスキップ
+                  // blockedUserIds に postAccount.id が含まれている場合は表示をスキップ
+                  if (postAccount == null ||
+                      postAccount.lockAccount ||
+                      model.blockedAccounts.contains(postAccount.id)) {
+                    return Container();
                   }
 
                   _favoritePost.favoriteUsersNotifiers[post.id] ??=
@@ -82,11 +86,13 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
                     favoriteUsersNotifier:
                         _favoritePost.favoriteUsersNotifiers[post.id]!,
                     isFavoriteNotifier: ValueNotifier<bool>(
-                      model.favoritePosts.contains(post.id),
+                      _favoritePost.favoritePostsNotifier.value
+                          .contains(post.id),
                     ),
                     onFavoriteToggle: () => _favoritePost.toggleFavorite(
                       post.id,
-                      model.favoritePosts.contains(post.id),
+                      _favoritePost.favoritePostsNotifier.value
+                          .contains(post.id),
                     ),
                     replyFlag: ValueNotifier<bool>(false),
                     userId: widget.userId,
@@ -97,3 +103,124 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
     );
   }
 }
+
+// DbManager クラス
+class DbManager {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  DocumentSnapshot? _lastDocument;
+
+  Future<List<QueryDocumentSnapshot>> getPosts() async {
+    Query query = _firestore
+        .collection('posts')
+        .orderBy('created_time', descending: true)
+        .limit(50);
+    final querySnapshot = await query.get();
+    if (querySnapshot.docs.isNotEmpty) {
+      _lastDocument = querySnapshot.docs.last;
+    }
+    return querySnapshot.docs;
+  }
+
+  Future<List<QueryDocumentSnapshot>> getPostsNext() async {
+    if (_lastDocument == null) return [];
+
+    Query query = _firestore
+        .collection('posts')
+        .orderBy('created_time', descending: true)
+        .startAfterDocument(_lastDocument!)
+        .limit(50);
+    final querySnapshot = await query.get();
+    if (querySnapshot.docs.isNotEmpty) {
+      _lastDocument = querySnapshot.docs.last;
+    }
+    return querySnapshot.docs;
+  }
+
+  Future<List<String>> getFavoritePosts(String userId) async {
+    final snapshot = await _firestore
+        .collection('favorites')
+        .doc(userId)
+        .collection('posts')
+        .get();
+
+    return snapshot.docs.map((doc) => doc['post_id'] as String).toList();
+  }
+
+  Future<List<String>> fetchBlockedAccounts(String userId) async {
+    // blockUsers コレクションから blocked_user_id を取得
+    final blockUsersSnapshot = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('blockUsers')
+        .get();
+
+    List<String> blockedUserIds = blockUsersSnapshot.docs
+        .map((doc) => doc['blocked_user_id'] as String)
+        .toList();
+
+    // block ドキュメントから blocked_user_id を取得
+    final blockDocSnapshot = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('block')
+        .get();
+
+    List<String> blockDocUserIds = blockDocSnapshot.docs
+        .map((doc) => doc['blocked_user_id'] as String)
+        .toList();
+
+    // 両方のリストを結合して返す
+    blockedUserIds.addAll(blockDocUserIds);
+    return blockedUserIds;
+  }
+}
+
+// ViewModel クラス
+final viewModelProvider =
+    ChangeNotifierProvider<ViewModel>((ref) => ViewModel(ref));
+
+class ViewModel extends ChangeNotifier {
+  ViewModel(this.ref);
+
+  final Ref ref;
+  List<QueryDocumentSnapshot> stackedPostList = [];
+  List<QueryDocumentSnapshot> currentPostList = [];
+  List<String> favoritePosts = [];
+  List<String> blockedAccounts = [];
+  Map<String, Account> postUserMap = {};
+
+  Future<void> getPosts(String userId) async {
+    stackedPostList = [];
+    currentPostList = await ref.read(dbManagerProvider).getPosts();
+    favoritePosts = await ref.read(dbManagerProvider).getFavoritePosts(userId);
+    blockedAccounts =
+        await ref.read(dbManagerProvider).fetchBlockedAccounts(userId);
+    stackedPostList.addAll(currentPostList);
+    postUserMap = await UserFirestore.getPostUserMap(
+          stackedPostList
+              .map((doc) => (doc.data()
+                  as Map<String, dynamic>)['post_account_id'] as String)
+              .toList(),
+        ) ??
+        {};
+    notifyListeners();
+  }
+
+  Future<void> getPostsNext(String userId) async {
+    currentPostList = await ref.read(dbManagerProvider).getPostsNext();
+    if (currentPostList.isNotEmpty) {
+      stackedPostList.addAll(currentPostList);
+      final newPostUserMap = await UserFirestore.getPostUserMap(
+            currentPostList
+                .map((doc) => (doc.data()
+                    as Map<String, dynamic>)['post_account_id'] as String)
+                .toList(),
+          ) ??
+          {};
+      postUserMap.addAll(newPostUserMap);
+    }
+    notifyListeners();
+  }
+}
+
+final dbManagerProvider = Provider((ref) => DbManager());

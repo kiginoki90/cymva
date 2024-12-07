@@ -27,11 +27,19 @@ class _RepostPageState extends State<RepostPage> {
   final picker = ImagePicker();
   final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
+  int _currentTextLength = 0;
 
   @override
   void initState() {
     super.initState();
     _fetchPostAccountInfo();
+    _retweetController.addListener(_updateTextLength);
+  }
+
+  void _updateTextLength() {
+    setState(() {
+      _currentTextLength = _retweetController.text.length;
+    });
   }
 
   Future<void> _pickMedia() async {
@@ -67,6 +75,7 @@ class _RepostPageState extends State<RepostPage> {
 
   @override
   void dispose() {
+    _retweetController.removeListener(_updateTextLength);
     _retweetController.dispose();
     super.dispose();
   }
@@ -144,7 +153,7 @@ class _RepostPageState extends State<RepostPage> {
                                     ),
                                   if (_postAccountId != null)
                                     Text(
-                                      '@${_postAccountId!.length > 23 ? '${_postAccountId!.substring(0, 23)}...' : _postAccountId}',
+                                      '@${_postAccountId!.length > 20 ? '${_postAccountId!.substring(0, 20)}...' : _postAccountId}',
                                       style: const TextStyle(
                                           color: Colors.grey, fontSize: 13),
                                     ),
@@ -182,6 +191,20 @@ class _RepostPageState extends State<RepostPage> {
                       border: OutlineInputBorder(),
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '$_currentTextLength / 200',
+                    style: TextStyle(
+                      color:
+                          _currentTextLength > 200 ? Colors.red : Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (_currentTextLength > 200)
+                    const Text(
+                      '引用コメントは200文字以内で入力してください。',
+                      style: TextStyle(color: Colors.red),
+                    ),
                   const SizedBox(height: 20),
                   if (_mediaFiles.isNotEmpty)
                     SizedBox(
@@ -229,82 +252,88 @@ class _RepostPageState extends State<RepostPage> {
                     icon: const Icon(Icons.image),
                   ),
                   ElevatedButton(
-                    onPressed: () async {
-                      if (_retweetController.text.isNotEmpty ||
-                          _mediaFiles.isNotEmpty) {
-                        // メディアファイルの制限
-                        if (_mediaFiles.length > 4) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('画像は最大4枚まで選択できます。')),
-                          );
-                          return;
-                        }
+                    onPressed: _currentTextLength > 200
+                        ? null
+                        : () async {
+                            if (_retweetController.text.isNotEmpty ||
+                                _mediaFiles.isNotEmpty) {
+                              // メディアファイルの制限
+                              if (_mediaFiles.length > 4) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('画像は最大4枚まで選択できます。')),
+                                );
+                                return;
+                              }
 
-                        if (_mediaFiles
-                                .any((file) => file.path.endsWith('.mp4')) &&
-                            _mediaFiles.length > 1) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('動画は最大1つまで選択できます。')),
-                          );
-                          return;
-                        }
+                              if (_mediaFiles.any(
+                                      (file) => file.path.endsWith('.mp4')) &&
+                                  _mediaFiles.length > 1) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('動画は最大1つまで選択できます。')),
+                                );
+                                return;
+                              }
 
-                        List<String>? mediaUrls;
+                              List<String>? mediaUrls;
 
-                        // メディアが選択されている場合、Firebase Storageにアップロードする
-                        if (_mediaFiles.isNotEmpty) {
-                          mediaUrls = [];
+                              // メディアが選択されている場合、Firebase Storageにアップロードする
+                              if (_mediaFiles.isNotEmpty) {
+                                mediaUrls = [];
 
-                          for (var file in _mediaFiles) {
-                            String? uploadedMediaUrl =
-                                await FunctionUtils.uploadImage(
-                                    widget.userId, file, context);
+                                for (var file in _mediaFiles) {
+                                  String? uploadedMediaUrl =
+                                      await FunctionUtils.uploadImage(
+                                          widget.userId, file, context);
 
-                            if (uploadedMediaUrl != null) {
-                              mediaUrls.add(uploadedMediaUrl);
+                                  if (uploadedMediaUrl != null) {
+                                    mediaUrls.add(uploadedMediaUrl);
+                                  }
+                                }
+                              }
+
+                              // 画面遷移
+                              Navigator.of(context).pop(); // 現在の画面を閉じる
+
+                              // Firestoreに再投稿情報を追加する処理を実装
+                              Post rePost = Post(
+                                content: _retweetController.text,
+                                postAccountId: widget.userId,
+                                mediaUrl: mediaUrls,
+                                repost: widget.post.id,
+                              );
+
+                              // Firestoreに返信を追加し、新しい投稿のIDを取得
+                              String? rePostId =
+                                  await PostFirestore.addPost(rePost);
+
+                              if (rePostId != null) {
+                                final rePostCollectionRef = FirebaseFirestore
+                                    .instance
+                                    .collection('posts')
+                                    .doc(widget.post.postId != null &&
+                                            widget.post.postId.isNotEmpty
+                                        ? widget.post.postId
+                                        : widget.post.id)
+                                    .collection('repost');
+
+                                // サブコレクションにドキュメントを追加（存在しない場合は作成）
+                                await rePostCollectionRef.doc(rePostId).set({
+                                  'id': rePostId,
+                                  'timestamp': FieldValue.serverTimestamp(),
+                                });
+
+                                scaffoldMessengerKey.currentState?.showSnackBar(
+                                  SnackBar(content: Text('引用投稿が完了しました')),
+                                );
+                              } else {
+                                scaffoldMessengerKey.currentState?.showSnackBar(
+                                  SnackBar(content: Text('引用投稿が失敗しました')),
+                                );
+                              }
                             }
-                          }
-                        }
-
-                        // 画面遷移
-                        Navigator.of(context).pop(); // 現在の画面を閉じる
-
-                        // Firestoreに再投稿情報を追加する処理を実装
-                        Post rePost = Post(
-                          content: _retweetController.text,
-                          postAccountId: widget.userId,
-                          mediaUrl: mediaUrls,
-                          repost: widget.post.id,
-                        );
-
-                        // Firestoreに返信を追加し、新しい投稿のIDを取得
-                        String? rePostId = await PostFirestore.addPost(rePost);
-
-                        if (rePostId != null) {
-                          final rePostCollectionRef = FirebaseFirestore.instance
-                              .collection('posts')
-                              .doc(widget.post.postId != null &&
-                                      widget.post.postId.isNotEmpty
-                                  ? widget.post.postId
-                                  : widget.post.id)
-                              .collection('repost');
-
-                          // サブコレクションにドキュメントを追加（存在しない場合は作成）
-                          await rePostCollectionRef.doc(rePostId).set({
-                            'id': rePostId,
-                            'timestamp': FieldValue.serverTimestamp(),
-                          });
-
-                          scaffoldMessengerKey.currentState?.showSnackBar(
-                            SnackBar(content: Text('引用投稿が完了しました')),
-                          );
-                        } else {
-                          scaffoldMessengerKey.currentState?.showSnackBar(
-                            SnackBar(content: Text('引用投稿が失敗しました')),
-                          );
-                        }
-                      }
-                    },
+                          },
                     child: const Text('引用を送信'),
                   ),
                 ],

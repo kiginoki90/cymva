@@ -113,6 +113,7 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
         .collection('follow')
         .get();
 
+//フォローしているユーザーのIDを格納
     List<String> followedUserIds =
         followSnapshot.docs.map((doc) => doc.id).toList();
 
@@ -124,6 +125,7 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
         .collection('blockUsers')
         .get();
 
+//ブロックしている、されているユーザーのIDを格納
     List<String> blockedUserIds = blockSnapshot.docs
         .map((doc) => doc['blocked_user_id'] as String)
         .toList();

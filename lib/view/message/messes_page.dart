@@ -21,7 +21,29 @@ class _MessesPageState extends State<MessesPage> {
   @override
   void initState() {
     super.initState();
+    _deleteOldMessages(); // 古いメッセージを削除
     _fetchNotifications();
+  }
+
+  Future<void> _deleteOldMessages() async {
+    final firestore = FirebaseFirestore.instance;
+    final currentUserId = widget.userId;
+    final now = Timestamp.now();
+
+    final snapshot = await firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('message')
+        .get();
+
+    for (var doc in snapshot.docs) {
+      final messageRead = doc.data().containsKey('message_read')
+          ? doc['message_read'] as Timestamp?
+          : null;
+      if (messageRead != null && now.seconds - messageRead.seconds > 86400) {
+        await doc.reference.delete();
+      }
+    }
   }
 
   Future<void> _fetchNotifications() async {
@@ -60,7 +82,7 @@ class _MessesPageState extends State<MessesPage> {
         final user = await UserFirestore.getUser(userId); // 非同期でユーザー情報を取得
         notification['user'] = user; // ユーザー情報を通知に追加
       } catch (e) {
-        notification['user'] = widget.userId; // エラーが発生した場合はwidget.userIdを使用
+        notification['user'] = null; // エラーが発生した場合はnullを使用
       }
     }
 
@@ -197,7 +219,7 @@ class _MessesPageState extends State<MessesPage> {
   }
 
   Future<void> _showAdminMessageDialog(String title, String content,
-      String messageId, Timestamp timestamp) async {
+      String messageId, Timestamp timestamp, Timestamp? messageRead) async {
     final currentUserId = await storage.read(key: 'account_id');
     final now = Timestamp.now();
 
@@ -225,13 +247,15 @@ class _MessesPageState extends State<MessesPage> {
             TextButton(
               child: Text('閉じる'),
               onPressed: () async {
-                // メッセージを既読にする
-                await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(currentUserId)
-                    .collection('message')
-                    .doc(messageId)
-                    .update({'message_read': now});
+                // メッセージを既読にする（message_readがnullの場合のみ）
+                if (messageRead == null) {
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(currentUserId)
+                      .collection('message')
+                      .doc(messageId)
+                      .update({'message_read': now});
+                }
 
                 Navigator.of(context).pop();
               },
@@ -255,6 +279,7 @@ class _MessesPageState extends State<MessesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('通知')),
+      backgroundColor: Colors.white, // 背景色を白に設定
       body: ListView.builder(
         itemCount: notifications.length,
         itemBuilder: (context, index) {
@@ -266,19 +291,6 @@ class _MessesPageState extends State<MessesPage> {
           final title = notification['title'];
           final content = notification['content'];
           final messageRead = notification['message_read'];
-
-          // メッセージが24時間経過しているか確認
-          if (messageRead != null &&
-              Timestamp.now().seconds - messageRead.seconds > 86400) {
-            // メッセージを削除
-            FirebaseFirestore.instance
-                .collection('users')
-                .doc(widget.userId)
-                .collection('message')
-                .doc(messageId)
-                .delete();
-            return SizedBox.shrink();
-          }
 
           return Column(
             children: [
@@ -367,17 +379,21 @@ class _MessesPageState extends State<MessesPage> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AccountPage(
-                              postUserId: notification['request_user']),
-                        ),
-                      );
-                    },
+                    onTap: user != null
+                        ? () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AccountPage(
+                                    postUserId: notification['request_user']),
+                              ),
+                            );
+                          }
+                        : null,
                     child: Text(
-                      '@${user.userId}さんへのフォローリクエストが許可されました。',
+                      user != null
+                          ? '@${user.userId}さんへのフォローリクエストが許可されました。'
+                          : '表示できません',
                     ),
                   ),
                 ),
@@ -385,17 +401,21 @@ class _MessesPageState extends State<MessesPage> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AccountPage(
-                              postUserId: notification['request_user']),
-                        ),
-                      );
-                    },
+                    onTap: user != null
+                        ? () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AccountPage(
+                                    postUserId: notification['request_user']),
+                              ),
+                            );
+                          }
+                        : null,
                     child: Text(
-                      '@${user.userId}さんからフォローされました。',
+                      user != null
+                          ? '@${user.userId}さんからフォローされました。'
+                          : '表示できません',
                     ),
                   ),
                 ),
@@ -404,8 +424,8 @@ class _MessesPageState extends State<MessesPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: GestureDetector(
                     onTap: () {
-                      _showAdminMessageDialog(
-                          title, content, messageId, notification['timestamp']);
+                      _showAdminMessageDialog(title, content, messageId,
+                          notification['timestamp'], messageRead);
                     },
                     child: Row(
                       children: [

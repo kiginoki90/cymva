@@ -274,6 +274,17 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
   }
 
+  Future<List<String>> _fetchBlockedAccounts(String userId) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('blockUsers')
+        .get();
+    return snapshot.docs
+        .map((doc) => doc['blocked_user_id'] as String)
+        .toList();
+  }
+
   Future<List<Post>> getRePosts(String postId) async {
     try {
       final replyPostCollectionRef = _firestoreInstance
@@ -378,76 +389,148 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
                             return CircularProgressIndicator();
-                          } else if (snapshot.hasError || !snapshot.hasData) {
+                          } else if (snapshot.hasError) {
+                            return Text('エラーが発生しました: ${snapshot.error}');
+                          } else if (!snapshot.hasData ||
+                              snapshot.data == null) {
                             return Text('エラーが発生しました。');
                           } else {
                             Account? postAccount = snapshot.data;
+                            final isOwner =
+                                widget.userId == replyToPost.postAccountId;
 
-                            if (replyToPost.hide == true) {
-                              return const Center(
-                                child: Column(
-                                  children: [
-                                    SizedBox(height: 15),
-                                    Text(
-                                      'この投稿は表示できません',
-                                      style: TextStyle(
-                                          color: Colors.grey, fontSize: 16),
-                                    ),
-                                    SizedBox(height: 15),
-                                    Divider(
-                                      // 横幅いっぱいのラインを表示
-                                      color: Colors.grey, // ラインの色を設定
-                                      thickness: 0.5, // ラインの太さを設定
-                                    ),
-                                  ],
-                                ),
-                              );
+                            // フォローしているかどうかを確認する非同期関数
+                            Future<bool> isFollowing() async {
+                              final followSnapshot = await FirebaseFirestore
+                                  .instance
+                                  .collection('users')
+                                  .doc(widget.userId)
+                                  .collection('follow')
+                                  .doc(replyToPost.postAccountId)
+                                  .get();
+                              return followSnapshot.exists;
                             }
-                            _favoritePost.favoriteUsersNotifiers[
-                                replyToPost.postId] ??= ValueNotifier<int>(0);
-                            _favoritePost
-                                .updateFavoriteUsersCount(replyToPost.postId);
 
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // DividerWithCircle(),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      PostItemWidget(
-                                        post: replyToPost,
-                                        postAccount: postAccount!,
-                                        favoriteUsersNotifier: _favoritePost
-                                                .favoriteUsersNotifiers[
-                                            replyToPost.postId]!,
-                                        isFavoriteNotifier: ValueNotifier<bool>(
-                                            _favoritePost
-                                                .favoritePostsNotifier.value
-                                                .contains(replyToPost.postId)),
-                                        onFavoriteToggle: () {
-                                          _favoritePost.toggleFavorite(
-                                            replyToPost.postId,
-                                            _favoritePost
-                                                .favoritePostsNotifier.value
-                                                .contains(replyToPost.postId),
-                                          );
-                                          _favoritePost.favoriteUsersNotifiers[
-                                                  replyToPost.postId] ??=
-                                              ValueNotifier<int>(0);
-                                          _favoritePost
-                                              .updateFavoriteUsersCount(
-                                                  replyToPost.postId);
-                                        },
-                                        replyFlag: ValueNotifier<bool>(true),
-                                        userId: widget.userId,
+                            // ブロックされているかどうかを確認する非同期関数
+                            Future<bool> isBlocked() async {
+                              final blockedAccounts =
+                                  await _fetchBlockedAccounts(widget.userId);
+                              return blockedAccounts
+                                  .contains(replyToPost.postAccountId);
+                            }
+
+                            return FutureBuilder<List<bool>>(
+                              future: Future.wait([isFollowing(), isBlocked()]),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Center(
+                                      child: CircularProgressIndicator());
+                                } else if (snapshot.hasError) {
+                                  return const Center(
+                                    child: Column(
+                                      children: [
+                                        SizedBox(height: 15),
+                                        Text(
+                                          'この返信元は表示できません',
+                                          style: TextStyle(
+                                              color: Colors.grey, fontSize: 16),
+                                        ),
+                                        SizedBox(height: 15),
+                                        Divider(
+                                          color: Colors.grey,
+                                          thickness: 0.5,
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                } else {
+                                  final isFollowing = snapshot.data![0];
+                                  final isBlocked = snapshot.data![1];
+
+                                  if (replyToPost.hide == true ||
+                                      isBlocked ||
+                                      (postAccount?.lockAccount == true &&
+                                          !isOwner &&
+                                          !isFollowing)) {
+                                    return const Center(
+                                      child: Column(
+                                        children: [
+                                          SizedBox(height: 15),
+                                          Text(
+                                            'この投稿は表示できません',
+                                            style: TextStyle(
+                                                color: Colors.grey,
+                                                fontSize: 16),
+                                          ),
+                                          SizedBox(height: 15),
+                                          Divider(
+                                            color: Colors.grey,
+                                            thickness: 0.5,
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                                    );
+                                  } else {
+                                    _favoritePost.favoriteUsersNotifiers[
+                                            replyToPost.postId] ??=
+                                        ValueNotifier<int>(0);
+                                    _favoritePost.updateFavoriteUsersCount(
+                                        replyToPost.postId);
+
+                                    return Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              PostItemWidget(
+                                                post: replyToPost,
+                                                postAccount: postAccount!,
+                                                favoriteUsersNotifier: _favoritePost
+                                                        .favoriteUsersNotifiers[
+                                                    replyToPost.postId]!,
+                                                isFavoriteNotifier:
+                                                    ValueNotifier<bool>(
+                                                        _favoritePost
+                                                            .favoritePostsNotifier
+                                                            .value
+                                                            .contains(
+                                                                replyToPost
+                                                                    .postId)),
+                                                onFavoriteToggle: () {
+                                                  _favoritePost.toggleFavorite(
+                                                    replyToPost.postId,
+                                                    _favoritePost
+                                                        .favoritePostsNotifier
+                                                        .value
+                                                        .contains(
+                                                            replyToPost.postId),
+                                                  );
+                                                  _favoritePost
+                                                              .favoriteUsersNotifiers[
+                                                          replyToPost
+                                                              .postId] ??=
+                                                      ValueNotifier<int>(0);
+                                                  _favoritePost
+                                                      .updateFavoriteUsersCount(
+                                                          replyToPost.postId);
+                                                },
+                                                replyFlag:
+                                                    ValueNotifier<bool>(true),
+                                                userId: widget.userId,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }
+                                }
+                              },
                             );
                           }
                         },

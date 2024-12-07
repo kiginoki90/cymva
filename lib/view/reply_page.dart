@@ -27,11 +27,19 @@ class _ReplyPageState extends State<ReplyPage> {
   final picker = ImagePicker();
   final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
+  int _currentTextLength = 0;
 
   @override
   void initState() {
     super.initState();
     _fetchPostAccountInfo();
+    _replyController.addListener(_updateTextLength);
+  }
+
+  void _updateTextLength() {
+    setState(() {
+      _currentTextLength = _replyController.text.length;
+    });
   }
 
   Future<void> _pickMedia() async {
@@ -130,6 +138,7 @@ class _ReplyPageState extends State<ReplyPage> {
 
   @override
   void dispose() {
+    _replyController.removeListener(_updateTextLength);
     _replyController.dispose();
     super.dispose();
   }
@@ -217,7 +226,21 @@ class _ReplyPageState extends State<ReplyPage> {
                       border: OutlineInputBorder(),
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 10),
+                  Text(
+                    '$_currentTextLength / 200',
+                    style: TextStyle(
+                      color:
+                          _currentTextLength > 200 ? Colors.red : Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (_currentTextLength > 200)
+                    const Text(
+                      '返信は200文字以内で入力してください。',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  const SizedBox(height: 20),
                   if (_mediaFiles.isNotEmpty)
                     SizedBox(
                       height: 150,
@@ -262,7 +285,7 @@ class _ReplyPageState extends State<ReplyPage> {
                     icon: const Icon(Icons.image),
                   ),
                   ElevatedButton(
-                    onPressed: _sendReply,
+                    onPressed: _currentTextLength > 200 ? null : _sendReply,
                     child: const Text('返信を送信'),
                   ),
                 ],

@@ -100,6 +100,7 @@ class UserFirestore {
           createdTime: data['created_time'] as Timestamp?,
           updatedTime: data['updated_time'] as Timestamp?,
           lockAccount: data['lock_account'] ?? '',
+          followMessage: data['follow_message'] ?? true,
         );
         // 作成したオブジェクトをmyAccountに保存
         Authentication.myAccount = myAccount;
@@ -138,19 +139,23 @@ class UserFirestore {
     try {
       await Future.forEach(accountIds, (String accountId) async {
         var doc = await users.doc(accountId).get();
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        Account postAccount = Account(
-          id: accountId,
-          name: data['name'],
-          userId: data['user_id'],
-          imagePath: data['image_path'],
-          selfIntroduction: data['self_introduction'],
-          createdTime: data['creaated_time'],
-          updatedTime: data['uodated_time'],
-          lockAccount: data['lock_account'],
-          parents_id: data['parents_id'],
-        );
-        map[accountId] = postAccount;
+        var data = doc.data();
+        if (data != null) {
+          Map<String, dynamic> dataMap = data as Map<String, dynamic>;
+          Account postAccount = Account(
+            id: accountId,
+            name: dataMap['name'],
+            userId: dataMap['user_id'],
+            imagePath: dataMap['image_path'],
+            selfIntroduction: dataMap['self_introduction'],
+            createdTime: dataMap['creaated_time'],
+            updatedTime: dataMap['uodated_time'],
+            lockAccount: dataMap['lock_account'],
+            parents_id: dataMap['parents_id'],
+            followMessage: data['follow_message'] ?? true,
+          );
+          map[accountId] = postAccount;
+        }
       });
       print('投稿ユーザーの情報取得完了');
       return map;
@@ -222,6 +227,7 @@ class UserFirestore {
             createdTime: data['created_time'] as Timestamp?,
             updatedTime: data['updated_time'] as Timestamp?,
             lockAccount: data['lock_account'] ?? '',
+            followMessage: data['follow_message'] ?? '',
           );
           accounts[id] = account; // IDをキーとしてマップに追加
         }

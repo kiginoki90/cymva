@@ -29,7 +29,15 @@ class _SearchPageState extends State<SearchPage> {
   int _currentPage = 0;
   String _lastQuery = '';
   String? _selectedCategory;
-  final List<String> categories = ['', '動物', 'AI', '漫画', 'イラスト', '写真', '俳句・短歌'];
+  final List<String> categories = [
+    '動物',
+    'AI',
+    '漫画',
+    'イラスト',
+    '写真',
+    '俳句・短歌',
+    '改修要望/バグ'
+  ];
   final Map<String, int> _postFavoriteCounts = {};
 
   @override
@@ -206,17 +214,34 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<List<String>> _fetchBlockedUserIds() async {
-    final snapshot = await FirebaseFirestore.instance
+    // blockUsers コレクションから blocked_user_id を取得
+    final blockUsersSnapshot = await FirebaseFirestore.instance
         .collection('users')
         .doc(widget.userId)
         .collection('blockUsers')
         .get();
 
-    return snapshot.docs
+    List<String> blockedUserIds = blockUsersSnapshot.docs
         .map((doc) => doc['blocked_user_id'] as String)
         .toList();
+
+    // block ドキュメントから blocked_user_id を取得
+    final blockDocSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .collection('block')
+        .get();
+
+    List<String> blockDocUserIds = blockDocSnapshot.docs
+        .map((doc) => doc['blocked_user_id'] as String)
+        .toList();
+
+    // 両方のリストを結合して返す
+    blockedUserIds.addAll(blockDocUserIds);
+    return blockedUserIds;
   }
 
+//コンテンツの検索結果を表示するWidget
   Widget _buildSearchByTextPage() {
     if (_postSearchResults.isEmpty) {
       return const Center(child: Text('検索結果がありません'));

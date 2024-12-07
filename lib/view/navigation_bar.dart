@@ -50,7 +50,15 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
           .get();
 
       setState(() {
-        showChatIcon = (userDoc['admin'] ?? 0) < 4;
+        if (userDoc.exists) {
+          showChatIcon = (userDoc['admin'] ?? 0) < 4;
+        } else {
+          // userDoc が存在しない場合の処理
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => LoginPage()),
+          );
+        }
         pageList = [
           TimeLineBody(userId: userId!),
           AccountPage(postUserId: userId!),

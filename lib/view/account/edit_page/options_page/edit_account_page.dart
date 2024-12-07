@@ -66,7 +66,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('プロフィール編集'),
+        title: Text('設定編集'),
         backgroundColor: Colors.blueGrey,
       ),
       body: SingleChildScrollView(
@@ -215,6 +215,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
                   selfIntroduction: selfIntroductionController.text,
                   imagePath: imagePath,
                   lockAccount: isPrivate,
+                  followMessage: followPrivate,
                 );
 
                 Authentication.myAccount = updateAccount;
@@ -238,7 +239,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'アカウントの公開設定',
+                  'アカウント非公開',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 Switch(

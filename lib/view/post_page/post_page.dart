@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cymva/main.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:flutter/material.dart';
@@ -32,17 +31,16 @@ class _PostPageState extends State<PostPage> {
 
   String? selectedCategory;
   final List<String> categories = [
-    '',
     '動物',
     'AI',
     '漫画',
     'イラスト',
     '写真',
     '俳句・短歌',
+    '憲章宣誓',
     '改修要望/バグ'
   ];
   final List<String> adminCategories = [
-    '',
     'cymva',
     '動物',
     'AI',
@@ -50,6 +48,7 @@ class _PostPageState extends State<PostPage> {
     'イラスト',
     '写真',
     '俳句・短歌',
+    '憲章宣誓',
     '改修要望/バグ'
   ];
   String? userProfileImageUrl;
@@ -127,6 +126,21 @@ class _PostPageState extends State<PostPage> {
       setState(() {
         images.addAll(pickedFiles);
       });
+    }
+  }
+
+  String _getHintText(String category) {
+    switch (category) {
+      case '俳句・短歌':
+        return '縦書きになります。40文字以内で入力してください。';
+      case '漫画':
+        return '画像は最大50枚まで選択できます。';
+      case '憲章宣誓':
+        return '私は市民国家Cymvaの一員として、この国及び全ての機構生命の繁栄と平和のためにその責務を全うすることを誓います。';
+      case '改修要望/バグ':
+        return 'またなんかしちゃいました？';
+      default:
+        return 'content';
     }
   }
 
@@ -260,7 +274,11 @@ class _PostPageState extends State<PostPage> {
                   TextField(
                     controller: contentController,
                     decoration: InputDecoration(
-                      hintText: 'Content',
+                      hintText: _getHintText(selectedCategory ?? ''),
+                      hintStyle: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
                       filled: true,
                       fillColor: selectedCategory == '俳句・短歌'
                           ? Color.fromARGB(255, 255, 238, 240)
@@ -354,7 +372,8 @@ class _PostPageState extends State<PostPage> {
                         onPressed: isPosting
                             ? null
                             : () async {
-                                if (contentController.text.isNotEmpty ||
+                                if (selectedCategory == '憲章宣誓' ||
+                                    contentController.text.isNotEmpty ||
                                     images.isNotEmpty ||
                                     _mediaFile != null) {
                                   // 投稿中フラグをセットしてボタンを無効化
@@ -409,7 +428,9 @@ class _PostPageState extends State<PostPage> {
 
                                     // 新しい投稿データの作成
                                     Post newPost = Post(
-                                      content: contentController.text,
+                                      content: selectedCategory == '憲章宣誓'
+                                          ? '私は市民国家Cymvaの一員として、この国及び全ての機構生命の繁栄と平和のためにその責務を全うすることを誓います。'
+                                          : contentController.text,
                                       postAccountId: widget.userId,
                                       mediaUrl: mediaUrls,
                                       isVideo: isVideo,

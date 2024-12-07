@@ -1,6 +1,7 @@
 import 'package:cymva/view/account/edit_page/options_page/add_account_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/blocked_users_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/delete_account_page.dart';
+import 'package:cymva/view/account/edit_page/options_page/support_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
@@ -31,7 +32,7 @@ class AccountOptionsPage extends StatelessWidget {
             _buildOptionItem(
               context,
               icon: Icons.edit,
-              label: 'プロフィール編集',
+              label: '設定編集',
               onTap: () {
                 Navigator.push(
                   context,
@@ -136,6 +137,19 @@ class AccountOptionsPage extends StatelessWidget {
                       userId: myAccount.id,
                       parentsId: myAccount.parents_id,
                     ),
+                  ),
+                );
+              },
+            ),
+            _buildOptionItem(
+              context,
+              icon: Icons.support,
+              label: 'サポート',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SupportPage(),
                   ),
                 );
               },

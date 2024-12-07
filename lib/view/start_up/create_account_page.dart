@@ -50,9 +50,9 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
     return result == null; // 結果がnullならそのuser_idはユニーク
   }
 
-  // ユーザーIDの検証
+// ユーザーIDの検証
   bool isValidUserId(String userId) {
-    final validCharacters = RegExp(r'^[a-zA-Z0-9!@#\$&*~]+$');
+    final validCharacters = RegExp(r'^[a-zA-Z0-9!#\$&*~\-_+=.,?]+$');
     return validCharacters.hasMatch(userId);
   }
 

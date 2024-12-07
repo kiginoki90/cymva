@@ -178,8 +178,8 @@ class RepostListPage extends StatelessWidget {
                                                   children: [
                                                     Text(
                                                       userData['name'].length >
-                                                              25
-                                                          ? '${userData['name'].substring(0, 25)}...'
+                                                              18
+                                                          ? '${userData['name'].substring(0, 18)}...'
                                                           : userData['name'],
                                                       style: const TextStyle(
                                                           fontWeight:
@@ -189,7 +189,7 @@ class RepostListPage extends StatelessWidget {
                                                       maxLines: 1,
                                                     ),
                                                     Text(
-                                                      '@${userData['user_id'].length > 25 ? '${userData['user_id'].substring(0, 25)}...' : userData['user_id']}',
+                                                      '@${userData['user_id'].length > 20 ? '${userData['user_id'].substring(0, 20)}...' : userData['user_id']}',
                                                       style: const TextStyle(
                                                           color: Colors.grey),
                                                       overflow:

@@ -75,7 +75,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     }
   }
 
-// トークン更新処理
+  // トークン更新処理
   Future<void> updatePasswordChangeToken(String userId) async {
     final firestore = FirebaseFirestore.instance;
 
@@ -113,7 +113,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       appBar: AppBar(
         title: Text('パスワード変更'),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
