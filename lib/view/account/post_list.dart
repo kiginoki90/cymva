@@ -1,3 +1,4 @@
+import 'package:cymva/view/account/post_item_account_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/post.dart';
@@ -143,7 +144,7 @@ class _PostListState extends State<PostList> {
                   ValueNotifier<int>(0);
               _favoritePost.updateFavoriteUsersCount(post.postId);
 
-              return PostItemWidget(
+              return PostItetmAccounWidget(
                 post: post,
                 postAccount: widget.postAccount,
                 favoriteUsersNotifier:

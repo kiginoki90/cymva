@@ -278,7 +278,11 @@ class _MessesPageState extends State<MessesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('通知')),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        centerTitle: true,
+        title: Text('通知'),
+      ),
       backgroundColor: Colors.white, // 背景色を白に設定
       body: ListView.builder(
         itemCount: notifications.length,

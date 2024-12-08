@@ -563,15 +563,15 @@ class _AccountTopPageState extends State<AccountTopPage> {
               child: Image.network(
                 postAccount!.imagePath ??
                     'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                width: 50,
-                height: 50,
+                width: 55,
+                height: 55,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   // 画像の取得に失敗した場合のエラービルダー
                   return Image.network(
                     'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                    width: 40,
-                    height: 40,
+                    width: 55,
+                    height: 55,
                     fit: BoxFit.cover,
                   );
                 },
@@ -672,21 +672,23 @@ class _AccountTopPageState extends State<AccountTopPage> {
   }
 
   Widget _buildSiblingAccounts() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: siblingAccounts.map((sibling) {
-        return GestureDetector(
-          onTap: () async {
-            await onAccountChanged(sibling); // アカウント切り替え処理を追加
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Wrap(
+        spacing: 8.0, // 子ウィジェット間の水平スペース
+        runSpacing: 8.0, // 子ウィジェット間の垂直スペース
+        alignment: WrapAlignment.center, // 子ウィジェットを中央に配置
+        children: siblingAccounts.map((sibling) {
+          return GestureDetector(
+            onTap: () async {
+              await onAccountChanged(sibling); // アカウント切り替え処理を追加
+            },
             child: CircleAvatar(
               radius: 20, // アイコンのサイズ
               backgroundColor: Colors.grey, // 背景色を設定（画像が取得できない場合に表示される色）
               child: ClipOval(
                 child: Image.network(
-                  sibling.imagePath.isNotEmpty == true
+                  sibling.imagePath.isNotEmpty
                       ? sibling.imagePath
                       : 'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
                   width: 40,
@@ -704,9 +706,9 @@ class _AccountTopPageState extends State<AccountTopPage> {
                 ),
               ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 

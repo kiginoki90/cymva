@@ -167,6 +167,7 @@ class _PostPageState extends State<PostPage> {
         title: const Text('投稿'),
         elevation: 2,
         iconTheme: const IconThemeData(color: Colors.black),
+        automaticallyImplyLeading: false,
         actions: [
           if (userProfileImageUrl != null)
             Padding(

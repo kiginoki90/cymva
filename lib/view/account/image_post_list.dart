@@ -1,10 +1,9 @@
+import 'package:cymva/view/account/post_item_account_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/model/account.dart';
-import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cymva/utils/favorite_post.dart';
-import 'package:cymva/view/post_item/post_item_widget.dart';
 
 class ImagePostList extends StatefulWidget {
   final Account myAccount;
@@ -143,7 +142,7 @@ class _ImagePostListState extends State<ImagePostList> {
                   ValueNotifier<int>(0);
               _favoritePost.updateFavoriteUsersCount(post.postId);
 
-              return PostItemWidget(
+              return PostItetmAccounWidget(
                 post: post,
                 postAccount: widget.myAccount,
                 favoriteUsersNotifier:

@@ -72,11 +72,17 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
           children: [
             const Text(
               'メールアドレスに紐づいた全てのアカウントが消えます。',
-              style: TextStyle(fontSize: 13),
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.red,
+              ),
             ),
             const Text(
               'それでもアカウントを削除するにはパスワードを入力してください。',
-              style: TextStyle(fontSize: 13),
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.red, // テキストの色を赤に設定
+              ),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -88,9 +94,11 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
               ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _deleteAccount,
-              child: const Text('アカウント削除'),
+            Center(
+              child: ElevatedButton(
+                onPressed: _deleteAccount,
+                child: const Text('アカウント削除'),
+              ),
             ),
           ],
         ),

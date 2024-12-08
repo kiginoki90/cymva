@@ -83,7 +83,7 @@ class LinkText extends StatelessWidget {
       if (match.start > textStart) {
         spans.add(TextSpan(
           text: inputText.substring(textStart, match.start),
-          style: const TextStyle(fontSize: 18),
+          style: const TextStyle(fontSize: 14),
         ));
       }
 
@@ -112,7 +112,7 @@ class LinkText extends StatelessWidget {
         spans.add(TextSpan(
           text: matchedText,
           style: const TextStyle(
-            fontSize: 18,
+            fontSize: 14,
             color: Colors.blue,
           ),
           recognizer: TapGestureRecognizer()
@@ -144,7 +144,7 @@ class LinkText extends StatelessWidget {
     if (textStart < inputText.length) {
       spans.add(TextSpan(
         text: inputText.substring(textStart),
-        style: const TextStyle(fontSize: 18),
+        style: const TextStyle(fontSize: 14),
       ));
     }
 
