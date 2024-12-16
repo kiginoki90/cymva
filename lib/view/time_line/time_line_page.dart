@@ -38,67 +38,73 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
     final model = ref.watch(viewModelProvider);
 
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: () => model.getPosts(widget.userId),
-        child: model.stackedPostList.isEmpty
-            ? const Center(child: Text("まだ投稿がありません"))
-            : ListView.builder(
-                controller: _scrollController,
-                itemCount: model.stackedPostList.length + 1,
-                itemBuilder: (context, int index) {
-                  if (index == model.stackedPostList.length) {
-                    return model.currentPostList.isNotEmpty
-                        ? TextButton(
-                            onPressed: () async {
-                              final currentScrollPosition =
-                                  _scrollController.position.pixels;
-                              await model.getPostsNext(widget.userId);
-                              _scrollController.jumpTo(currentScrollPosition);
-                            },
-                            child: const Text("もっと読み込む"),
-                          )
-                        : const Center(child: Text("結果は以上です"));
-                  }
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 500),
+          child: RefreshIndicator(
+            onRefresh: () => model.getPosts(widget.userId),
+            child: model.stackedPostList.isEmpty
+                ? const Center(child: Text("まだ投稿がありません"))
+                : ListView.builder(
+                    controller: _scrollController,
+                    itemCount: model.stackedPostList.length + 1,
+                    itemBuilder: (context, int index) {
+                      if (index == model.stackedPostList.length) {
+                        return model.currentPostList.isNotEmpty
+                            ? TextButton(
+                                onPressed: () async {
+                                  final currentScrollPosition =
+                                      _scrollController.position.pixels;
+                                  await model.getPostsNext(widget.userId);
+                                  _scrollController
+                                      .jumpTo(currentScrollPosition);
+                                },
+                                child: const Text("もっと読み込む"),
+                              )
+                            : const Center(child: Text("結果は以上です"));
+                      }
 
-                  if (index >= model.stackedPostList.length) {
-                    return Container(); // インデックスが範囲外の場合は空のコンテナを返す
-                  }
+                      if (index >= model.stackedPostList.length) {
+                        return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+                      }
 
-                  final postDoc = model.stackedPostList[index];
-                  final post = Post.fromDocument(postDoc);
-                  final postAccount = model.postUserMap[post.postAccountId];
+                      final postDoc = model.stackedPostList[index];
+                      final post = Post.fromDocument(postDoc);
+                      final postAccount = model.postUserMap[post.postAccountId];
 
-                  // blockedUserIds に postAccount.id が含まれている場合は表示をスキップ
-                  if (postAccount == null ||
-                      postAccount.lockAccount ||
-                      model.blockedAccounts.contains(postAccount.id)) {
-                    return Container();
-                  }
+                      // blockedUserIds に postAccount.id が含まれている場合は表示をスキップ
+                      if (postAccount == null ||
+                          postAccount.lockAccount ||
+                          model.blockedAccounts.contains(postAccount.id)) {
+                        return Container();
+                      }
 
-                  _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                      ValueNotifier<int>(0);
-                  _favoritePost.updateFavoriteUsersCount(post.id);
+                      _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                          ValueNotifier<int>(0);
+                      _favoritePost.updateFavoriteUsersCount(post.id);
 
-                  return PostItemWidget(
-                    key: PageStorageKey(post.id),
-                    post: post,
-                    postAccount: postAccount,
-                    favoriteUsersNotifier:
-                        _favoritePost.favoriteUsersNotifiers[post.id]!,
-                    isFavoriteNotifier: ValueNotifier<bool>(
-                      _favoritePost.favoritePostsNotifier.value
-                          .contains(post.id),
-                    ),
-                    onFavoriteToggle: () => _favoritePost.toggleFavorite(
-                      post.id,
-                      _favoritePost.favoritePostsNotifier.value
-                          .contains(post.id),
-                    ),
-                    replyFlag: ValueNotifier<bool>(false),
-                    userId: widget.userId,
-                  );
-                },
-              ),
+                      return PostItemWidget(
+                        key: PageStorageKey(post.id),
+                        post: post,
+                        postAccount: postAccount,
+                        favoriteUsersNotifier:
+                            _favoritePost.favoriteUsersNotifiers[post.id]!,
+                        isFavoriteNotifier: ValueNotifier<bool>(
+                          _favoritePost.favoritePostsNotifier.value
+                              .contains(post.id),
+                        ),
+                        onFavoriteToggle: () => _favoritePost.toggleFavorite(
+                          post.id,
+                          _favoritePost.favoritePostsNotifier.value
+                              .contains(post.id),
+                        ),
+                        replyFlag: ValueNotifier<bool>(false),
+                        userId: widget.userId,
+                      );
+                    },
+                  ),
+          ),
+        ),
       ),
     );
   }

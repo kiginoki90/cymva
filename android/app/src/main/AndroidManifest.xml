@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
-    
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+
     <application
         android:label="cymva"
         android:name="${applicationName}"
@@ -30,6 +32,14 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- 権限の説明文 -->
+        <meta-data
+            android:name="android.permission.READ_EXTERNAL_STORAGE"
+            android:value="このアプリは、ファイルをフォトライブラリに追加するためにアクセスが必要です。例えば、写真やビデオを保存するために使用します。"/>
+        <meta-data
+            android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+            android:value="このアプリは、ファイルをフォトライブラリに追加するためにアクセスが必要です。例えば、写真やビデオを保存するために使用します。"/>
     </application>
     
     <queries>

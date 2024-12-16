@@ -191,51 +191,56 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: _refreshPosts,
-        child: _followedPosts.isEmpty
-            ? const Center(child: Text("まだ投稿がありません"))
-            : ListView.builder(
-                controller: _scrollController,
-                itemCount: _followedPosts.length + 1,
-                itemBuilder: (context, int index) {
-                  if (index == _followedPosts.length) {
-                    return _hasMore
-                        ? TextButton(
-                            onPressed: _fetchMorePosts,
-                            child: const Text("もっと読み込む"),
-                          )
-                        : const Center(child: Text("結果は以上です"));
-                  }
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 500),
+          child: RefreshIndicator(
+            onRefresh: _refreshPosts,
+            child: _followedPosts.isEmpty
+                ? const Center(child: Text("まだ投稿がありません"))
+                : ListView.builder(
+                    controller: _scrollController,
+                    itemCount: _followedPosts.length + 1,
+                    itemBuilder: (context, int index) {
+                      if (index == _followedPosts.length) {
+                        return _hasMore
+                            ? TextButton(
+                                onPressed: _fetchMorePosts,
+                                child: const Text("もっと読み込む"),
+                              )
+                            : const Center(child: Text("結果は以上です"));
+                      }
 
-                  final postDoc = _followedPosts[index];
-                  final post = Post.fromDocument(postDoc);
-                  final postAccount = _accounts[post.postAccountId];
+                      final postDoc = _followedPosts[index];
+                      final post = Post.fromDocument(postDoc);
+                      final postAccount = _accounts[post.postAccountId];
 
-                  _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                      ValueNotifier<int>(0);
-                  _favoritePost.updateFavoriteUsersCount(post.id);
+                      _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                          ValueNotifier<int>(0);
+                      _favoritePost.updateFavoriteUsersCount(post.id);
 
-                  return PostItemWidget(
-                    key: PageStorageKey(post.id),
-                    post: post,
-                    postAccount: postAccount!,
-                    favoriteUsersNotifier:
-                        _favoritePost.favoriteUsersNotifiers[post.id]!,
-                    isFavoriteNotifier: ValueNotifier<bool>(
-                      _favoritePost.favoritePostsNotifier.value
-                          .contains(post.id),
-                    ),
-                    onFavoriteToggle: () => _favoritePost.toggleFavorite(
-                      post.id,
-                      _favoritePost.favoritePostsNotifier.value
-                          .contains(post.id),
-                    ),
-                    replyFlag: ValueNotifier<bool>(false),
-                    userId: widget.userId,
-                  );
-                },
-              ),
+                      return PostItemWidget(
+                        key: PageStorageKey(post.id),
+                        post: post,
+                        postAccount: postAccount!,
+                        favoriteUsersNotifier:
+                            _favoritePost.favoriteUsersNotifiers[post.id]!,
+                        isFavoriteNotifier: ValueNotifier<bool>(
+                          _favoritePost.favoritePostsNotifier.value
+                              .contains(post.id),
+                        ),
+                        onFavoriteToggle: () => _favoritePost.toggleFavorite(
+                          post.id,
+                          _favoritePost.favoritePostsNotifier.value
+                              .contains(post.id),
+                        ),
+                        replyFlag: ValueNotifier<bool>(false),
+                        userId: widget.userId,
+                      );
+                    },
+                  ),
+          ),
+        ),
       ),
     );
   }

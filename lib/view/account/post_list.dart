@@ -111,62 +111,69 @@ class _PostListState extends State<PostList> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<String>>(
-      future: _favoritePostsFuture,
-      builder: (context, favoriteSnapshot) {
-        if (favoriteSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (favoriteSnapshot.hasError) {
-          return const Center(child: Text('データの取得に失敗しました'));
-        }
-
-        if (favoriteSnapshot.hasData) {
-          return ListView.builder(
-            controller: _scrollController,
-            itemCount: _allPosts.length + 1,
-            itemBuilder: (context, index) {
-              if (index == _allPosts.length) {
-                return _hasMore
-                    ? TextButton(
-                        onPressed: _fetchMorePosts,
-                        child: const Text("もっと読み込む"),
-                      )
-                    : const Center(child: Text("結果は以上です"));
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 500),
+          child: FutureBuilder<List<String>>(
+            future: _favoritePostsFuture,
+            builder: (context, favoriteSnapshot) {
+              if (favoriteSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
               }
 
-              final post = _allPosts[index];
-              // bool isFavorite = favoriteSnapshot.data!.contains(post.postId);
+              if (favoriteSnapshot.hasError) {
+                return const Center(child: Text('データの取得に失敗しました'));
+              }
 
-              // お気に入りユーザー数の初期化と更新
-              _favoritePost.favoriteUsersNotifiers[post.postId] ??=
-                  ValueNotifier<int>(0);
-              _favoritePost.updateFavoriteUsersCount(post.postId);
+              if (favoriteSnapshot.hasData) {
+                return ListView.builder(
+                  controller: _scrollController,
+                  itemCount: _allPosts.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index == _allPosts.length) {
+                      return _hasMore
+                          ? TextButton(
+                              onPressed: _fetchMorePosts,
+                              child: const Text("もっと読み込む"),
+                            )
+                          : const Center(child: Text("結果は以上です"));
+                    }
 
-              return PostItetmAccounWidget(
-                post: post,
-                postAccount: widget.postAccount,
-                favoriteUsersNotifier:
-                    _favoritePost.favoriteUsersNotifiers[post.postId]!,
-                isFavoriteNotifier: ValueNotifier<bool>(
-                  _favoritePost.favoritePostsNotifier.value
-                      .contains(post.postId),
-                ),
-                onFavoriteToggle: () => _favoritePost.toggleFavorite(
-                  post.postId,
-                  _favoritePost.favoritePostsNotifier.value
-                      .contains(post.postId),
-                ),
-                replyFlag: ValueNotifier<bool>(false),
-                userId: widget.myAccount.id,
-              );
+                    final post = _allPosts[index];
+                    // bool isFavorite = favoriteSnapshot.data!.contains(post.postId);
+
+                    // お気に入りユーザー数の初期化と更新
+                    _favoritePost.favoriteUsersNotifiers[post.postId] ??=
+                        ValueNotifier<int>(0);
+                    _favoritePost.updateFavoriteUsersCount(post.postId);
+
+                    return PostItetmAccounWidget(
+                      post: post,
+                      postAccount: widget.postAccount,
+                      favoriteUsersNotifier:
+                          _favoritePost.favoriteUsersNotifiers[post.postId]!,
+                      isFavoriteNotifier: ValueNotifier<bool>(
+                        _favoritePost.favoritePostsNotifier.value
+                            .contains(post.postId),
+                      ),
+                      onFavoriteToggle: () => _favoritePost.toggleFavorite(
+                        post.postId,
+                        _favoritePost.favoritePostsNotifier.value
+                            .contains(post.postId),
+                      ),
+                      replyFlag: ValueNotifier<bool>(false),
+                      userId: widget.myAccount.id,
+                    );
+                  },
+                );
+              } else {
+                return const Center(child: CircularProgressIndicator());
+              }
             },
-          );
-        } else {
-          return const Center(child: CircularProgressIndicator());
-        }
-      },
+          ),
+        ),
+      ),
     );
   }
 }

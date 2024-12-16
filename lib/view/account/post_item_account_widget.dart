@@ -505,10 +505,10 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                                       );
                                     },
                                   ),
-                                  IconButton(
-                                    onPressed: () {},
-                                    icon: const Icon(Icons.share),
-                                  ),
+                                  // IconButton(
+                                  //   onPressed: () {},
+                                  //   icon: const Icon(Icons.share),
+                                  // ),
                                 ],
                               ),
                           ],

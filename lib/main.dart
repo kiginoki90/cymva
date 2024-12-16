@@ -24,6 +24,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: InitialScreen(), // 初期画面に遷移するウィジェットを指定
+      debugShowCheckedModeBanner: false,
     );
   }
 }

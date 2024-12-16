@@ -504,10 +504,10 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                       );
                                     },
                                   ),
-                                  IconButton(
-                                    onPressed: () {},
-                                    icon: const Icon(Icons.share),
-                                  ),
+                                  // IconButton(
+                                  //   onPressed: () {},
+                                  //   icon: const Icon(Icons.share),
+                                  // ),
                                 ],
                               ),
                           ],

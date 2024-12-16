@@ -63,7 +63,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
             return AlertDialog(
               contentPadding: EdgeInsets.zero,
               content: Container(
-                width: MediaQuery.of(context).size.width * 0.9,
+                width: 340,
                 height: 320,
                 child: Stack(
                   children: [

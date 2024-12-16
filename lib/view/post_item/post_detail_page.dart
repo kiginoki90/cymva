@@ -230,7 +230,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('投稿を削除しました')),
       );
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true); // true を渡して前のページに戻る
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('投稿の削除に失敗しました: $e')),
@@ -837,10 +837,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         );
                       },
                     ),
-                    IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.share),
-                    ),
+                    // IconButton(
+                    //   onPressed: () {},
+                    //   icon: const Icon(Icons.share),
+                    // ),
                   ],
                 ),
               GestureDetector(

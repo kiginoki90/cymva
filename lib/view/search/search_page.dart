@@ -262,66 +262,72 @@ class _SearchPageState extends State<SearchPage> {
 
         final blockedUserIds = blockedUsersSnapshot.data!; // ブロックされたユーザーIDのリスト
 
-        return RefreshIndicator(
-          onRefresh: _refreshSearchResults,
-          child: ListView.builder(
-            itemCount: _postSearchResults.length,
-            itemBuilder: (context, index) {
-              final postDoc = _postSearchResults[index];
-              final post = Post.fromDocument(postDoc);
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 500), // 最大横幅を600に設定
+            child: RefreshIndicator(
+              onRefresh: _refreshSearchResults,
+              child: ListView.builder(
+                itemCount: _postSearchResults.length,
+                itemBuilder: (context, index) {
+                  final postDoc = _postSearchResults[index];
+                  final post = Post.fromDocument(postDoc);
 
-              return FutureBuilder<Account?>(
-                future: _searchItem.getPostAccount(post.postAccountId),
-                builder: (context, accountSnapshot) {
-                  if (accountSnapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (accountSnapshot.hasError) {
-                    return Center(
-                        child: Text('エラーが発生しました: ${accountSnapshot.error}'));
-                  } else if (!accountSnapshot.hasData) {
-                    return Container();
-                  }
+                  return FutureBuilder<Account?>(
+                    future: _searchItem.getPostAccount(post.postAccountId),
+                    builder: (context, accountSnapshot) {
+                      if (accountSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (accountSnapshot.hasError) {
+                        return Center(
+                            child:
+                                Text('エラーが発生しました: ${accountSnapshot.error}'));
+                      } else if (!accountSnapshot.hasData) {
+                        return Container();
+                      }
 
-                  final postAccount = accountSnapshot.data!;
+                      final postAccount = accountSnapshot.data!;
 
-                  // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
-                  if (blockedUserIds.contains(postAccount.id)) {
-                    return Container(); // スキップして何も表示しない
-                  }
+                      // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
+                      if (blockedUserIds.contains(postAccount.id)) {
+                        return Container(); // スキップして何も表示しない
+                      }
 
-                  // lock_accountがtrueで、自分ではないアカウントならスキップする
-                  if (postAccount.lockAccount &&
-                      postAccount.id != widget.userId) {
-                    return Container(); // スキップして何も表示しない
-                  }
+                      // lock_accountがtrueで、自分ではないアカウントならスキップする
+                      if (postAccount.lockAccount &&
+                          postAccount.id != widget.userId) {
+                        return Container(); // スキップして何も表示しない
+                      }
 
-                  // フォロワー数の処理
-                  _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                      ValueNotifier<int>(0);
-                  _favoritePost.updateFavoriteUsersCount(post.id);
+                      // フォロワー数の処理
+                      _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                          ValueNotifier<int>(0);
+                      _favoritePost.updateFavoriteUsersCount(post.id);
 
-                  return PostItemWidget(
-                    post: post,
-                    postAccount: postAccount,
-                    favoriteUsersNotifier:
-                        _favoritePost.favoriteUsersNotifiers[post.id]!,
-                    isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
-                        .favoritePostsNotifier.value
-                        .contains(post.id)),
-                    onFavoriteToggle: () {
-                      final isFavorite = _favoritePost
-                          .favoritePostsNotifier.value
-                          .contains(post.id);
-                      _favoritePost.toggleFavorite(post.id, isFavorite);
+                      return PostItemWidget(
+                        post: post,
+                        postAccount: postAccount,
+                        favoriteUsersNotifier:
+                            _favoritePost.favoriteUsersNotifiers[post.id]!,
+                        isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
+                            .favoritePostsNotifier.value
+                            .contains(post.id)),
+                        onFavoriteToggle: () {
+                          final isFavorite = _favoritePost
+                              .favoritePostsNotifier.value
+                              .contains(post.id);
+                          _favoritePost.toggleFavorite(post.id, isFavorite);
+                        },
+                        // isRetweetedNotifier: ValueNotifier<bool>(false),
+                        replyFlag: ValueNotifier<bool>(false),
+                        userId: widget.userId,
+                      );
                     },
-                    // isRetweetedNotifier: ValueNotifier<bool>(false),
-                    replyFlag: ValueNotifier<bool>(false),
-                    userId: widget.userId,
                   );
                 },
-              );
-            },
+              ),
+            ),
           ),
         );
       },
@@ -340,104 +346,110 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Widget _buildSearchByAccountNamePage() {
-    return ListView.builder(
-      itemCount: _accountSearchResults.length,
-      itemBuilder: (context, index) {
-        final account = _accountSearchResults[index];
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 500),
+        child: ListView.builder(
+          itemCount: _accountSearchResults.length,
+          itemBuilder: (context, index) {
+            final account = _accountSearchResults[index];
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-          child: Row(
-            children: [
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AccountPage(
-                        postUserId: account.id,
-                      ),
-                    ),
-                  );
-                },
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8.0),
-                  child: Image.network(
-                    account.imagePath ??
-                        'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                    width: 40,
-                    height: 40,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      // 画像の取得に失敗した場合のエラービルダー
-                      return Image.network(
-                        'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+            return Padding(
+              padding:
+                  const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+              child: Row(
+                children: [
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AccountPage(
+                            postUserId: account.id,
+                          ),
+                        ),
+                      );
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: Image.network(
+                        account.imagePath ??
+                            'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
                         width: 40,
                         height: 40,
                         fit: BoxFit.cover,
-                      );
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AccountPage(
-                          postUserId: account.id,
-                        ),
+                        errorBuilder: (context, error, stackTrace) {
+                          // 画像の取得に失敗した場合のエラービルダー
+                          return Image.network(
+                            'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                          );
+                        },
                       ),
-                    );
-                  },
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              account.name.length > 25
-                                  ? '${account.name.substring(0, 25)}...' // 25文字を超える場合は切り捨てて「...」を追加
-                                  : account.name,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AccountPage(
+                              postUserId: account.id,
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              '@${account.userId.length > 25 ? '${account.userId.substring(0, 25)}...' : account.userId}',
-                              style: const TextStyle(color: Colors.grey),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
+                        );
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  account.name.length > 25
+                                      ? '${account.name.substring(0, 25)}...' // 25文字を超える場合は切り捨てて「...」を追加
+                                      : account.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  '@${account.userId.length > 25 ? '${account.userId.substring(0, 25)}...' : account.userId}',
+                                  style: const TextStyle(color: Colors.grey),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            account.selfIntroduction,
+                            style: const TextStyle(
+                                fontSize: 13, color: Colors.black),
+                            maxLines: 2, // 最大2行に設定
+                            overflow: TextOverflow.ellipsis, // 省略記号を表示
+                            softWrap: true,
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        account.selfIntroduction,
-                        style:
-                            const TextStyle(fontSize: 13, color: Colors.black),
-                        maxLines: 2, // 最大2行に設定
-                        overflow: TextOverflow.ellipsis, // 省略記号を表示
-                        softWrap: true,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -460,66 +472,73 @@ class _SearchPageState extends State<SearchPage> {
 
         final blockedUserIds = blockedUsersSnapshot.data!; // ブロックされたユーザーIDのリスト
 
-        return RefreshIndicator(
-          onRefresh: _refreshRecentFavorites,
-          child: ListView.builder(
-            itemCount: _recentFavoritesResults.length,
-            itemBuilder: (context, index) {
-              final postDoc = _recentFavoritesResults[index];
-              final post = Post.fromDocument(postDoc);
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 500),
+            child: RefreshIndicator(
+              onRefresh: _refreshRecentFavorites,
+              child: ListView.builder(
+                itemCount: _recentFavoritesResults.length,
+                itemBuilder: (context, index) {
+                  final postDoc = _recentFavoritesResults[index];
+                  final post = Post.fromDocument(postDoc);
 
-              return FutureBuilder<Account?>(
-                future: _searchItem.getPostAccount(post.postAccountId),
-                builder: (context, accountSnapshot) {
-                  if (accountSnapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (accountSnapshot.hasError) {
-                    return Center(
-                        child: Text('エラーが発生しました: ${accountSnapshot.error}'));
-                  } else if (!accountSnapshot.hasData) {
-                    return Container();
-                  }
+                  return FutureBuilder<Account?>(
+                    future: _searchItem.getPostAccount(post.postAccountId),
+                    builder: (context, accountSnapshot) {
+                      if (accountSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (accountSnapshot.hasError) {
+                        return Center(
+                            child:
+                                Text('エラーが発生しました: ${accountSnapshot.error}'));
+                      } else if (!accountSnapshot.hasData) {
+                        return Container();
+                      }
 
-                  final postAccount = accountSnapshot.data!;
+                      final postAccount = accountSnapshot.data!;
 
-                  // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
-                  if (blockedUserIds.contains(postAccount.id)) {
-                    return Container(); // スキップして何も表示しない
-                  }
+                      // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
+                      if (blockedUserIds.contains(postAccount.id)) {
+                        return Container(); // スキップして何も表示しない
+                      }
 
-                  // lock_accountがtrueで、自分ではないアカウントならスキップする
-                  if (postAccount.lockAccount &&
-                      postAccount.id != widget.userId) {
-                    return Container(); // スキップして何も表示しない
-                  }
+                      // lock_accountがtrueで、自分ではないアカウントならスキップする
+                      if (postAccount.lockAccount &&
+                          postAccount.id != widget.userId) {
+                        return Container(); // スキップして何も表示しない
+                      }
 
-                  // Firestoreから直近24時間のfavorite_usersを取得してcount
-                  final recentFavoriteCount = _postFavoriteCounts[post.id] ?? 0;
+                      // Firestoreから直近24時間のfavorite_usersを取得してcount
+                      final recentFavoriteCount =
+                          _postFavoriteCounts[post.id] ?? 0;
 
-                  // PostItemWidget に recentFavoriteCount をそのまま渡す
-                  return PostItemWidget(
-                    post: post,
-                    postAccount: postAccount,
-                    favoriteUsersNotifier:
-                        _favoritePost.favoriteUsersNotifiers[post.id] ??
-                            ValueNotifier<int>(recentFavoriteCount),
-                    isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
-                        .favoritePostsNotifier.value
-                        .contains(post.id)),
-                    onFavoriteToggle: () {
-                      final isFavorite = _favoritePost
-                          .favoritePostsNotifier.value
-                          .contains(post.id);
-                      _favoritePost.toggleFavorite(post.id, isFavorite);
+                      // PostItemWidget に recentFavoriteCount をそのまま渡す
+                      return PostItemWidget(
+                        post: post,
+                        postAccount: postAccount,
+                        favoriteUsersNotifier:
+                            _favoritePost.favoriteUsersNotifiers[post.id] ??
+                                ValueNotifier<int>(recentFavoriteCount),
+                        isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
+                            .favoritePostsNotifier.value
+                            .contains(post.id)),
+                        onFavoriteToggle: () {
+                          final isFavorite = _favoritePost
+                              .favoritePostsNotifier.value
+                              .contains(post.id);
+                          _favoritePost.toggleFavorite(post.id, isFavorite);
+                        },
+                        // isRetweetedNotifier: ValueNotifier<bool>(false),
+                        replyFlag: ValueNotifier<bool>(false),
+                        userId: widget.userId,
+                      );
                     },
-                    // isRetweetedNotifier: ValueNotifier<bool>(false),
-                    replyFlag: ValueNotifier<bool>(false),
-                    userId: widget.userId,
                   );
                 },
-              );
-            },
+              ),
+            ),
           ),
         );
       },
@@ -537,7 +556,7 @@ class _SearchPageState extends State<SearchPage> {
     });
   }
 
-  // 検索結果を表示するWidget
+// 検索結果を表示するWidget
   Widget _buildSearchByImagePage() {
     if (_postSearchResults.isEmpty) {
       return const Center(child: Text('検索結果がありません'));
@@ -557,71 +576,77 @@ class _SearchPageState extends State<SearchPage> {
 
         final blockedUserIds = blockedUsersSnapshot.data!; // ブロックされたユーザーIDのリスト
 
-        return RefreshIndicator(
-          onRefresh: _refreshPosts, // 更新時に呼び出されるメソッド
-          child: ListView.builder(
-            itemCount: _postSearchResults.length,
-            itemBuilder: (context, index) {
-              final postDoc = _postSearchResults[index];
-              final post = Post.fromDocument(postDoc);
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 500),
+            child: RefreshIndicator(
+              onRefresh: _refreshPosts, // 更新時に呼び出されるメソッド
+              child: ListView.builder(
+                itemCount: _postSearchResults.length,
+                itemBuilder: (context, index) {
+                  final postDoc = _postSearchResults[index];
+                  final post = Post.fromDocument(postDoc);
 
-              // media_urlがある投稿のみ表示
-              if (post.mediaUrl == null || post.mediaUrl!.isEmpty) {
-                return Container(); // media_urlがない場合はスキップ
-              }
-
-              return FutureBuilder<Account?>(
-                future: _searchItem.getPostAccount(post.postAccountId),
-                builder: (context, accountSnapshot) {
-                  if (accountSnapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (accountSnapshot.hasError) {
-                    return Center(
-                        child: Text('エラーが発生しました: ${accountSnapshot.error}'));
-                  } else if (!accountSnapshot.hasData) {
-                    return Container();
+                  // media_urlがある投稿のみ表示
+                  if (post.mediaUrl == null || post.mediaUrl!.isEmpty) {
+                    return Container(); // media_urlがない場合はスキップ
                   }
 
-                  final postAccount = accountSnapshot.data!;
+                  return FutureBuilder<Account?>(
+                    future: _searchItem.getPostAccount(post.postAccountId),
+                    builder: (context, accountSnapshot) {
+                      if (accountSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (accountSnapshot.hasError) {
+                        return Center(
+                            child:
+                                Text('エラーが発生しました: ${accountSnapshot.error}'));
+                      } else if (!accountSnapshot.hasData) {
+                        return Container();
+                      }
 
-                  // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
-                  if (blockedUserIds.contains(postAccount.id)) {
-                    return Container(); // スキップして何も表示しない
-                  }
+                      final postAccount = accountSnapshot.data!;
 
-                  // lock_accountがtrueで、自分ではないアカウントならスキップする
-                  if (postAccount.lockAccount &&
-                      postAccount.id != widget.userId) {
-                    return Container(); // スキップして何も表示しない
-                  }
+                      // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
+                      if (blockedUserIds.contains(postAccount.id)) {
+                        return Container(); // スキップして何も表示しない
+                      }
 
-                  // フォロワー数の処理
-                  _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                      ValueNotifier<int>(0);
-                  _favoritePost.updateFavoriteUsersCount(post.id);
+                      // lock_accountがtrueで、自分ではないアカウントならスキップする
+                      if (postAccount.lockAccount &&
+                          postAccount.id != widget.userId) {
+                        return Container(); // スキップして何も表示しない
+                      }
 
-                  return PostItemWidget(
-                    post: post,
-                    postAccount: postAccount,
-                    favoriteUsersNotifier:
-                        _favoritePost.favoriteUsersNotifiers[post.id]!,
-                    isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
-                        .favoritePostsNotifier.value
-                        .contains(post.id)),
-                    onFavoriteToggle: () {
-                      final isFavorite = _favoritePost
-                          .favoritePostsNotifier.value
-                          .contains(post.id);
-                      _favoritePost.toggleFavorite(post.id, isFavorite);
+                      // フォロワー数の処理
+                      _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                          ValueNotifier<int>(0);
+                      _favoritePost.updateFavoriteUsersCount(post.id);
+
+                      return PostItemWidget(
+                        post: post,
+                        postAccount: postAccount,
+                        favoriteUsersNotifier:
+                            _favoritePost.favoriteUsersNotifiers[post.id]!,
+                        isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
+                            .favoritePostsNotifier.value
+                            .contains(post.id)),
+                        onFavoriteToggle: () {
+                          final isFavorite = _favoritePost
+                              .favoritePostsNotifier.value
+                              .contains(post.id);
+                          _favoritePost.toggleFavorite(post.id, isFavorite);
+                        },
+                        // isRetweetedNotifier: ValueNotifier<bool>(false),
+                        replyFlag: ValueNotifier<bool>(false),
+                        userId: widget.userId,
+                      );
                     },
-                    // isRetweetedNotifier: ValueNotifier<bool>(false),
-                    replyFlag: ValueNotifier<bool>(false),
-                    userId: widget.userId,
                   );
                 },
-              );
-            },
+              ),
+            ),
           ),
         );
       },

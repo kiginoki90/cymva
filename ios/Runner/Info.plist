@@ -46,11 +46,11 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>写真フォルダへのアクセスが必要です</string>
+	<string>このアプリは、ファイルをフォトライブラリに追加するためにアクセスが必要です。例えば、写真やビデオを保存するために使用します。</string>
     <key>NSCameraUsageDescription</key>
 	<string>カメラへのアクセスが必要です</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This app requires to add file to your photo library your microphone</string>
+	<string>このアプリは、マイクへのアクセスが必要です。例えば、音声メモを録音するために使用します。</string>
 	<key>LSApplicationQueriesSchemes</key>
     <array>
     <string>http</string>

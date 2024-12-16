@@ -63,10 +63,10 @@ class PostActionButtons extends StatelessWidget {
             ),
           ],
         ),
-        IconButton(
-          onPressed: onSharePressed,
-          icon: const Icon(Icons.share),
-        ),
+        // IconButton(
+        //   onPressed: onSharePressed,
+        //   icon: const Icon(Icons.share),
+        // ),
       ],
     );
   }
