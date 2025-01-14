@@ -7,7 +7,7 @@ import 'package:cymva/model/post.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/utils/firestore/users.dart';
 
-// TimeLinePage クラス
+// タイムライン表示ページ
 class TimeLinePage extends ConsumerStatefulWidget {
   final String userId;
   const TimeLinePage({
@@ -41,11 +41,13 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
       body: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: 500),
+          // リフレッシュ機能
           child: RefreshIndicator(
             onRefresh: () => model.getPosts(widget.userId),
             child: model.stackedPostList.isEmpty
                 ? const Center(child: Text("まだ投稿がありません"))
                 : ListView.builder(
+                    //リストのスクロール位置を制御するためにScrollControllerを指定
                     controller: _scrollController,
                     itemCount: model.stackedPostList.length + 1,
                     itemBuilder: (context, int index) {

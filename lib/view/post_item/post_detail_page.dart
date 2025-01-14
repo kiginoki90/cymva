@@ -702,7 +702,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
               if (widget.post.category == '俳句・短歌')
                 buildVerticalText(widget.post.content)
               else
-                LinkText(text: widget.post.content, userId: widget.userId),
+                LinkText(
+                  text: widget.post.content,
+                  userId: widget.userId,
+                  textSize: 18,
+                ),
               const SizedBox(height: 10),
 
               Column(

@@ -1,4 +1,5 @@
 import 'package:cymva/model/account.dart';
+import 'package:cymva/view/account/edit_page/options_page/support_page/terms_of_service_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/post_item/full_screen_image.dart';
 import 'package:cymva/view/slide_direction_page_route.dart';
@@ -45,10 +46,139 @@ class _TimeLineBodyState extends State<TimeLineBody> {
     if (widget.fromLogin && !_hasShownPopups) {
       // ビルド後にポップアップを表示するために、PostFrameCallbackを使用
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showPopups(context);
+        _checkFirstLoginAndShowPopups(context);
       });
       _hasShownPopups = true; // ポップアップを表示済みに設定
     }
+  }
+
+  Future<void> _checkFirstLoginAndShowPopups(BuildContext context) async {
+    try {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .get();
+
+      if (userDoc.exists && userDoc['first_login'] == true) {
+        await _showTermsAndConditionsPopup(context);
+        // 利用規約のポップアップが閉じられた後に、他のポップアップを表示
+        await _showPopups(context);
+      } else {
+        await _showPopups(context);
+      }
+    } catch (e) {
+      print('ユーザードキュメントの取得に失敗しました: $e');
+    }
+  }
+
+  Future<void> _showTermsAndConditionsPopup(BuildContext context) async {
+    await showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text('利用規約'),
+            automaticallyImplyLeading: false, // 戻るボタンを非表示にする
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '本サービスを利用するにあたり、以下の内容を含む投稿や送信を行うことは禁止されています。',
+                        ),
+                        SizedBox(height: 16),
+                        _buildSectionContent([
+                          '　（1）',
+                          '過度に暴力的または露骨な性的表現を含む内容。',
+                        ]),
+                        _buildSectionContent([
+                          '　（2）',
+                          '差別、ヘイトスピーチ、または誹謗中傷を含む内容。',
+                        ]),
+                        _buildSectionContent([
+                          '　（3）',
+                          '犯罪行為を誘発または助長する内容。',
+                        ]),
+                        _buildSectionContent([
+                          '　（4）',
+                          '他者のプライバシーを侵害する内容。',
+                        ]),
+                        _buildSectionContent([
+                          '　（5）',
+                          '他者の著作権、商標権、プライバシー権を侵害する行為。',
+                        ]),
+                        SizedBox(height: 16),
+                        Text(
+                          '詳しい利用規約は下記を参照ください',
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => TermsOfServicePage(),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            '詳しくみる',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.center,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      // 利用規約に同意したことを保存
+                      await FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(widget.userId)
+                          .update({'first_login': false});
+                      Navigator.of(context).pop();
+                    },
+                    child: Text('同意する'),
+                  ),
+                ),
+                SizedBox(height: 50),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSectionContent(List<String> contentParts) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          contentParts[0],
+          style: TextStyle(fontSize: 13),
+        ),
+        Expanded(
+          child: Text(
+            contentParts[1],
+            style: TextStyle(fontSize: 13),
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _showPopups(BuildContext context) async {
@@ -88,7 +218,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                                       context,
                                       SlideDirectionPageRoute(
                                         page: FullScreenImagePage(
-                                          imageUrls: [
+                                          imageUrls: const [
                                             'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export%204.jpg?alt=media&token=bfee4359-e283-470b-ba4b-beb500050513'
                                           ],
                                           initialIndex: 0,

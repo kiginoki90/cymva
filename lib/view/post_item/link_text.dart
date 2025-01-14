@@ -9,8 +9,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class LinkText extends StatelessWidget {
   final String text;
   final String userId;
+  final int textSize;
 
-  LinkText({required this.text, required this.userId});
+  LinkText({required this.text, required this.userId, required this.textSize});
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +23,6 @@ class LinkText extends StatelessWidget {
     final List<InlineSpan> children = [];
     int start = 0;
 
-    // Handle URLs first
     for (final match in matches) {
       if (match.start > start) {
         children.addAll(_processTextWithHashtagsAndMentions(
@@ -32,15 +32,17 @@ class LinkText extends StatelessWidget {
             context));
       }
 
-      final urlString = match.group(0)!;
+      String urlString = match.group(0)!;
+      if (urlString.length > 35) {
+        urlString = '${urlString.substring(0, 35)}...';
+      }
       final Uri url = Uri.parse(urlString);
 
       children.add(TextSpan(
         text: urlString,
-        style: const TextStyle(
-          fontSize: 18,
+        style: TextStyle(
+          fontSize: textSize.toDouble(),
           color: Colors.blue,
-          decoration: TextDecoration.underline,
         ),
         recognizer: TapGestureRecognizer()
           ..onTap = () async {
@@ -83,7 +85,7 @@ class LinkText extends StatelessWidget {
       if (match.start > textStart) {
         spans.add(TextSpan(
           text: inputText.substring(textStart, match.start),
-          style: const TextStyle(fontSize: 14),
+          style: TextStyle(fontSize: textSize.toDouble()),
         ));
       }
 
@@ -91,8 +93,8 @@ class LinkText extends StatelessWidget {
       if (matchedText.startsWith('#')) {
         spans.add(TextSpan(
           text: matchedText,
-          style: const TextStyle(
-            fontSize: 18,
+          style: TextStyle(
+            fontSize: textSize.toDouble(),
             color: Colors.blue,
           ),
           recognizer: TapGestureRecognizer()
@@ -111,8 +113,8 @@ class LinkText extends StatelessWidget {
       } else if (matchedText.startsWith('@')) {
         spans.add(TextSpan(
           text: matchedText,
-          style: const TextStyle(
-            fontSize: 14,
+          style: TextStyle(
+            fontSize: textSize.toDouble(),
             color: Colors.blue,
           ),
           recognizer: TapGestureRecognizer()
@@ -144,7 +146,7 @@ class LinkText extends StatelessWidget {
     if (textStart < inputText.length) {
       spans.add(TextSpan(
         text: inputText.substring(textStart),
-        style: const TextStyle(fontSize: 14),
+        style: TextStyle(fontSize: textSize.toDouble()),
       ));
     }
 

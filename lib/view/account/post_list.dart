@@ -19,7 +19,6 @@ class PostList extends StatefulWidget {
 }
 
 class _PostListState extends State<PostList> {
-  late Future<List<String>> _favoritePostsFuture;
   final FavoritePost _favoritePost = FavoritePost();
   final ScrollController _scrollController = ScrollController();
   List<Post> _allPosts = [];
@@ -30,27 +29,99 @@ class _PostListState extends State<PostList> {
   @override
   void initState() {
     super.initState();
-    _favoritePostsFuture = _favoritePost.getFavoritePosts(); // お気に入りの投稿を取得
-    _fetchInitialPosts();
+    _favoritePost.getFavoritePosts(); // お気に入りの投稿を取得
   }
 
-  Future<void> _fetchInitialPosts() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    final clipTruePosts = await _fetchPosts(true);
-    final clipFalsePosts = await _fetchPosts(false);
-
-    if (mounted) {
-      setState(() {
-        _allPosts = [...clipTruePosts, ...clipFalsePosts];
-        if (_allPosts.isNotEmpty) {
-          _lastDocument = _allPosts.last.documentSnapshot;
+  Stream<List<Post>> _postStream() {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.postAccount.id)
+        .collection('my_posts')
+        .orderBy('created_time', descending: true)
+        .snapshots()
+        .asyncMap((snapshot) async {
+      List<Post> posts = [];
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final postId = data['post_id'] as String;
+        final postDoc = await FirebaseFirestore.instance
+            .collection('posts')
+            .doc(postId)
+            .get();
+        if (postDoc.exists) {
+          final postData = postDoc.data() as Map<String, dynamic>;
+          posts.add(Post.fromMap(postData, documentSnapshot: postDoc));
         }
-        _isLoading = false;
-      });
-    }
+      }
+      return posts;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 500),
+          child: StreamBuilder<List<Post>>(
+            stream: _postStream(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return const Center(child: Text('データの取得に失敗しました'));
+              }
+
+              if (snapshot.hasData) {
+                _allPosts = snapshot.data!;
+                return ListView.builder(
+                  controller: _scrollController,
+                  itemCount: _allPosts.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index == _allPosts.length) {
+                      return _hasMore
+                          ? TextButton(
+                              onPressed: _fetchMorePosts,
+                              child: const Text("もっと読み込む"),
+                            )
+                          : const Center(child: Text("結果は以上です"));
+                    }
+
+                    final post = _allPosts[index];
+                    // お気に入りユーザー数の初期化と更新
+                    _favoritePost.favoriteUsersNotifiers[post.postId] ??=
+                        ValueNotifier<int>(0);
+                    _favoritePost.updateFavoriteUsersCount(post.postId);
+
+                    return PostItetmAccounWidget(
+                      post: post,
+                      postAccount: widget.postAccount,
+                      favoriteUsersNotifier:
+                          _favoritePost.favoriteUsersNotifiers[post.postId]!,
+                      isFavoriteNotifier: ValueNotifier<bool>(
+                        _favoritePost.favoritePostsNotifier.value
+                            .contains(post.postId),
+                      ),
+                      onFavoriteToggle: () => _favoritePost.toggleFavorite(
+                        post.postId,
+                        _favoritePost.favoritePostsNotifier.value
+                            .contains(post.postId),
+                      ),
+                      replyFlag: ValueNotifier<bool>(false),
+                      userId: widget.myAccount.id,
+                    );
+                  },
+                );
+              } else {
+                return const Center(child: CircularProgressIndicator());
+              }
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _fetchMorePosts() async {
@@ -107,73 +178,5 @@ class _PostListState extends State<PostList> {
       }
     }
     return posts;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 500),
-          child: FutureBuilder<List<String>>(
-            future: _favoritePostsFuture,
-            builder: (context, favoriteSnapshot) {
-              if (favoriteSnapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (favoriteSnapshot.hasError) {
-                return const Center(child: Text('データの取得に失敗しました'));
-              }
-
-              if (favoriteSnapshot.hasData) {
-                return ListView.builder(
-                  controller: _scrollController,
-                  itemCount: _allPosts.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index == _allPosts.length) {
-                      return _hasMore
-                          ? TextButton(
-                              onPressed: _fetchMorePosts,
-                              child: const Text("もっと読み込む"),
-                            )
-                          : const Center(child: Text("結果は以上です"));
-                    }
-
-                    final post = _allPosts[index];
-                    // bool isFavorite = favoriteSnapshot.data!.contains(post.postId);
-
-                    // お気に入りユーザー数の初期化と更新
-                    _favoritePost.favoriteUsersNotifiers[post.postId] ??=
-                        ValueNotifier<int>(0);
-                    _favoritePost.updateFavoriteUsersCount(post.postId);
-
-                    return PostItetmAccounWidget(
-                      post: post,
-                      postAccount: widget.postAccount,
-                      favoriteUsersNotifier:
-                          _favoritePost.favoriteUsersNotifiers[post.postId]!,
-                      isFavoriteNotifier: ValueNotifier<bool>(
-                        _favoritePost.favoritePostsNotifier.value
-                            .contains(post.postId),
-                      ),
-                      onFavoriteToggle: () => _favoritePost.toggleFavorite(
-                        post.postId,
-                        _favoritePost.favoritePostsNotifier.value
-                            .contains(post.postId),
-                      ),
-                      replyFlag: ValueNotifier<bool>(false),
-                      userId: widget.myAccount.id,
-                    );
-                  },
-                );
-              } else {
-                return const Center(child: CircularProgressIndicator());
-              }
-            },
-          ),
-        ),
-      ),
-    );
   }
 }

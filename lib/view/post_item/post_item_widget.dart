@@ -355,8 +355,10 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                     buildVerticalText(widget.post.content)
                                   else
                                     LinkText(
-                                        text: widget.post.content,
-                                        userId: widget.userId),
+                                      text: widget.post.content,
+                                      userId: widget.userId,
+                                      textSize: 15,
+                                    ),
                                 ]),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,

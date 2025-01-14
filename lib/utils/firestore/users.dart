@@ -51,6 +51,7 @@ class UserFirestore {
         'passwordChangeToken': Timestamp.now(),
         'lock_account': false,
         'follow_message': true,
+        'first_login': true,
       });
 
       // await users
