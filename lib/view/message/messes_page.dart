@@ -71,7 +71,8 @@ class _MessesPageState extends State<MessesPage> {
         'content': doc.data().containsKey('content') ? doc['content'] : null,
         'message_read':
             doc.data().containsKey('message_read') ? doc['message_read'] : null,
-        'timestamp': doc['timestamp'],
+        'timestamp':
+            doc.data().containsKey('timestamp') ? doc['timestamp'] : null,
       };
     }).toList();
 
@@ -100,6 +101,9 @@ class _MessesPageState extends State<MessesPage> {
     setState(() {
       notifications = tempNotifications;
     });
+
+    // デバッグログを追加
+    print('Notifications fetched: ${notifications.length}');
   }
 
   // フォロー依頼を許可する処理
@@ -283,7 +287,6 @@ class _MessesPageState extends State<MessesPage> {
         centerTitle: true,
         title: Text('通知'),
       ),
-      backgroundColor: Colors.white, // 背景色を白に設定
       body: ListView.builder(
         itemCount: notifications.length,
         itemBuilder: (context, index) {

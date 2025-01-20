@@ -337,16 +337,16 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                 ),
                               ],
                             ),
-                            if (widget.post.clip)
-                              Column(
-                                children: [
-                                  Icon(
-                                    Icons.push_pin,
-                                    size: 16, // アイコンのサイズ
-                                    color: Colors.grey, // アイコンの色
-                                  ),
-                                ],
-                              ),
+                            // if (widget.post.clip)
+                            //   Column(
+                            //     children: [
+                            //       Icon(
+                            //         Icons.push_pin,
+                            //         size: 16, // アイコンのサイズ
+                            //         color: Colors.grey, // アイコンの色
+                            //       ),
+                            //     ],
+                            //   ),
                             const SizedBox(height: 5),
                             Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,

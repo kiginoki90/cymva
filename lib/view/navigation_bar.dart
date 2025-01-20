@@ -240,7 +240,7 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
                   child: Container(
                     padding: EdgeInsets.all(1),
                     decoration: BoxDecoration(
-                      color: Colors.red,
+                      color: const Color.fromARGB(255, 231, 160, 121),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     constraints: BoxConstraints(

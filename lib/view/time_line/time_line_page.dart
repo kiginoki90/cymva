@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/ad_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
@@ -49,9 +50,13 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
                 : ListView.builder(
                     //リストのスクロール位置を制御するためにScrollControllerを指定
                     controller: _scrollController,
-                    itemCount: model.stackedPostList.length + 1,
+                    itemCount: model.stackedPostList.length +
+                        (model.stackedPostList.length ~/ 10) +
+                        1,
                     itemBuilder: (context, int index) {
-                      if (index == model.stackedPostList.length) {
+                      if (index ==
+                          model.stackedPostList.length +
+                              (model.stackedPostList.length ~/ 10)) {
                         return model.currentPostList.isNotEmpty
                             ? TextButton(
                                 onPressed: () async {
@@ -66,11 +71,16 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
                             : const Center(child: Text("結果は以上です"));
                       }
 
-                      if (index >= model.stackedPostList.length) {
+                      if (index % 11 == 10) {
+                        return BannerAdWidget(); // 広告ウィジェットを表示
+                      }
+
+                      final postIndex = index - (index ~/ 11);
+                      if (postIndex >= model.stackedPostList.length) {
                         return Container(); // インデックスが範囲外の場合は空のコンテナを返す
                       }
 
-                      final postDoc = model.stackedPostList[index];
+                      final postDoc = model.stackedPostList[postIndex];
                       final post = Post.fromDocument(postDoc);
                       final postAccount = model.postUserMap[post.postAccountId];
 

@@ -1,11 +1,8 @@
 plugins {
     id "com.android.application"
-    // START: FlutterFire Configuration
-    id 'com.google.gms.google-services'
-    // END: FlutterFire Configuration
     id "kotlin-android"
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
-    id "dev.flutter.flutter-gradle-plugin"
+    id 'com.google.gms.google-services' // Firebaseプラグイン
+    id "dev.flutter.flutter-gradle-plugin" // Flutterプラグイン
 }
 
 def localProperties = new Properties()
@@ -22,20 +19,19 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
-def flutterVersionCode = localProperties.getProperty("flutter.versionCode")
-if (flutterVersionCode == null) {
-    flutterVersionCode = "1"
-}
+// Flutterバージョンコードと名前のデフォルト値を設定
+def flutterVersionCode = localProperties.getProperty("flutter.versionCode", "1")
+def flutterVersionName = localProperties.getProperty("flutter.versionName", "1.0")
 
-def flutterVersionName = localProperties.getProperty("flutter.versionName")
-if (flutterVersionName == null) {
-    flutterVersionName = "1.0"
-}
+// SDKバージョンを明示的に指定
+def flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion", "33") // 最新の安定版SDK
+def flutterTargetSdkVersion = localProperties.getProperty("flutter.targetSdkVersion", "33")
+def flutterMinSdkVersion = localProperties.getProperty("flutter.minSdkVersion", "21") // google_mobile_adsは19以上が必要
 
 android {
     namespace = "com.example.cymva"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = flutterCompileSdkVersion.toInteger()
+    ndkVersion = localProperties.getProperty("flutter.ndkVersion")
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -43,12 +39,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.cymva"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdk = 21
-        targetSdk = flutter.targetSdkVersion
+        minSdk = flutterMinSdkVersion.toInteger()
+        targetSdk = flutterTargetSdkVersion.toInteger()
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
     }
@@ -69,6 +62,10 @@ android {
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+    }
+
+    dependencies {
+        implementation 'com.google.android.gms:play-services-ads:22.1.0'
     }
 }
 

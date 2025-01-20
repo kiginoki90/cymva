@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/ad_widget.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/search/search_item.dart';
@@ -264,13 +265,30 @@ class _SearchPageState extends State<SearchPage> {
 
         return Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 500), // 最大横幅を600に設定
+            constraints: BoxConstraints(maxWidth: 500), // 最大横幅を500に設定
             child: RefreshIndicator(
               onRefresh: _refreshSearchResults,
               child: ListView.builder(
-                itemCount: _postSearchResults.length,
+                itemCount: _postSearchResults.length +
+                    (_postSearchResults.length ~/ 10) +
+                    1,
                 itemBuilder: (context, index) {
-                  final postDoc = _postSearchResults[index];
+                  if (index ==
+                      _postSearchResults.length +
+                          (_postSearchResults.length ~/ 10)) {
+                    return const Center(child: Text("結果は以上です"));
+                  }
+
+                  if (index % 11 == 10) {
+                    return BannerAdWidget(); // 広告ウィジェットを表示
+                  }
+
+                  final postIndex = index - (index ~/ 11);
+                  if (postIndex >= _postSearchResults.length) {
+                    return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+                  }
+
+                  final postDoc = _postSearchResults[postIndex];
                   final post = Post.fromDocument(postDoc);
 
                   return FutureBuilder<Account?>(
@@ -478,9 +496,26 @@ class _SearchPageState extends State<SearchPage> {
             child: RefreshIndicator(
               onRefresh: _refreshRecentFavorites,
               child: ListView.builder(
-                itemCount: _recentFavoritesResults.length,
+                itemCount: _recentFavoritesResults.length +
+                    (_recentFavoritesResults.length ~/ 10) +
+                    1,
                 itemBuilder: (context, index) {
-                  final postDoc = _recentFavoritesResults[index];
+                  if (index ==
+                      _recentFavoritesResults.length +
+                          (_recentFavoritesResults.length ~/ 10)) {
+                    return const Center(child: Text("結果は以上です"));
+                  }
+
+                  if (index % 11 == 10) {
+                    return BannerAdWidget(); // 広告ウィジェットを表示
+                  }
+
+                  final postIndex = index - (index ~/ 11);
+                  if (postIndex >= _recentFavoritesResults.length) {
+                    return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+                  }
+
+                  final postDoc = _recentFavoritesResults[postIndex];
                   final post = Post.fromDocument(postDoc);
 
                   return FutureBuilder<Account?>(
@@ -556,7 +591,7 @@ class _SearchPageState extends State<SearchPage> {
     });
   }
 
-// 検索結果を表示するWidget
+// 画像の検索結果を表示するWidget
   Widget _buildSearchByImagePage() {
     if (_postSearchResults.isEmpty) {
       return const Center(child: Text('検索結果がありません'));
@@ -582,9 +617,26 @@ class _SearchPageState extends State<SearchPage> {
             child: RefreshIndicator(
               onRefresh: _refreshPosts, // 更新時に呼び出されるメソッド
               child: ListView.builder(
-                itemCount: _postSearchResults.length,
+                itemCount: _postSearchResults.length +
+                    (_postSearchResults.length ~/ 10) +
+                    1,
                 itemBuilder: (context, index) {
-                  final postDoc = _postSearchResults[index];
+                  if (index ==
+                      _postSearchResults.length +
+                          (_postSearchResults.length ~/ 10)) {
+                    return const Center(child: Text("結果は以上です"));
+                  }
+
+                  if (index % 11 == 10) {
+                    return BannerAdWidget(); // 広告ウィジェットを表示
+                  }
+
+                  final postIndex = index - (index ~/ 11);
+                  if (postIndex >= _postSearchResults.length) {
+                    return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+                  }
+
+                  final postDoc = _postSearchResults[postIndex];
                   final post = Post.fromDocument(postDoc);
 
                   // media_urlがある投稿のみ表示

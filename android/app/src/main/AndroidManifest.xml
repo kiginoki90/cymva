@@ -40,6 +40,11 @@
         <meta-data
             android:name="android.permission.WRITE_EXTERNAL_STORAGE"
             android:value="このアプリは、ファイルをフォトライブラリに追加するためにアクセスが必要です。例えば、写真やビデオを保存するために使用します。"/>
+        
+        <!-- AdMobのアプリIDを設定 -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-7724581404839169~1418297562"/>
     </application>
     
     <queries>

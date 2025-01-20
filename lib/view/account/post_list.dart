@@ -5,7 +5,6 @@ import 'package:cymva/model/post.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cymva/utils/favorite_post.dart';
-import 'package:cymva/view/post_item/post_item_widget.dart';
 
 class PostList extends StatefulWidget {
   final Account myAccount;
@@ -53,6 +52,15 @@ class _PostListState extends State<PostList> {
           posts.add(Post.fromMap(postData, documentSnapshot: postDoc));
         }
       }
+
+      // clipがtrueのものをcreated_timeの昇順で取得
+      final clipTruePosts = await _fetchPosts(true);
+      // clipがfalseのものをcreated_timeの降順で取得
+      final clipFalsePosts = await _fetchPosts(false);
+
+      // clipTruePostsを先に追加し、その後にclipFalsePostsを追加
+      posts = [...clipTruePosts, ...clipFalsePosts];
+
       return posts;
     });
   }

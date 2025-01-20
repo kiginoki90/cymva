@@ -5,6 +5,7 @@ import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:cymva/ad_widget.dart';
 
 class FollowTimelinePage extends StatefulWidget {
   final String userId;
@@ -113,7 +114,7 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
         .collection('follow')
         .get();
 
-//フォローしているユーザーのIDを格納
+    // フォローしているユーザーのIDを格納
     List<String> followedUserIds =
         followSnapshot.docs.map((doc) => doc.id).toList();
 
@@ -125,7 +126,7 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
         .collection('blockUsers')
         .get();
 
-//ブロックしている、されているユーザーのIDを格納
+    // ブロックしている、されているユーザーのIDを格納
     List<String> blockedUserIds = blockSnapshot.docs
         .map((doc) => doc['blocked_user_id'] as String)
         .toList();
@@ -148,15 +149,6 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
     final postSnapshot = await query.get();
     return postSnapshot.docs;
   }
-
-  // Future<Map<String, Account?>> _fetchAccountsForFollowedPosts() async {
-  //   final posts = await _fetchFollowedPosts();
-  //   final accountIds = posts
-  //       .map((doc) => Post.fromDocument(doc).postAccountId)
-  //       .toSet()
-  //       .toList();
-  //   return await _fetchAccounts(accountIds);
-  // }
 
   Future<Map<String, Account?>> _fetchAccounts(List<String> accountIds) async {
     final Map<String, Account?> accounts = {};
@@ -200,9 +192,13 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
                 ? const Center(child: Text("まだ投稿がありません"))
                 : ListView.builder(
                     controller: _scrollController,
-                    itemCount: _followedPosts.length + 1,
+                    itemCount: _followedPosts.length +
+                        (_followedPosts.length ~/ 10) +
+                        1,
                     itemBuilder: (context, int index) {
-                      if (index == _followedPosts.length) {
+                      if (index ==
+                          _followedPosts.length +
+                              (_followedPosts.length ~/ 10)) {
                         return _hasMore
                             ? TextButton(
                                 onPressed: _fetchMorePosts,
@@ -211,7 +207,16 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
                             : const Center(child: Text("結果は以上です"));
                       }
 
-                      final postDoc = _followedPosts[index];
+                      if (index % 11 == 10) {
+                        return BannerAdWidget(); // 広告ウィジェットを表示
+                      }
+
+                      final postIndex = index - (index ~/ 11);
+                      if (postIndex >= _followedPosts.length) {
+                        return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+                      }
+
+                      final postDoc = _followedPosts[postIndex];
                       final post = Post.fromDocument(postDoc);
                       final postAccount = _accounts[post.postAccountId];
 

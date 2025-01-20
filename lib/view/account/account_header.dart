@@ -132,38 +132,53 @@ class _AccountHeaderState extends State<AccountHeader> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            if (postAccount!.lockAccount)
-                              const Padding(
-                                padding: EdgeInsets.only(right: 4.0),
-                                child: Icon(
-                                  Icons.lock,
-                                  size: 16,
-                                  color: Colors.grey,
+                    Container(
+                      width: 190,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              if (postAccount!.lockAccount)
+                                const Padding(
+                                  padding: EdgeInsets.only(right: 4.0),
+                                  child: Icon(
+                                    Icons.lock,
+                                    size: 1,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              Flexible(
+                                child: Text(
+                                  postAccount!.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
                                 ),
                               ),
-                            Text(
-                              postAccount!.name.length > 11
-                                  ? '${postAccount!.name.substring(0, 11)}...'
-                                  : postAccount!.name,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
+                            ],
+                          ),
+                          Flexible(
+                            child: Text(
+                              '@${postAccount!.userId}',
+                              style: const TextStyle(
+                                  color: Colors.grey, fontSize: 13),
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                             ),
-                          ],
-                        ),
-                        Text(
-                          '@${postAccount!.userId.length > 20 ? '${postAccount!.userId.substring(0, 20)}...' : postAccount!.userId}',
-                          style: const TextStyle(color: Colors.grey),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ],
+                          ),
+                          Flexible(
+                            child: Text(
+                              postAccount!.selfIntroduction,
+                              style: const TextStyle(fontSize: 13),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

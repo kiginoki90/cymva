@@ -56,24 +56,34 @@ class FollowService {
             .set({'followed_at': Timestamp.now()});
 
         // 24時間以内に同じメッセージがあるか確認
-        final userDoc = await UserFirestore.users.doc(postUserId).get();
-        final userData = userDoc.data() as Map<String, dynamic>;
-        final followMessage = userData['follow_message'] ?? false;
+        // final userDoc = await UserFirestore.users.doc(postUserId).get();
+        // final userData = userDoc.data() as Map<String, dynamic>;
 
-        if (followMessage) {
-          final cutoffTime =
-              Timestamp.now().toDate().subtract(Duration(hours: 24));
-          final recentMessagesQuery = await UserFirestore.users
+        final cutoffTime =
+            Timestamp.now().toDate().subtract(Duration(hours: 24));
+
+        // 過去24時間以内のメッセージを取得
+        final recentMessagesQuery = await UserFirestore.users
+            .doc(postUserId)
+            .collection('message')
+            .where('request_user', isEqualTo: userId)
+            .where('message_type', isEqualTo: 3)
+            .where('timestamp',
+                isGreaterThanOrEqualTo: Timestamp.fromDate(cutoffTime))
+            .get();
+
+        // 条件に合致するメッセージが存在しない場合
+        if (recentMessagesQuery.docs.isEmpty) {
+          // 全期間のメッセージを取得
+          final allMessagesQuery = await UserFirestore.users
               .doc(postUserId)
               .collection('message')
               .where('request_user', isEqualTo: userId)
               .where('message_type', isEqualTo: 3)
-              .where('timestamp',
-                  isGreaterThanOrEqualTo: Timestamp.fromDate(cutoffTime))
               .get();
 
-          // メッセージがなければ、新しいメッセージを追加
-          if (recentMessagesQuery.docs.isEmpty) {
+          // 全期間のメッセージが存在しない場合
+          if (allMessagesQuery.docs.isEmpty) {
             await UserFirestore.users
                 .doc(postUserId)
                 .collection('message')
