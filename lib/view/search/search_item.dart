@@ -6,16 +6,25 @@ class SearchItem {
 
   SearchItem(this.firestore);
 
-//コンテンツの検索条件
+  //コンテンツの検索条件
   Future<void> searchPosts(
     String query,
+    String? userId,
     String? selectedCategory,
     DocumentSnapshot? lastDocument,
     int limit,
-    Function(List<DocumentSnapshot>) updateResults,
-  ) async {
+    Function(List<DocumentSnapshot>) updateResults, {
+    String? searchUserId,
+    bool? isFollowing,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
     if (query.isEmpty &&
-        (selectedCategory == null || selectedCategory.isEmpty)) {
+        (selectedCategory == null || selectedCategory.isEmpty) &&
+        (searchUserId == null || searchUserId.isEmpty) &&
+        isFollowing == null &&
+        startDate == null &&
+        endDate == null) {
       updateResults([]);
       return;
     }
@@ -27,6 +36,49 @@ class SearchItem {
     // カテゴリーが選択されている場合はカテゴリーでフィルタリング
     if (selectedCategory != null && selectedCategory.isNotEmpty) {
       queryRef = queryRef.where('category', isEqualTo: selectedCategory);
+    }
+
+    // ユーザーIDでフィルタリング
+    if (searchUserId != null && searchUserId.isNotEmpty) {
+      // まずは全てのドキュメントを取得
+      final allDocumentsSnapshot = await queryRef.get();
+
+      // 部分一致検索をクライアント側で行う
+      final filteredDocuments = allDocumentsSnapshot.docs.where((doc) {
+        final postUserId = doc['post_user_id'] as String;
+        return postUserId.contains(searchUserId);
+      }).toList();
+
+      // クエリ結果を更新
+      queryRef = queryRef.where(FieldPath.documentId,
+          whereIn: filteredDocuments.map((doc) => doc.id).toList());
+    }
+
+    // フォローしているかどうかでフィルタリング
+    if (isFollowing == true && userId != null) {
+      // フォローしているユーザーのリストを取得
+      final followSnapshot = await firestore
+          .collection('users')
+          .doc(userId)
+          .collection('follow')
+          .get();
+
+      final followUserIds = followSnapshot.docs.map((doc) => doc.id).toList();
+
+      // フォローしているユーザーの投稿のみをフィルタリング
+      queryRef = queryRef.where('post_account_id', whereIn: followUserIds);
+    }
+
+    // 日付範囲でフィルタリング
+    if (startDate != null) {
+      queryRef =
+          queryRef.where('created_time', isGreaterThanOrEqualTo: startDate);
+    }
+    if (endDate != null) {
+      // endDateの時間部分を23:59:59に設定
+      final endOfDay =
+          DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+      queryRef = queryRef.where('created_time', isLessThanOrEqualTo: endOfDay);
     }
 
     // 前回の最後のドキュメントから続けて取得
@@ -124,21 +176,85 @@ class SearchItem {
     }
   }
 
-//人気の検索条件
+  // 人気の検索条件
   Future<void> fetchRecentFavorites(
     String query,
+    String? userId,
     String? selectedCategory,
     Map<String, int> postFavoriteCounts,
-    Function(List<DocumentSnapshot>) updateResults,
-  ) async {
-    Query queryRef = firestore.collection('posts');
-
-    // カテゴリーが選択されている場合は、カテゴリーでフィルタリング
-    if (selectedCategory != null && selectedCategory.isNotEmpty) {
-      queryRef = queryRef.where('category', isEqualTo: selectedCategory);
+    Function(List<DocumentSnapshot>) updateResults, {
+    String? searchUserId,
+    bool? isFollowing,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    if (query.isEmpty &&
+        (selectedCategory == null || selectedCategory.isEmpty) &&
+        (userId == null || userId.isEmpty) &&
+        isFollowing == null &&
+        startDate == null &&
+        endDate == null) {
+      updateResults([]);
+      return;
     }
 
     try {
+      // 投稿コレクションのクエリ
+      Query queryRef = firestore.collection('posts');
+
+      // カテゴリーが選択されている場合はカテゴリーでフィルタリング
+      if (selectedCategory != null && selectedCategory.isNotEmpty) {
+        queryRef = queryRef.where('category', isEqualTo: selectedCategory);
+      }
+
+      // ユーザーIDでフィルタリング
+      if (searchUserId != null && searchUserId.isNotEmpty) {
+        // まずは全てのドキュメントを取得
+        final allDocumentsSnapshot = await queryRef.get();
+
+        // 部分一致検索をクライアント側で行う
+        final filteredDocuments = allDocumentsSnapshot.docs.where((doc) {
+          final postUserId = doc['post_user_id'] as String;
+          return postUserId.contains(searchUserId);
+        }).toList();
+
+        // クエリ結果を更新
+        queryRef = queryRef.where(FieldPath.documentId,
+            whereIn: filteredDocuments.map((doc) => doc.id).toList());
+      }
+
+      if (isFollowing == true && userId != null) {
+        final filteredSnapshot = await queryRef.get();
+
+        // フォローしているユーザーのリストを取得
+        final followSnapshot = await firestore
+            .collection('users')
+            .doc(userId)
+            .collection('follow')
+            .get();
+
+        final followUserIds = followSnapshot.docs.map((doc) => doc.id).toList();
+
+        // フォローしているユーザーの投稿のみをフィルタリング
+        queryRef = queryRef.where('post_account_id', whereIn: followUserIds);
+
+        // フィルタリングされた結果の数を確認
+        // final filteredSnapshot = await queryRef.get();
+        print('フォロー結果の数: ${filteredSnapshot.size}');
+      }
+
+      // 日付範囲でフィルタリング
+      if (startDate != null) {
+        queryRef =
+            queryRef.where('created_time', isGreaterThanOrEqualTo: startDate);
+      }
+      if (endDate != null) {
+        final endOfDay =
+            DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+        queryRef =
+            queryRef.where('created_time', isLessThanOrEqualTo: endOfDay);
+      }
+
       final querySnapshot = await queryRef.get();
 
       final List<DocumentSnapshot> postWithFavorites = [];
@@ -156,12 +272,15 @@ class SearchItem {
             .collection('posts')
             .doc(postId)
             .collection('favorite_users')
-            .where('added_at',
-                isGreaterThanOrEqualTo:
-                    DateTime.now().subtract(Duration(hours: 24)))
             .get();
 
-        final recentFavoriteCount = favoriteUsersSnapshot.size;
+        // お気に入りの登録時間に基づいてポイントを計算
+        int recentFavoriteCount = 0;
+        for (var favoriteDoc in favoriteUsersSnapshot.docs) {
+          final addedAt = favoriteDoc['added_at'] as Timestamp;
+          final points = _calculateFavoritePoints(addedAt);
+          recentFavoriteCount += points;
+        }
 
         // 投稿の内容がクエリに含まれているかをチェック
         final content =
@@ -179,7 +298,7 @@ class SearchItem {
       // すべてのFutureが完了するのを待つ
       await Future.wait(futures);
 
-      // お気に入りの数で降順に並べ替え
+      // お気に入りのポイントで降順に並べ替え
       postWithFavorites.sort((a, b) {
         final countA = postFavoriteCounts[a.id] ?? 0;
         final countB = postFavoriteCounts[b.id] ?? 0;
@@ -196,13 +315,39 @@ class SearchItem {
     }
   }
 
+  int _calculateFavoritePoints(Timestamp favoriteTimestamp) {
+    final now = DateTime.now();
+    final favoriteDate = favoriteTimestamp.toDate();
+    final difference = now.difference(favoriteDate).inHours;
+
+    if (difference <= 24) {
+      return 3;
+    } else if (difference <= 48) {
+      return 2;
+    } else if (difference <= 72) {
+      return 1;
+    } else {
+      return 0;
+    }
+  }
+
+  // 画像の検索条件
   Future<void> searchImagePosts(
     String query,
+    String? userId,
     String? selectedCategory,
-    Function(List<DocumentSnapshot>) updateResults,
-  ) async {
+    Function(List<DocumentSnapshot>) updateResults, {
+    String? searchUserId,
+    bool? isFollowing,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
     if (query.isEmpty &&
-        (selectedCategory == null || selectedCategory.isEmpty)) {
+        (selectedCategory == null || selectedCategory.isEmpty) &&
+        (userId == null || userId.isEmpty) &&
+        isFollowing == null &&
+        startDate == null &&
+        endDate == null) {
       updateResults([]);
       return;
     }
@@ -214,6 +359,48 @@ class SearchItem {
     // カテゴリーが選択されている場合はカテゴリーでフィルタリング
     if (selectedCategory != null && selectedCategory.isNotEmpty) {
       queryRef = queryRef.where('category', isEqualTo: selectedCategory);
+    }
+
+    // ユーザーIDでフィルタリング
+    if (searchUserId != null && searchUserId.isNotEmpty) {
+      // まずは全てのドキュメントを取得
+      final allDocumentsSnapshot = await queryRef.get();
+
+      // 部分一致検索をクライアント側で行う
+      final filteredDocuments = allDocumentsSnapshot.docs.where((doc) {
+        final postUserId = doc['post_user_id'] as String;
+        return postUserId.contains(searchUserId);
+      }).toList();
+
+      // クエリ結果を更新
+      queryRef = queryRef.where(FieldPath.documentId,
+          whereIn: filteredDocuments.map((doc) => doc.id).toList());
+    }
+
+    // フォローしているかどうかでフィルタリング
+    if (isFollowing == true && userId != null) {
+      // フォローしているユーザーのリストを取得
+      final followSnapshot = await firestore
+          .collection('users')
+          .doc(userId)
+          .collection('follow')
+          .get();
+
+      final followUserIds = followSnapshot.docs.map((doc) => doc.id).toList();
+
+      // フォローしているユーザーの投稿のみをフィルタリング
+      queryRef = queryRef.where('post_user_id', whereIn: followUserIds);
+    }
+
+    // 日付範囲でフィルタリング
+    if (startDate != null) {
+      queryRef =
+          queryRef.where('created_time', isGreaterThanOrEqualTo: startDate);
+    }
+    if (endDate != null) {
+      final endOfDay =
+          DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+      queryRef = queryRef.where('created_time', isLessThanOrEqualTo: endOfDay);
     }
 
     // クエリを使って、候補となるドキュメントを取得

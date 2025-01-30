@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/post_item/full_screen_image.dart';
@@ -93,6 +94,8 @@ class RepostListPage extends StatelessWidget {
                         );
                       }
 
+                      final postAccount =
+                          Account.fromDocument(userSnapshot.data!);
                       // 投稿とユーザー情報を表示、タップで詳細ページに遷移
                       return Column(
                         children: [
@@ -104,11 +107,7 @@ class RepostListPage extends StatelessWidget {
                                 MaterialPageRoute(
                                   builder: (context) => PostDetailPage(
                                     post: post,
-                                    postAccountName: userData['name'],
-                                    postAccountUserId: userData['user_id'],
-                                    postAccountImagePath: userData[
-                                            'image_path'] ??
-                                        'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                                    postAccount: postAccount,
                                     replyFlag: ValueNotifier<bool>(false),
                                     userId: userId,
                                   ),

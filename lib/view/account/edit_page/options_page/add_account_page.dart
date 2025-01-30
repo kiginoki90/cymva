@@ -6,6 +6,7 @@ import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/utils/function_utils.dart';
 import 'package:cymva/utils/widget_utils.dart';
+import 'package:flutter/services.dart';
 
 class AddAccountPage extends StatefulWidget {
   const AddAccountPage({super.key});
@@ -132,6 +133,9 @@ class _AddAccountPageState extends State<AddAccountPage> {
         obscureText: obscureText,
         decoration: InputDecoration(hintText: hintText),
         maxLength: maxLength,
+        inputFormatters: [
+          LengthLimitingTextInputFormatter(50),
+        ],
       ),
     );
   }

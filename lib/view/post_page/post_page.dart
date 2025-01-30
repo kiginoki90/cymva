@@ -49,16 +49,19 @@ class _PostPageState extends State<PostPage> {
     '写真',
     '俳句・短歌',
     '憲章宣誓',
-    '改修要望/バグ'
+    '改修要望/バグ',
+    '市民'
   ];
   String? userProfileImageUrl;
   bool isPosting = false;
+  String? postUserId;
 
   @override
   void initState() {
     super.initState();
     fetchUserProfileImage();
     _fetchAccountData();
+    _loadDraft();
   }
 
   Future<void> fetchUserProfileImage() async {
@@ -71,6 +74,7 @@ class _PostPageState extends State<PostPage> {
       if (userDoc.exists) {
         setState(() {
           userProfileImageUrl = userDoc['image_path'];
+          postUserId = userDoc['user_id'];
         });
       }
     } catch (e) {
@@ -126,6 +130,21 @@ class _PostPageState extends State<PostPage> {
       setState(() {
         images.addAll(pickedFiles);
       });
+    }
+  }
+
+  Future<void> _loadDraft() async {
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .get();
+
+    if (userDoc.exists && userDoc.data() != null) {
+      Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+      String? draft = userData['draft'];
+      if (draft != null) {
+        contentController.text = draft;
+      }
     }
   }
 
@@ -345,6 +364,35 @@ class _PostPageState extends State<PostPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              // テキストフィールドの内容を取得
+                              String draftText = contentController.text;
+
+                              // Firestoreに保存
+                              await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(widget.userId)
+                                  .update({'draft': draftText});
+
+                              // メッセージを表示
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('テキストを保存しました')),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(8.0), // 角を四角くする
+                              ),
+                            ),
+                            child: const Text('保存'),
+                          ),
+                        ),
+                      ),
                       // キーボードを閉じるボタン
                       if (keyboardHeight > 0)
                         IconButton(
@@ -370,6 +418,13 @@ class _PostPageState extends State<PostPage> {
                         ],
                       ),
                       ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Color.fromARGB(255, 185, 224, 240), // 背景色を設定
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.0), // 角を四角くする
+                          ),
+                        ),
                         onPressed: isPosting
                             ? null
                             : () async {
@@ -433,6 +488,7 @@ class _PostPageState extends State<PostPage> {
                                           ? '私は市民国家Cymvaの一員として、この国及び全ての機構生命の繁栄と平和のためにその責務を全うすることを誓います。'
                                           : contentController.text,
                                       postAccountId: widget.userId,
+                                      postUserId: postUserId!,
                                       mediaUrl: mediaUrls,
                                       isVideo: isVideo,
                                       category: selectedCategory,
@@ -444,6 +500,11 @@ class _PostPageState extends State<PostPage> {
 
                                     // 投稿完了後の処理
                                     if (result != null) {
+                                      await FirebaseFirestore.instance
+                                          .collection('users')
+                                          .doc(widget.userId)
+                                          .update({'draft': null});
+
                                       scaffoldMessengerKey.currentState
                                           ?.showSnackBar(
                                         SnackBar(content: Text('投稿が完了しました')),
@@ -466,7 +527,9 @@ class _PostPageState extends State<PostPage> {
                               },
                         child: isPosting
                             ? CircularProgressIndicator()
-                            : const Text('投稿'),
+                            : const Text('投稿',
+                                style: TextStyle(
+                                    color: Color.fromARGB(255, 48, 46, 46))),
                       ),
                     ],
                   ),

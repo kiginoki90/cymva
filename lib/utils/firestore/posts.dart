@@ -18,6 +18,7 @@ class PostFirestore {
       Map<String, dynamic> postData = {
         'content': newPost.content,
         'post_account_id': newPost.postAccountId,
+        'post_user_id': newPost.postUserId,
         'created_time': Timestamp.now(),
         'media_url': newPost.mediaUrl,
         'is_video': newPost.isVideo,
@@ -72,6 +73,7 @@ class PostFirestore {
           id: doc.id,
           content: data['content'],
           postAccountId: data['post_account_id'],
+          postUserId: data['post_user_id'],
           createdTime: data['created_time'],
           isVideo: data['is_video'] ?? false, // is_videoが存在しない場合はfalseを設定
           mediaUrl: (data['media_url'] as List<dynamic>?)

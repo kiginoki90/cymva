@@ -13,6 +13,7 @@ class Account {
   Timestamp? updatedTime;
   bool lockAccount;
   bool followMessage;
+  bool replyMessage;
 
   Account({
     this.admin = 3,
@@ -26,6 +27,7 @@ class Account {
     this.updatedTime,
     this.lockAccount = false,
     this.followMessage = true,
+    this.replyMessage = true,
   });
 
   factory Account.fromDocument(DocumentSnapshot doc) {
@@ -39,7 +41,8 @@ class Account {
       userId: doc['user_id'],
       createdTime: doc['created_time'],
       updatedTime: doc['updated_time'],
-      lockAccount: doc['lock_account'],
+      lockAccount: doc['lock_account'] ?? true,
+      replyMessage: doc['replyMessage'] ?? true,
     );
   }
 
@@ -55,6 +58,8 @@ class Account {
       'created_time': createdTime,
       'updated_time': updatedTime,
       'lock_account': lockAccount,
+      'follow_message': followMessage,
+      'replyMessage': replyMessage,
     };
   }
 }

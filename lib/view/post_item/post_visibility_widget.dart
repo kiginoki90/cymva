@@ -81,9 +81,7 @@ class PostVisibilityWidget extends StatelessWidget {
                     MaterialPageRoute(
                       builder: (context) => PostDetailPage(
                         post: repostPost,
-                        postAccountName: postAccount.name,
-                        postAccountUserId: postAccount.userId,
-                        postAccountImagePath: postAccount.imagePath,
+                        postAccount: postAccount,
                         replyFlag: ValueNotifier<bool>(false),
                         userId: userId,
                       ),

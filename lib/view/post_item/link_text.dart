@@ -62,11 +62,9 @@ class LinkText extends StatelessWidget {
           text.substring(start), hashtagRegex, mentionRegex, context));
     }
 
-    return RichText(
-      text: TextSpan(
-        children: children,
-        style: DefaultTextStyle.of(context).style,
-      ),
+    return SelectableText.rich(
+      TextSpan(children: children),
+      style: TextStyle(fontSize: textSize.toDouble()),
     );
   }
 

@@ -1,7 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/model/account.dart';
+import 'package:cymva/model/post.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
+import 'package:cymva/view/post_item/post_detail_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -73,6 +76,8 @@ class _MessesPageState extends State<MessesPage> {
             doc.data().containsKey('message_read') ? doc['message_read'] : null,
         'timestamp':
             doc.data().containsKey('timestamp') ? doc['timestamp'] : null,
+        'postID': doc.data().containsKey('postID') ? doc['postID'] : null,
+        'count': doc.data().containsKey('count') ? doc['count'] : 1,
       };
     }).toList();
 
@@ -270,6 +275,51 @@ class _MessesPageState extends State<MessesPage> {
     );
   }
 
+  Future<void> _navigateToPostDetailPage(String postId) async {
+    try {
+      // postIDから投稿の情報を取得
+      final postSnapshot = await FirebaseFirestore.instance
+          .collection('posts')
+          .doc(postId)
+          .get();
+
+      if (!postSnapshot.exists) {
+        throw Exception('投稿が見つかりませんでした');
+      }
+
+      // usersコレクションからユーザーの情報を取得
+      final userSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .get();
+      final userData = userSnapshot.data();
+
+      if (userData == null) {
+        throw Exception('ユーザーが見つかりませんでした');
+      }
+
+      final post = Post.fromDocument(postSnapshot);
+      final postAccount = Account.fromDocument(userSnapshot);
+
+      // 投稿詳細ページへ遷移
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PostDetailPage(
+            post: post,
+            postAccount: postAccount,
+            replyFlag: ValueNotifier<bool>(false),
+            userId: widget.userId,
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('投稿が見つかりませんでした')),
+      );
+    }
+  }
+
   String _formatTimestamp(Timestamp timestamp) {
     final DateTime dateTime = timestamp.toDate();
     final String formattedDate =
@@ -298,6 +348,8 @@ class _MessesPageState extends State<MessesPage> {
           final title = notification['title'];
           final content = notification['content'];
           final messageRead = notification['message_read'];
+          final postID = notification['postID'];
+          final count = notification['count'];
 
           return Column(
             children: [
@@ -384,7 +436,8 @@ class _MessesPageState extends State<MessesPage> {
                 ),
               if (notification['message_type'] == 2)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
                   child: GestureDetector(
                     onTap: user != null
                         ? () {
@@ -397,16 +450,20 @@ class _MessesPageState extends State<MessesPage> {
                             );
                           }
                         : null,
-                    child: Text(
-                      user != null
-                          ? '@${user.userId}さんへのフォローリクエストが許可されました。'
-                          : '表示できません',
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        user != null
+                            ? '@${user.userId}さんへのフォローリクエストが許可されました。'
+                            : '表示できません',
+                      ),
                     ),
                   ),
                 ),
               if (notification['message_type'] == 3)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
                   child: GestureDetector(
                     onTap: user != null
                         ? () {
@@ -419,10 +476,13 @@ class _MessesPageState extends State<MessesPage> {
                             );
                           }
                         : null,
-                    child: Text(
-                      user != null
-                          ? '@${user.userId}さんからフォローされました。'
-                          : '表示できません',
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        user != null
+                            ? '@${user.userId}さんからフォローされました。'
+                            : '表示できません',
+                      ),
                     ),
                   ),
                 ),
@@ -465,7 +525,37 @@ class _MessesPageState extends State<MessesPage> {
                     ),
                   ),
                 ),
-              Divider(),
+              if (notification['message_type'] == 5)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
+                  child: GestureDetector(
+                    onTap: () {
+                      _navigateToPostDetailPage(notification['postID']);
+                    },
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                notification['count'] == 1
+                                    ? '投稿に返信が来ています'
+                                    : '投稿に${notification['count']}件の返信が来ています',
+                                style: TextStyle(),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              Divider(
+                color: Colors.grey,
+                thickness: 0.5,
+              ),
             ],
           );
         },

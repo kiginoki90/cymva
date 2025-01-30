@@ -20,18 +20,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PostDetailPage extends StatefulWidget {
   final Post post;
-  final String postAccountName;
-  final String postAccountUserId;
-  final String postAccountImagePath;
+  final Account postAccount;
   final ValueNotifier<bool> replyFlag;
   final String userId;
 
   const PostDetailPage(
       {Key? key,
       required this.post,
-      required this.postAccountName,
-      required this.postAccountUserId,
-      required this.postAccountImagePath,
+      required this.postAccount,
       required this.replyFlag,
       required this.userId})
       : super(key: key);
@@ -186,13 +182,43 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
   }
 
+  Future<void> _confirmDeletePost(BuildContext context) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('投稿の削除'),
+          content: Text('この投稿を削除してもよろしいですか？'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false); // 削除をキャンセル
+              },
+              child: Text('キャンセル'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true); // 削除を許可
+              },
+              child: Text('削除'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _deletePost(context);
+    }
+  }
+
   Future<void> _deletePost(BuildContext context) async {
     try {
       final postDocRef =
           _firestoreInstance.collection('posts').doc(widget.post.postId);
 
       // サブコレクション内のすべてのドキュメントを削除する関数
-      Future<void> _deleteSubcollection(String subcollectionName) async {
+      Future<void> deleteSubcollection(String subcollectionName) async {
         final subcollectionRef = postDocRef.collection(subcollectionName);
         final snapshot = await subcollectionRef.get();
 
@@ -212,10 +238,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
       }
 
       // サブコレクションを削除 (サブコレクション名が固定されている場合)
-      await _deleteSubcollection('favorite_users');
-      await _deleteSubcollection('repost');
-      await _deleteSubcollection('reply_post');
-
+      await deleteSubcollection('favorite_users');
+      await deleteSubcollection('repost');
+      await deleteSubcollection('reply_post');
       // メインの投稿ドキュメントを削除
       await postDocRef.delete();
 
@@ -234,6 +259,31 @@ class _PostDetailPageState extends State<PostDetailPage> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('投稿の削除に失敗しました: $e')),
+      );
+    }
+  }
+
+  void _toggleCloseComment() async {
+    final postRef =
+        FirebaseFirestore.instance.collection('posts').doc(widget.post.postId);
+
+    try {
+      // 現在のcloseCommentの値を取得
+      DocumentSnapshot postSnapshot = await postRef.get();
+      Map<String, dynamic> postData =
+          postSnapshot.data() as Map<String, dynamic>;
+      bool currentCloseComment = postData['closeComment'] ?? false;
+
+      // closeCommentの値を反転
+      await postRef.update({'closeComment': !currentCloseComment});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(currentCloseComment ? 'コメントを開きました' : 'コメントを閉じました')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('コメントの状態を変更するのに失敗しました: $e')),
       );
     }
   }
@@ -379,7 +429,24 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     } else if (snapshot.hasError) {
                       return Text('エラーが発生しました: ${snapshot.error}');
                     } else if (!snapshot.hasData || snapshot.data == null) {
-                      return SizedBox(); // 返信元がない場合は何も表示しない
+                      return const Center(
+                        child: Column(
+                          children: [
+                            SizedBox(height: 15),
+                            Text(
+                              'この返信元は削除されています',
+                              style: TextStyle(
+                                  color: Color.fromARGB(255, 110, 108, 108),
+                                  fontSize: 16),
+                            ),
+                            SizedBox(height: 15),
+                            Divider(
+                              color: Colors.grey,
+                              thickness: 0.5,
+                            ),
+                          ],
+                        ),
+                      );
                     } else {
                       Post replyToPost = snapshot.data!;
                       return FutureBuilder<Account?>(
@@ -434,7 +501,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                         Text(
                                           'この返信元は表示できません',
                                           style: TextStyle(
-                                              color: Colors.grey, fontSize: 16),
+                                              color: Color.fromARGB(
+                                                  255, 110, 108, 108),
+                                              fontSize: 16),
                                         ),
                                         SizedBox(height: 15),
                                         Divider(
@@ -452,7 +521,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                       isBlocked ||
                                       (postAccount?.lockAccount == true &&
                                           !isOwner &&
-                                          !isFollowing)) {
+                                          !isFollowing) ||
+                                      (replyToPost.closeComment == true &&
+                                          replyToPost.postAccountId !=
+                                              widget.post.postAccountId)) {
                                     return const Center(
                                       child: Column(
                                         children: [
@@ -555,7 +627,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8.0),
                       child: Image.network(
-                        widget.postAccountImagePath ??
+                        widget.postAccount.imagePath ??
                             'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
                         width: 44,
                         height: 44,
@@ -577,15 +649,15 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.postAccountName.length > 15
-                            ? '${widget.postAccountName.substring(0, 15)}...'
-                            : widget.postAccountName,
+                        widget.postAccount.name.length > 15
+                            ? '${widget.postAccount.name.substring(0, 15)}...'
+                            : widget.postAccount.name,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
                       Text(
-                        '@${widget.postAccountUserId.length > 20 ? '${widget.postAccountUserId.substring(0, 20)}...' : widget.postAccountUserId}',
+                        '@${widget.postAccount.userId.length > 20 ? '${widget.postAccount.userId.substring(0, 20)}...' : widget.postAccount.userId}',
                         style: const TextStyle(color: Colors.grey),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
@@ -624,11 +696,13 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           icon: Icon(Icons.add),
                           onSelected: (String value) async {
                             if (value == 'Option 1') {
-                              _deletePost(context); // 投稿の削除
+                              _confirmDeletePost(context); // 投稿の削除
                             } else if (value == 'Option 2') {
                               await _updatePostClipStatus(true);
                             } else if (value == 'Option 3') {
                               await _updatePostClipStatus(false);
+                            } else if (value == 'Option 4') {
+                              _toggleCloseComment();
                             }
                           },
                           itemBuilder: (BuildContext context) {
@@ -647,6 +721,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               PopupMenuItem<String>(
                                 value: 'Option 3',
                                 child: Text('固定を解除'),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'Option 4',
+                                child: Text(widget.post.closeComment == true
+                                    ? 'コメントを開く'
+                                    : 'コメントを閉じる'),
                               ),
                             ];
                           },
@@ -744,6 +824,27 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   postAccount: _repostPostAccount!,
                   userId: widget.userId,
                   repostPost: _repostPost!,
+                )
+              else if (widget.post.repost != null && _repostPost == null)
+                Center(
+                  child: Column(
+                    children: [
+                      SizedBox(height: 5),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20.0),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey), // 枠線の色
+                          borderRadius: BorderRadius.circular(8.0), // 角を丸める
+                        ),
+                        child: const Text(
+                          'この引用投稿は削除されています',
+                          textAlign: TextAlign.start,
+                        ),
+                      ),
+                      SizedBox(height: 5),
+                    ],
+                  ),
                 ),
               if (isHidden == false)
                 Row(
@@ -824,18 +925,28 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           children: [
                             Text(replyCount.toString()),
                             IconButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ReplyPage(
-                                      post: widget.post,
-                                      userId: widget.userId,
-                                    ),
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.comment),
+                              onPressed: (widget.post.postAccountId ==
+                                          widget.userId ||
+                                      widget.post.closeComment != true)
+                                  ? () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ReplyPage(
+                                            post: widget.post,
+                                            userId: widget.userId,
+                                            repryAccount: widget.postAccount,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  : null,
+                              icon: Icon(
+                                Icons.comment,
+                                color: widget.post.closeComment == true
+                                    ? Colors.grey
+                                    : Colors.black,
+                              ),
                             ),
                           ],
                         );
@@ -883,6 +994,15 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     return Text('返信はありません');
                   } else {
                     List<Post> replyPosts = snapshot.data!;
+
+                    // closeCommentがtrueの場合、投稿者の返信のみ表示
+                    if (widget.post.closeComment == true) {
+                      replyPosts = replyPosts
+                          .where((replyPost) =>
+                              replyPost.postAccountId == widget.userId)
+                          .toList();
+                    }
+
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

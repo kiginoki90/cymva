@@ -165,7 +165,7 @@ class _RepostPageState extends State<RepostPage> {
                           // 元の投稿内容を表示
                           Text(
                             widget.post.content,
-                            style: const TextStyle(fontSize: 18),
+                            style: const TextStyle(fontSize: 13),
                           ),
                           const SizedBox(height: 10),
                           // 画像がある場合は表示

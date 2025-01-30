@@ -4,6 +4,7 @@ class Post {
   String id;
   String content;
   String postAccountId;
+  String postUserId;
   Timestamp? createdTime;
   List<String>? mediaUrl;
   bool isVideo;
@@ -15,11 +16,13 @@ class Post {
   bool clip;
   Timestamp? clipTime;
   DocumentSnapshot? documentSnapshot;
+  bool closeComment;
 
   Post({
     this.id = '',
     this.content = '',
     this.postAccountId = '',
+    this.postUserId = '',
     this.createdTime,
     this.mediaUrl,
     this.isVideo = false,
@@ -31,6 +34,7 @@ class Post {
     this.clip = false,
     this.clipTime,
     this.documentSnapshot,
+    this.closeComment = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -38,6 +42,7 @@ class Post {
       'id': id,
       'content': content,
       'post_account_id': postAccountId,
+      'post_user_id': postUserId,
       'created_time': createdTime ?? FieldValue.serverTimestamp(),
       'media_url': mediaUrl ?? [],
       'is_video': isVideo,
@@ -48,6 +53,7 @@ class Post {
       'hide': hide,
       'clip': clip,
       'clip_time': clipTime,
+      'closeComment': closeComment,
     };
   }
 
@@ -59,6 +65,7 @@ class Post {
       id: doc.id,
       content: data['content'] ?? '',
       postAccountId: data['post_account_id'] ?? '',
+      postUserId: data['post_user_id'] ?? '',
       createdTime: data['created_time'] as Timestamp?,
       mediaUrl: List<String>.from(data['media_url'] ?? []),
       isVideo: data['is_video'] ?? false,
@@ -70,6 +77,7 @@ class Post {
       clip: data.containsKey('clip') ? data['clip'] as bool : false,
       clipTime: data['clip_time'] as Timestamp?,
       documentSnapshot: doc,
+      closeComment: data['closeComment'] ?? false,
     );
   }
 
@@ -80,6 +88,7 @@ class Post {
       id: documentSnapshot?.id ?? '',
       content: data['content'] ?? '',
       postAccountId: data['post_account_id'] ?? '',
+      postUserId: data['post_user_id'] ?? '',
       createdTime: data['created_time'] as Timestamp?,
       mediaUrl: List<String>.from(data['media_url'] ?? []),
       isVideo: data['is_video'] ?? false,
@@ -91,6 +100,7 @@ class Post {
       clip: data.containsKey('clip') ? data['clip'] as bool : false,
       clipTime: data['clip_time'] as Timestamp?,
       documentSnapshot: documentSnapshot,
+      closeComment: data['closeComment'] ?? false,
     );
   }
 }

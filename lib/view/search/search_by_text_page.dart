@@ -53,8 +53,8 @@ class _SearchByTextPageState extends State<SearchByTextPage> {
   Future<void> _fetchMoreSearchResults() async {
     if (!_hasMore) return;
 
-    widget.searchItem.searchPosts(
-        widget.lastQuery, widget.selectedCategory, _lastDocument, 5, (results) {
+    widget.searchItem.searchPosts(widget.lastQuery, widget.userId,
+        widget.selectedCategory, _lastDocument, 5, (results) {
       if (results.isNotEmpty) {
         setState(() {
           _postSearchResults.addAll(results); // 新しい投稿を既存のリストに追加
@@ -174,6 +174,7 @@ class _SearchByTextPageState extends State<SearchByTextPage> {
 
 Future<void> fetchInitialSearchResults({
   required String lastQuery,
+  required String userId,
   required String? selectedCategory,
   required SearchItem searchItem,
   required Function(List<DocumentSnapshot>) updateResults,
@@ -181,11 +182,18 @@ Future<void> fetchInitialSearchResults({
 }) async {
   updateHasMore(true);
 
-  searchItem.searchPosts(lastQuery, selectedCategory, null, 5, (results) {
-    updateResults(results);
+  searchItem.searchPosts(
+    lastQuery,
+    userId,
+    selectedCategory,
+    null,
+    5,
+    (results) {
+      updateResults(results);
 
-    if (results.length < 5) {
-      updateHasMore(false);
-    }
-  });
+      if (results.length < 5) {
+        updateHasMore(false);
+      }
+    },
+  );
 }

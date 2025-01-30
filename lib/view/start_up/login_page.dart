@@ -7,6 +7,7 @@ import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/start_up/create_account_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class LoginPage extends StatefulWidget {
@@ -147,6 +148,9 @@ class _LoginPageState extends State<LoginPage> {
                     child: TextField(
                       controller: emailController,
                       decoration: InputDecoration(hintText: 'email'),
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(80),
+                      ],
                     ),
                   ),
                 ),
@@ -168,6 +172,9 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     obscureText: _isObscured,
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(24),
+                    ],
                   ),
                 ),
                 SizedBox(height: 10),

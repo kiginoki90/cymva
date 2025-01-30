@@ -2,12 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/ad_widget.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
+import 'package:cymva/view/search/detailed_search_page.dart';
 import 'package:cymva/view/search/search_item.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:cymva/utils/favorite_post.dart';
+import 'package:flutter/services.dart';
 
 class SearchPage extends StatefulWidget {
   final String userId;
@@ -37,7 +39,8 @@ class _SearchPageState extends State<SearchPage> {
     'イラスト',
     '写真',
     '俳句・短歌',
-    '改修要望/バグ'
+    '改修要望/バグ',
+    '憲章宣誓',
   ];
   final Map<String, int> _postFavoriteCounts = {};
 
@@ -50,7 +53,8 @@ class _SearchPageState extends State<SearchPage> {
 
       if (_currentPage == 0) {
         _searchItem.searchPosts(
-            _searchController.text, _selectedCategory, null, 5, (results) {
+            _searchController.text, widget.userId, _selectedCategory, null, 5,
+            (results) {
           setState(() {
             _postSearchResults = results;
           });
@@ -62,15 +66,15 @@ class _SearchPageState extends State<SearchPage> {
           });
         });
       } else if (_currentPage == 2) {
-        _searchItem.fetchRecentFavorites(
-            _searchController.text, _selectedCategory, _postFavoriteCounts,
-            (results) {
+        _searchItem.fetchRecentFavorites(_searchController.text, widget.userId,
+            _selectedCategory, _postFavoriteCounts, (results) {
           setState(() {
             _recentFavoritesResults = results;
           });
         });
       } else if (_currentPage == 3) {
-        _searchItem.searchImagePosts(_searchController.text, _selectedCategory,
+        _searchItem.searchImagePosts(
+            _searchController.text, widget.userId, _selectedCategory,
             (results) {
           setState(() {
             _recentImageResults = results;
@@ -84,7 +88,8 @@ class _SearchPageState extends State<SearchPage> {
 
       if (_currentPage == 0) {
         _searchItem.searchPosts(
-            _searchController.text, _selectedCategory, null, 5, (results) {
+            _searchController.text, widget.userId, _selectedCategory, null, 5,
+            (results) {
           setState(() {
             _postSearchResults = results;
           });
@@ -97,13 +102,15 @@ class _SearchPageState extends State<SearchPage> {
         });
       } else if (_currentPage == 2) {
         _searchItem.fetchRecentFavorites(
-            _lastQuery, _selectedCategory, _postFavoriteCounts, (results) {
+            _lastQuery, widget.userId, _selectedCategory, _postFavoriteCounts,
+            (results) {
           setState(() {
             _recentFavoritesResults = results;
           });
         });
       } else if (_currentPage == 3) {
-        _searchItem.searchImagePosts(_lastQuery, _selectedCategory, (results) {
+        _searchItem.searchImagePosts(
+            _lastQuery, widget.userId, _selectedCategory, (results) {
           setState(() {
             _recentImageResults = results;
           });
@@ -133,9 +140,13 @@ class _SearchPageState extends State<SearchPage> {
                       color: Color.fromARGB(179, 131, 128, 128)), // ヒントのスタイル
                 ),
                 style: const TextStyle(color: Colors.black), // テキストの色
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(40), // 最大50文字に制限
+                ],
                 onSubmitted: (query) {
                   if (_currentPage == 0) {
-                    _searchItem.searchPosts(query, _selectedCategory, null, 5,
+                    _searchItem.searchPosts(
+                        query, widget.userId, _selectedCategory, null, 5,
                         (results) {
                       setState(() {
                         _postSearchResults = results;
@@ -148,16 +159,15 @@ class _SearchPageState extends State<SearchPage> {
                       });
                     });
                   } else if (_currentPage == 2) {
-                    _searchItem.fetchRecentFavorites(
-                        query, _selectedCategory, _postFavoriteCounts,
-                        (results) {
+                    _searchItem.fetchRecentFavorites(query, widget.userId,
+                        _selectedCategory, _postFavoriteCounts, (results) {
                       setState(() {
                         _recentFavoritesResults = results;
                       });
                     });
                   } else if (_currentPage == 3) {
-                    _searchItem.searchImagePosts(query, _selectedCategory,
-                        (results) {
+                    _searchItem.searchImagePosts(
+                        query, widget.userId, _selectedCategory, (results) {
                       setState(() {
                         _recentImageResults = results;
                       });
@@ -356,7 +366,8 @@ class _SearchPageState extends State<SearchPage> {
   Future<void> _refreshSearchResults() async {
     // データを再取得して_stateを更新する
     await _searchItem.searchPosts(
-        _searchController.text, _selectedCategory, null, 5, (results) {
+        _searchController.text, widget.userId, _selectedCategory, null, 5,
+        (results) {
       setState(() {
         _postSearchResults = results;
       });
@@ -545,17 +556,16 @@ class _SearchPageState extends State<SearchPage> {
                         return Container(); // スキップして何も表示しない
                       }
 
-                      // Firestoreから直近24時間のfavorite_usersを取得してcount
-                      final recentFavoriteCount =
-                          _postFavoriteCounts[post.id] ?? 0;
+                      _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                          ValueNotifier<int>(0);
+                      _favoritePost.updateFavoriteUsersCount(post.id);
 
                       // PostItemWidget に recentFavoriteCount をそのまま渡す
                       return PostItemWidget(
                         post: post,
                         postAccount: postAccount,
                         favoriteUsersNotifier:
-                            _favoritePost.favoriteUsersNotifiers[post.id] ??
-                                ValueNotifier<int>(recentFavoriteCount),
+                            _favoritePost.favoriteUsersNotifiers[post.id]!,
                         isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
                             .favoritePostsNotifier.value
                             .contains(post.id)),
@@ -584,7 +594,8 @@ class _SearchPageState extends State<SearchPage> {
   Future<void> _refreshRecentFavorites() async {
     // データを再取得して_stateを更新する
     await _searchItem.fetchRecentFavorites(
-        _lastQuery, _selectedCategory, _postFavoriteCounts, (results) {
+        _lastQuery, widget.userId, _selectedCategory, _postFavoriteCounts,
+        (results) {
       setState(() {
         _recentFavoritesResults = results;
       });
@@ -708,8 +719,8 @@ class _SearchPageState extends State<SearchPage> {
 // リストを更新するメソッド
   Future<void> _refreshPosts() async {
     // データを再取得して_stateを更新する
-    await _searchItem.searchImagePosts(_lastQuery, _selectedCategory,
-        (results) {
+    await _searchItem.searchImagePosts(
+        _lastQuery, widget.userId, _selectedCategory, (results) {
       setState(() {
         _recentImageResults = results;
       });
@@ -721,7 +732,8 @@ class _SearchPageState extends State<SearchPage> {
 
     if (_currentPage == 0 && _postSearchResults.isEmpty) {
       _searchItem.searchPosts(
-          _searchController.text, _selectedCategory, null, 5, (results) {
+          _searchController.text, widget.userId, _selectedCategory, null, 5,
+          (results) {
         setState(() {
           _postSearchResults = results;
         });
@@ -734,13 +746,15 @@ class _SearchPageState extends State<SearchPage> {
       });
     } else if (_currentPage == 2 && _recentFavoritesResults.isEmpty) {
       _searchItem.fetchRecentFavorites(
-          _lastQuery, _selectedCategory, _postFavoriteCounts, (results) {
+          _lastQuery, widget.userId, _selectedCategory, _postFavoriteCounts,
+          (results) {
         setState(() {
           _recentFavoritesResults = results;
         });
       });
     } else if (_currentPage == 3 && _recentImageResults.isEmpty) {
-      _searchItem.searchImagePosts(_lastQuery, _selectedCategory, (results) {
+      _searchItem.searchImagePosts(_lastQuery, widget.userId, _selectedCategory,
+          (results) {
         setState(() {
           _recentImageResults = results;
         });
@@ -834,7 +848,24 @@ class _SearchPageState extends State<SearchPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('カテゴリーの選択'),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('カテゴリーの選択'),
+              IconButton(
+                icon: Icon(
+                  Icons.new_label,
+                  size: 45.0, // アイコンのサイズを大きくする
+                  color:
+                      const Color.fromARGB(255, 170, 205, 222), // アイコンの色を水色にする
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop(); // ダイアログを閉じる
+                  _navigateToDetailedSearchPage(); // 詳しい検索条件のページに遷移
+                },
+              )
+            ],
+          ),
           content: SingleChildScrollView(
             child: Column(
               children: categories.map((category) {
@@ -843,16 +874,17 @@ class _SearchPageState extends State<SearchPage> {
                   onTap: () {
                     setState(() {
                       _selectedCategory = category;
-                      _searchItem.searchPosts(
-                          _searchController.text, _selectedCategory, null, 5,
-                          (results) {
+                      _searchItem.searchPosts(_searchController.text,
+                          widget.userId, _selectedCategory, null, 5, (results) {
                         setState(() {
                           _postSearchResults = results;
                         });
                       });
                       _searchItem.fetchRecentFavorites(
-                          _lastQuery, _selectedCategory, _postFavoriteCounts,
-                          (results) {
+                          _lastQuery,
+                          widget.userId,
+                          _selectedCategory,
+                          _postFavoriteCounts, (results) {
                         setState(() {
                           _recentFavoritesResults = results;
                         });
@@ -867,5 +899,63 @@ class _SearchPageState extends State<SearchPage> {
         );
       },
     );
+  }
+
+  void _navigateToDetailedSearchPage() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return FractionallySizedBox(
+          heightFactor: 0.9, // 画面の90%の高さに設定
+          child: DetailedSearchPage(),
+        );
+      },
+    ).then((result) {
+      if (result != null) {
+        // 検索条件を受け取る
+        final query = result['query'] as String;
+        final selectedCategory = result['selectedCategory'] as String?;
+        final searchUserId = result['searchUserId'] as String?;
+        final isFollowing = result['isFollowing'] as bool;
+        final startDate = result['startDate'] as DateTime?;
+        final endDate = result['endDate'] as DateTime?;
+
+        // 検索条件を適用して検索を実行
+        _searchItem.searchPosts(
+          query,
+          widget.userId,
+          selectedCategory,
+          null,
+          5,
+          (results) {
+            setState(() {
+              _postSearchResults = results;
+            });
+          },
+          searchUserId: searchUserId,
+          isFollowing: isFollowing,
+          startDate: startDate,
+          endDate: endDate,
+        );
+
+        // 検索条件を適用して検索を実行
+        _searchItem.fetchRecentFavorites(
+          query,
+          widget.userId,
+          selectedCategory,
+          _postFavoriteCounts,
+          (results) {
+            setState(() {
+              _recentFavoritesResults = results;
+            });
+          },
+          searchUserId: searchUserId,
+          isFollowing: isFollowing,
+          startDate: startDate,
+          endDate: endDate,
+        );
+      }
+    });
   }
 }

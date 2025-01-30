@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class TimelineHeader extends StatefulWidget {
   final PageController pageController;
@@ -12,10 +13,12 @@ class TimelineHeader extends StatefulWidget {
 class _TimelineHeaderState extends State<TimelineHeader> {
   int currentPage = 0;
   late VoidCallback _pageListener;
+  final FlutterSecureStorage storage = FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
+    _initializeCurrentPage();
     _pageListener = () {
       if (mounted) {
         setState(() {
@@ -24,6 +27,14 @@ class _TimelineHeaderState extends State<TimelineHeader> {
       }
     };
     widget.pageController.addListener(_pageListener);
+  }
+
+  Future<void> _initializeCurrentPage() async {
+    final pageIndexString = await storage.read(key: 'TimeLine') ?? '0';
+    final initialPageIndex = int.tryParse(pageIndexString) ?? 0;
+    setState(() {
+      currentPage = initialPageIndex;
+    });
   }
 
   @override
@@ -63,7 +74,7 @@ class _TimelineHeaderState extends State<TimelineHeader> {
                 icon: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('フォロー'),
+                    Text('ランキング'),
                     Container(
                       margin: const EdgeInsets.only(top: 2),
                       height: 2,
@@ -75,6 +86,24 @@ class _TimelineHeaderState extends State<TimelineHeader> {
                 ),
                 onPressed: () {
                   widget.pageController.jumpToPage(1);
+                },
+              ),
+              IconButton(
+                icon: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('フォロー'),
+                    Container(
+                      margin: const EdgeInsets.only(top: 2),
+                      height: 2,
+                      width: 60,
+                      color:
+                          currentPage == 2 ? Colors.blue : Colors.transparent,
+                    ),
+                  ],
+                ),
+                onPressed: () {
+                  widget.pageController.jumpToPage(2);
                 },
               ),
             ],

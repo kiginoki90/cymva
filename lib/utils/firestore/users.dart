@@ -52,6 +52,7 @@ class UserFirestore {
         'lock_account': false,
         'follow_message': true,
         'first_login': true,
+        'replyMessage': true,
       });
 
       // await users
@@ -102,6 +103,7 @@ class UserFirestore {
           updatedTime: data['updated_time'] as Timestamp?,
           lockAccount: data['lock_account'] ?? '',
           followMessage: data['follow_message'] ?? true,
+          replyMessage: data['replyMessage'] ?? true,
         );
         // 作成したオブジェクトをmyAccountに保存
         Authentication.myAccount = myAccount;
@@ -154,6 +156,7 @@ class UserFirestore {
             lockAccount: dataMap['lock_account'],
             parents_id: dataMap['parents_id'],
             followMessage: data['follow_message'] ?? true,
+            replyMessage: data['replyMessage'] ?? true,
           );
           map[accountId] = postAccount;
         }
@@ -229,6 +232,7 @@ class UserFirestore {
             updatedTime: data['updated_time'] as Timestamp?,
             lockAccount: data['lock_account'] ?? '',
             followMessage: data['follow_message'] ?? '',
+            replyMessage: data['replyMessage'] ?? true,
           );
           accounts[id] = account; // IDをキーとしてマップに追加
         }
@@ -256,6 +260,17 @@ class UserFirestore {
     try {
       await _users.doc(userId).update({
         'follow_message': followPrivate,
+      });
+      print('lock_account updated successfully');
+    } catch (e) {
+      print('Error updating lock_account: $e');
+    }
+  }
+
+  static Future<void> replyMessage(String userId, bool replyMessage) async {
+    try {
+      await _users.doc(userId).update({
+        'replyMessage': replyMessage,
       });
       print('lock_account updated successfully');
     } catch (e) {

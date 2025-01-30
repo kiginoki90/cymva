@@ -4,11 +4,13 @@ import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/post_item/full_screen_image.dart';
 import 'package:cymva/view/slide_direction_page_route.dart';
 import 'package:cymva/view/time_line/follow_timeline_page.dart';
+import 'package:cymva/view/time_line/ranking_page.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:cymva/view/time_line/timeline_header.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class TimeLineBody extends StatefulWidget {
   final String userId;
@@ -27,16 +29,35 @@ class TimeLineBody extends StatefulWidget {
 class _TimeLineBodyState extends State<TimeLineBody> {
   late Future<List<String>>? _favoritePostsFuture;
   final FavoritePost _favoritePost = FavoritePost();
-  final PageController _pageController = PageController();
-
+  late PageController _pageController;
+  int _currentPageIndex = 0;
   Account? myAccount;
   bool _hasShownPopups = false; // ポップアップ表示制御フラグ
+  final FlutterSecureStorage storage = FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
+    _initializePageController();
+    _pageController = PageController();
     _favoritePostsFuture = _favoritePost.getFavoritePosts();
     _loadAccount();
+  }
+
+  Future<void> _initializePageController() async {
+    final pageIndexString = await storage.read(key: 'TimeLine') ?? '0';
+    final initialPageIndex = int.tryParse(pageIndexString) ?? 0;
+    setState(() {
+      _currentPageIndex = initialPageIndex;
+      _pageController = PageController(initialPage: _currentPageIndex);
+    });
+  }
+
+  Future<void> _saveLastPageIndex(int index) async {
+    await storage.write(
+      key: 'TimeLine',
+      value: index.toString(),
+    );
   }
 
   @override
@@ -399,7 +420,6 @@ class _TimeLineBodyState extends State<TimeLineBody> {
         ),
       );
     }
-
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -408,8 +428,12 @@ class _TimeLineBodyState extends State<TimeLineBody> {
             Expanded(
               child: PageView(
                 controller: _pageController,
+                onPageChanged: (index) {
+                  _saveLastPageIndex(index);
+                },
                 children: [
                   TimeLinePage(userId: widget.userId),
+                  RankingPage(userId: widget.userId),
                   FollowTimelinePage(userId: widget.userId),
                 ],
               ),

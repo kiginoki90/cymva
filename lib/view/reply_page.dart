@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cymva/model/account.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
@@ -10,8 +11,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class ReplyPage extends StatefulWidget {
   final String userId;
   final Post post;
+  final Account repryAccount;
 
-  const ReplyPage({Key? key, required this.userId, required this.post})
+  const ReplyPage(
+      {Key? key,
+      required this.userId,
+      required this.post,
+      required this.repryAccount})
       : super(key: key);
 
   @override
@@ -114,7 +120,7 @@ class _ReplyPageState extends State<ReplyPage> {
 
       String? replyPostId = await PostFirestore.addPost(replyPost);
 
-      if (replyPostId != null) {
+      if (replyPostId != null && replyPost.reply!.isNotEmpty) {
         final replyPostCollectionRef = FirebaseFirestore.instance
             .collection('posts')
             .doc(replyPost.reply)
@@ -125,14 +131,53 @@ class _ReplyPageState extends State<ReplyPage> {
           'timestamp': FieldValue.serverTimestamp(),
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('返信が完了しました')),
-        );
+        // 返信先の投稿の返信数を更新
+        if (widget.userId != widget.post.postAccountId &&
+            widget.repryAccount.replyMessage == true) {
+          _addOrUpdateMessage(replyPostId);
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('返信が完了しました')),
+          );
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('返信に失敗しました')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('返信に失敗しました')),
+          );
+        }
       }
+    }
+  }
+
+  Future<void> _addOrUpdateMessage(String replyPostId) async {
+    final userMessageRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.post.postAccountId)
+        .collection('message');
+
+    final querySnapshot = await userMessageRef
+        .where('message_type', isEqualTo: 5)
+        .where('postID', isEqualTo: widget.post.id)
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      // 既存のメッセージがある場合、そのcountを1増やす
+      final docRef = querySnapshot.docs.first.reference;
+      await docRef.update({'count': FieldValue.increment(1)});
+    } else {
+      // 新しいメッセージを追加
+      final messageData = {
+        'message_type': 5,
+        'timestamp': FieldValue.serverTimestamp(),
+        'postID': widget.post.id,
+        'isRead': false,
+        'count': 1,
+      };
+      await userMessageRef.add(messageData);
     }
   }
 
@@ -208,7 +253,7 @@ class _ReplyPageState extends State<ReplyPage> {
                   const SizedBox(height: 10),
                   Text(
                     widget.post.content,
-                    style: const TextStyle(fontSize: 18),
+                    style: const TextStyle(fontSize: 13),
                   ),
                   const SizedBox(height: 10),
                   if (widget.post.mediaUrl != null &&

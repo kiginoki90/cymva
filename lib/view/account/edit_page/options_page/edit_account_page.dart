@@ -11,20 +11,21 @@ class EditAccountPage extends StatefulWidget {
 }
 
 class _EditAccountPageState extends State<EditAccountPage> {
-  Account myAccount = Authentication.myAccount!;
+  Account? myAccount;
   TextEditingController nameController = TextEditingController();
   TextEditingController userIdController = TextEditingController();
   TextEditingController selfIntroductionController = TextEditingController();
   File? image;
   bool isPrivate = false;
   bool followPrivate = true;
+  bool replyMessage = true;
 
   int _nameCharCount = 0;
   int _introCharCount = 0;
 
   ImageProvider getImage() {
     if (image == null) {
-      return NetworkImage(myAccount.imagePath);
+      return NetworkImage(myAccount?.imagePath ?? '');
     } else {
       return FileImage(image!);
     }
@@ -33,26 +34,22 @@ class _EditAccountPageState extends State<EditAccountPage> {
   @override
   void initState() {
     super.initState();
-    nameController = TextEditingController(text: myAccount.name);
-    userIdController = TextEditingController(text: myAccount.userId);
-    selfIntroductionController =
-        TextEditingController(text: myAccount.selfIntroduction);
-    isPrivate = myAccount.lockAccount;
-    followPrivate = myAccount.followMessage;
+    _fetchAccountData();
+  }
 
-    // 名前フィールドの文字数リスナー
-    nameController.addListener(() {
+  Future<void> _fetchAccountData() async {
+    final account = await UserFirestore.getUser(Authentication.myAccount!.id);
+    if (account != null) {
       setState(() {
-        _nameCharCount = nameController.text.length;
+        myAccount = account;
+        nameController.text = myAccount!.name;
+        userIdController.text = myAccount!.userId;
+        selfIntroductionController.text = myAccount!.selfIntroduction;
+        isPrivate = myAccount!.lockAccount;
+        followPrivate = myAccount!.followMessage;
+        replyMessage = myAccount!.replyMessage;
       });
-    });
-
-    // 自己紹介フィールドの文字数リスナー
-    selfIntroductionController.addListener(() {
-      setState(() {
-        _introCharCount = selfIntroductionController.text.length;
-      });
-    });
+    }
   }
 
   @override
@@ -64,6 +61,18 @@ class _EditAccountPageState extends State<EditAccountPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (myAccount == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('設定編集'),
+          backgroundColor: Colors.blueGrey,
+        ),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text('設定編集'),
@@ -196,10 +205,10 @@ class _EditAccountPageState extends State<EditAccountPage> {
                 String? imagePath = '';
 
                 if (image == null) {
-                  imagePath = myAccount.imagePath ?? '';
+                  imagePath = myAccount!.imagePath;
                 } else {
                   String? result = await FunctionUtils.uploadImage(
-                      myAccount.id, image!, context);
+                      myAccount!.id, image!, context);
                   if (result != null) {
                     imagePath = result;
                   } else {
@@ -209,13 +218,14 @@ class _EditAccountPageState extends State<EditAccountPage> {
                 }
 
                 Account updateAccount = Account(
-                  id: myAccount.id,
+                  id: myAccount!.id,
                   name: nameController.text,
                   userId: userIdController.text,
                   selfIntroduction: selfIntroductionController.text,
                   imagePath: imagePath,
                   lockAccount: isPrivate,
                   followMessage: followPrivate,
+                  replyMessage: replyMessage,
                 );
 
                 Authentication.myAccount = updateAccount;
@@ -249,7 +259,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
                       isPrivate = value;
                     });
                     await UserFirestore.updateLockAccount(
-                        myAccount.id, isPrivate);
+                        myAccount!.id, isPrivate);
                   },
                   activeColor: Colors.blue,
                 ),
@@ -269,7 +279,27 @@ class _EditAccountPageState extends State<EditAccountPage> {
                       followPrivate = value;
                     });
                     await UserFirestore.updateFollowMessage(
-                        myAccount.id, followPrivate);
+                        myAccount!.id, followPrivate);
+                  },
+                  activeColor: Colors.blue,
+                ),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '返信メッセージON/OFF',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                Switch(
+                  value: replyMessage,
+                  onChanged: (bool value) async {
+                    setState(() {
+                      replyMessage = value;
+                    });
+                    await UserFirestore.replyMessage(
+                        myAccount!.id, replyMessage);
                   },
                   activeColor: Colors.blue,
                 ),

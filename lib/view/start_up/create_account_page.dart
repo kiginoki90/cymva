@@ -7,6 +7,7 @@ import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/utils/function_utils.dart';
 import 'package:cymva/utils/widget_utils.dart';
 import 'package:cymva/view/start_up/check_email_page.dart';
+import 'package:flutter/services.dart';
 
 class CreateAccountPage extends StatefulWidget {
   const CreateAccountPage({super.key});
@@ -98,6 +99,9 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                   child: TextField(
                     controller: emailController,
                     decoration: InputDecoration(hintText: 'メールアドレス'),
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(80),
+                    ],
                   ),
                 ),
               ),
@@ -105,7 +109,11 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                 width: 300,
                 child: TextField(
                   controller: passController,
-                  decoration: InputDecoration(hintText: 'パスワード（6文字以上の英数字）'),
+                  decoration:
+                      InputDecoration(hintText: 'パスワード（6文字以上24文字以内の英数字）'),
+                  inputFormatters: [
+                    LengthLimitingTextInputFormatter(24),
+                  ],
                 ),
               ),
               if (errorMessage != null) ...[

@@ -131,6 +131,21 @@ class _PostItemWidgetState extends State<PostItemWidget> {
     }
   }
 
+  String _formatDate(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}分前';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}時間前';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}日前';
+    } else {
+      return DateFormat('yyyy/M/d').format(dateTime);
+    }
+  }
+
   @override
   void dispose() {
     _replyCountSubscription?.cancel();
@@ -170,9 +185,7 @@ class _PostItemWidgetState extends State<PostItemWidget> {
             MaterialPageRoute(
               builder: (context) => PostDetailPage(
                 post: widget.post,
-                postAccountName: widget.postAccount.name,
-                postAccountUserId: widget.postAccount.userId,
-                postAccountImagePath: widget.postAccount.imagePath,
+                postAccount: widget.postAccount,
                 replyFlag: widget.replyFlag,
                 userId: widget.userId,
               ),
@@ -196,9 +209,7 @@ class _PostItemWidgetState extends State<PostItemWidget> {
             MaterialPageRoute(
               builder: (context) => PostDetailPage(
                 post: widget.post,
-                postAccountName: widget.postAccount.name,
-                postAccountUserId: widget.postAccount.userId,
-                postAccountImagePath: widget.postAccount.imagePath,
+                postAccount: widget.postAccount,
                 replyFlag: widget.replyFlag,
                 userId: widget.userId,
               ),
@@ -331,7 +342,7 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                           ),
                                         ),
                                       ),
-                                    Text(DateFormat('yyyy/M/d').format(
+                                    Text(_formatDate(
                                         widget.post.createdTime!.toDate())),
                                   ],
                                 ),
@@ -400,6 +411,30 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                 postAccount: _repostPostAccount!,
                                 userId: widget.userId,
                                 repostPost: _repostPost!,
+                              )
+                            else if (widget.post.repost != null &&
+                                _repostPost == null)
+                              Center(
+                                child: Column(
+                                  children: [
+                                    SizedBox(height: 5),
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(20.0),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                            color: Colors.grey), // 枠線の色
+                                        borderRadius:
+                                            BorderRadius.circular(8.0), // 角を丸める
+                                      ),
+                                      child: const Text(
+                                        'この引用投稿は削除されています',
+                                        textAlign: TextAlign.start,
+                                      ),
+                                    ),
+                                    SizedBox(height: 5),
+                                  ],
+                                ),
                               ),
                             if (isHidden == false)
                               Row(
@@ -488,19 +523,31 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                         children: [
                                           Text(replyCount.toString()),
                                           IconButton(
-                                            onPressed: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      ReplyPage(
-                                                    post: widget.post,
-                                                    userId: widget.userId,
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                            icon: const Icon(Icons.comment),
+                                            onPressed: widget
+                                                        .post.closeComment ==
+                                                    true
+                                                ? null
+                                                : () {
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (context) =>
+                                                            ReplyPage(
+                                                          post: widget.post,
+                                                          userId: widget.userId,
+                                                          repryAccount: widget
+                                                              .postAccount,
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
+                                            icon: Icon(
+                                              Icons.comment,
+                                              color: widget.post.closeComment ==
+                                                      true
+                                                  ? Colors.grey
+                                                  : Colors.black,
+                                            ),
                                           ),
                                         ],
                                       );

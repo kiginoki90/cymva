@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/view/start_up/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ChangePasswordPage extends StatefulWidget {
@@ -121,17 +122,26 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               controller: _currentPasswordController,
               decoration: InputDecoration(labelText: '現在のパスワード'),
               obscureText: true,
+              inputFormatters: [
+                LengthLimitingTextInputFormatter(24),
+              ],
             ),
             SizedBox(height: 40),
             TextField(
               controller: _newPasswordController,
               decoration: InputDecoration(labelText: '新しいパスワード'),
               obscureText: true,
+              inputFormatters: [
+                LengthLimitingTextInputFormatter(24),
+              ],
             ),
             TextField(
               controller: _confirmPasswordController,
               decoration: InputDecoration(labelText: '新しいパスワード（確認）'),
               obscureText: true,
+              inputFormatters: [
+                LengthLimitingTextInputFormatter(24),
+              ],
             ),
             SizedBox(height: 20),
             ElevatedButton(
@@ -139,7 +149,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               child: Text('パスワードを変更する'),
             ),
             SizedBox(height: 10),
-            Text('パスワードは6文字以上の英数字で設定してください'),
+            Text('パスワードは6文字以上24文字以内の英数字で設定してください'),
           ],
         ),
       ),

@@ -8,6 +8,8 @@ import 'package:cymva/view/account/follower_page.dart';
 import 'package:cymva/view/admin/admin_page.dart';
 import 'package:cymva/view/post_item/full_screen_image.dart';
 import 'package:cymva/view/post_item/show_account_report_dialog.dart';
+import 'package:cymva/view/search/detailed_search_page.dart';
+import 'package:cymva/view/search/search_page.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/firestore/users.dart';
@@ -275,7 +277,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
                   },
                 );
               },
-              child: const Text('1'),
+              child: const Text(''),
             ),
           ),
         Spacer(),
@@ -474,7 +476,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
                           //   });
                           // }
                         },
-                        child: const Text('1'),
+                        child: const Text(''),
                       ),
                     ),
                 ],
@@ -579,20 +581,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
             ),
           ),
           SizedBox(height: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                postAccount!.name,
-                style:
-                    const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                '@${postAccount!.userId}',
-                style: const TextStyle(color: Colors.grey),
-              ),
-            ],
-          ),
+          _buildAccountInfo() ?? Container(),
           SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -654,6 +643,35 @@ class _AccountTopPageState extends State<AccountTopPage> {
               ),
             ],
           )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccountInfo() {
+    return GestureDetector(
+      onTap: () {
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(
+        //     builder: (context) => DetailedSearchPage(
+        //       initialUserId: postAccount!.userId,
+        //       movingFlag: true,
+        //     ),
+        //   ),
+        // );
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            postAccount!.name,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            '@${postAccount!.userId}',
+            style: const TextStyle(color: Colors.grey),
+          ),
         ],
       ),
     );

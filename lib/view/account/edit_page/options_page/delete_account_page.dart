@@ -4,6 +4,7 @@ import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/start_up/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 
 class DeleteAccountPage extends StatefulWidget {
   final String userId; // 削除対象のユーザーID
@@ -92,6 +93,9 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                 labelText: 'パスワード',
                 errorText: _errorMessage,
               ),
+              inputFormatters: [
+                LengthLimitingTextInputFormatter(24), // 最大50文字に制限
+              ],
             ),
             const SizedBox(height: 16),
             Center(
@@ -128,7 +132,9 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
             .get();
 
         for (var postDoc in postsSnapshot.docs) {
-          await postDoc.reference.delete(); // 投稿の削除
+          String postId = postDoc.id;
+          String? reply = postDoc['reply'];
+          await _deletePost(postId, userId, reply); // 投稿の削除
         }
 
         // 3. 各サブコレクションからuserIdと一致するドキュメントを削除
@@ -139,87 +145,83 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     }
   }
 
-// サブコレクションからuserIdを削除するメソッド
+  Future<void> _deletePost(
+      String postId, String postAccountId, String? reply) async {
+    try {
+      final postDocRef =
+          FirebaseFirestore.instance.collection('posts').doc(postId);
+
+      // サブコレクション内のすべてのドキュメントを削除する関数
+      Future<void> deleteSubcollection(String subcollectionName) async {
+        final subcollectionRef = postDocRef.collection(subcollectionName);
+        final snapshot = await subcollectionRef.get();
+
+        for (var doc in snapshot.docs) {
+          await doc.reference.delete();
+        }
+      }
+
+      // 返信が存在する場合、返信先の`reply_post`を削除
+      if (reply != null && reply.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('posts')
+            .doc(reply)
+            .collection('reply_post')
+            .doc(postId)
+            .delete();
+      }
+
+      // サブコレクションを削除 (サブコレクション名が固定されている場合)
+      await deleteSubcollection('favorite_users');
+      await deleteSubcollection('repost');
+      await deleteSubcollection('reply_post');
+      // メインの投稿ドキュメントを削除
+      await postDocRef.delete();
+
+      // ユーザーのポスト一覧からも削除
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(postAccountId)
+          .collection('my_posts')
+          .doc(postId)
+          .delete();
+
+      print('投稿を削除しました');
+    } catch (e) {
+      print('投稿の削除に失敗しました: $e');
+    }
+  }
+
+  // サブコレクションからuserIdを削除するメソッド
   Future<void> _deleteUserFromSubcollections(String userId) async {
+    final userDocRef =
+        FirebaseFirestore.instance.collection('users').doc(userId);
+
+    await deleteSubcollection(userDocRef, 'my_posts');
+
+    await deleteSubcollection(userDocRef, 'message');
+
     // blockサブコレクションから削除
-    await _deleteBlocked(userId);
+    await deleteSubcollection(userDocRef, 'block');
 
     // followサブコレクションから削除
-    await _deleteFollow(userId);
+    await deleteSubcollection(userDocRef, 'follow');
 
     // followersサブコレクションから削除
-    await _deleteDocumentsInSubcollection(userId, 'followers');
+    await deleteSubcollection(userDocRef, 'followers');
 
     // blockUsersサブコレクションから削除
-    await _deleteBlockedUsers(userId);
+    await deleteSubcollection(userDocRef, 'blockUsers');
   }
 
-// blockUsersサブコレクションからblocked_user_idがuserIdと一致するドキュメントを削除するメソッド
-  Future<void> _deleteBlockedUsers(String userId) async {
-    QuerySnapshot subcollectionSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('blockUsers')
-        .where('blocked_user_id',
-            isEqualTo: userId) // blocked_user_idがuserIdと一致するものを取得
-        .get();
+  // サブコレクションからドキュメントを削除する汎用メソッド
+  Future<void> deleteSubcollection(
+      DocumentReference docRef, String subcollectionName) async {
+    final subcollectionRef = docRef.collection(subcollectionName);
+    final snapshot = await subcollectionRef.get();
 
-    for (var doc in subcollectionSnapshot.docs) {
-      await doc.reference.delete(); // サブコレクションのドキュメントを削除
-    }
-  }
-
-  Future<void> _deleteBlocked(String userId) async {
-    QuerySnapshot subcollectionSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('block')
-        .where('blocked_user_id',
-            isEqualTo: userId) // blocked_user_idがuserIdと一致するものを取得
-        .get();
-
-    for (var doc in subcollectionSnapshot.docs) {
-      await doc.reference.delete(); // サブコレクションのドキュメントを削除
-    }
-  }
-
-  Future<void> _deleteFollow(String userId) async {
-    QuerySnapshot subcollectionSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('follow')
-        .where('followed_user_id', isEqualTo: userId)
-        .get();
-
-    for (var doc in subcollectionSnapshot.docs) {
-      await doc.reference.delete(); // サブコレクションのドキュメントを削除
-    }
-  }
-
-  //   Future<void> _deleteFollower(String userId) async {
-  //   QuerySnapshot subcollectionSnapshot = await FirebaseFirestore.instance
-  //       .collection('users')
-  //       .doc(userId)
-  //       .collection('follow')
-  //       .where('followed_user_id', isEqualTo: userId)
-  //       .get();
-
-  //   for (var doc in subcollectionSnapshot.docs) {
-  //     await doc.reference.delete(); // サブコレクションのドキュメントを削除
-  //   }
-  // }
-
-// サブコレクションからドキュメントを削除するヘルパーメソッド
-  Future<void> _deleteDocumentsInSubcollection(
-      String userId, String subcollection) async {
-    QuerySnapshot subcollectionSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection(subcollection)
-        .get();
-
-    for (var doc in subcollectionSnapshot.docs) {
-      await doc.reference.delete(); // サブコレクションのドキュメントを削除
+    for (var doc in snapshot.docs) {
+      await doc.reference.delete();
     }
   }
 }

@@ -1,3 +1,4 @@
+import 'package:cymva/maintenance_page.dart';
 import 'package:cymva/view/time_line/timeline_body.dart';
 import 'package:cymva/view/start_up/login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -48,6 +49,19 @@ class _InitialScreenState extends State<InitialScreen> {
 
   // 初期画面を決定するための非同期処理
   Future<Widget> _determineInitialScreen() async {
+    // メンテナンスモードのチェック
+    // final maintenanceDoc = await FirebaseFirestore.instance
+    //     .collection('setting')
+    //     .doc('maintenance')
+    //     .get();
+    // final isMaintenance = maintenanceDoc.data()?['Maintenance'] ?? false;
+    // final maintenanceContent =
+    //     maintenanceDoc.data()?['MaintenanceContent'] ?? 'メンテナンス中です';
+
+    // if (isMaintenance) {
+    //   return MaintenancePage(content: maintenanceContent);
+    // }
+
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user != null && user.emailVerified) {
