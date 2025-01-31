@@ -187,9 +187,22 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
               Center(
                 child: ElevatedButton(
                   onPressed: _applySearchFilters,
-                  child: Text('完了'),
+                  child: Text(
+                    '検索',
+                    style: TextStyle(
+                      color: Colors.white, // 文字の色を白に設定
+                      fontWeight: FontWeight.bold, // 文字を太く設定
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color.fromARGB(255, 153, 204, 224),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0), // 角を四角くする
+                    ),
+                  ),
                 ),
               ),
+              SizedBox(height: 20),
             ],
           ),
         ),

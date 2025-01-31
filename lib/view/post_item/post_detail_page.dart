@@ -3,6 +3,7 @@ import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/utils/post_item_utils.dart';
 import 'package:cymva/view/navigation_bar.dart';
+import 'package:cymva/view/post_item/favorite_list_page.dart';
 import 'package:cymva/view/post_item/link_text.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
@@ -702,6 +703,15 @@ class _PostDetailPageState extends State<PostDetailPage> {
                             } else if (value == 'Option 3') {
                               await _updatePostClipStatus(false);
                             } else if (value == 'Option 4') {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => FavoriteListPage(
+                                    postId: widget.post.postId,
+                                  ),
+                                ),
+                              );
+                            } else if (value == 'Option 5') {
                               _toggleCloseComment();
                             }
                           },
@@ -724,6 +734,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               ),
                               PopupMenuItem<String>(
                                 value: 'Option 4',
+                                child: Text('スターを見る'),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'Option 5',
                                 child: Text(widget.post.closeComment == true
                                     ? 'コメントを開く'
                                     : 'コメントを閉じる'),

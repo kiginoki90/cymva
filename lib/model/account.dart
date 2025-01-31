@@ -49,6 +49,7 @@ class Account {
   // Firestoreに保存するためのMapに変換するメソッド
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'admin': admin,
       'parents_id': parents_id,
       'name': name,
