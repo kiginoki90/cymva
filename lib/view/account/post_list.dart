@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/model/account.dart';
-import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cymva/utils/favorite_post.dart';
 
 class PostList extends StatefulWidget {

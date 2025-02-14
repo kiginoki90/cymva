@@ -18,6 +18,7 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
   DateTime? _startDate;
   DateTime? _endDate;
   bool movingFlag = false;
+  bool _isExactMatch = false;
 
   final List<String> categories = [
     '動物',
@@ -62,6 +63,7 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
       'query': _searchController.text,
       'selectedCategory': _selectedCategory,
       'searchUserId': _userIdController.text,
+      'isExactMatch': _isExactMatch,
       'isFollowing': _isFollowing,
       'startDate': _startDate,
       'endDate': _endDate,
@@ -73,6 +75,7 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
       _selectedCategory = null;
       _searchController.clear();
       _userIdController.clear();
+      _isExactMatch = false;
       _isFollowing = false;
       _startDate = null;
       _endDate = null;
@@ -136,12 +139,32 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
                 ),
               ),
               SizedBox(height: 16),
-              TextField(
-                controller: _userIdController,
-                decoration: InputDecoration(
-                  labelText: 'ユーザーID',
-                  border: OutlineInputBorder(),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _userIdController,
+                      decoration: InputDecoration(
+                        labelText: 'ユーザーID',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Column(
+                    children: [
+                      Text('完全一致'),
+                      Checkbox(
+                        value: _isExactMatch,
+                        onChanged: (bool? value) {
+                          setState(() {
+                            _isExactMatch = value ?? false;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ],
               ),
               SizedBox(height: 16),
               Row(
@@ -202,7 +225,7 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
                   ),
                 ),
               ),
-              SizedBox(height: 20),
+              SizedBox(height: 30),
             ],
           ),
         ),

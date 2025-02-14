@@ -12,9 +12,9 @@ class SearchItem {
     String? userId,
     String? selectedCategory,
     DocumentSnapshot? lastDocument,
-    int limit,
     Function(List<DocumentSnapshot>) updateResults, {
     String? searchUserId,
+    bool? isExactMatch,
     bool? isFollowing,
     DateTime? startDate,
     DateTime? endDate,
@@ -43,10 +43,16 @@ class SearchItem {
       // まずは全てのドキュメントを取得
       final allDocumentsSnapshot = await queryRef.get();
 
-      // 部分一致検索をクライアント側で行う
+      // フィルタリングをクライアント側で行う
       final filteredDocuments = allDocumentsSnapshot.docs.where((doc) {
         final postUserId = doc['post_user_id'] as String;
-        return postUserId.contains(searchUserId);
+        if (isExactMatch!) {
+          // 完全一致検索
+          return postUserId == searchUserId;
+        } else {
+          // 部分一致検索
+          return postUserId.contains(searchUserId);
+        }
       }).toList();
 
       // クエリ結果を更新
@@ -184,6 +190,7 @@ class SearchItem {
     Map<String, int> postFavoriteCounts,
     Function(List<DocumentSnapshot>) updateResults, {
     String? searchUserId,
+    bool? isExactMatch,
     bool? isFollowing,
     DateTime? startDate,
     DateTime? endDate,
@@ -191,6 +198,7 @@ class SearchItem {
     if (query.isEmpty &&
         (selectedCategory == null || selectedCategory.isEmpty) &&
         (userId == null || userId.isEmpty) &&
+        (searchUserId == null || searchUserId.isEmpty) &&
         isFollowing == null &&
         startDate == null &&
         endDate == null) {
@@ -209,18 +217,23 @@ class SearchItem {
 
       // ユーザーIDでフィルタリング
       if (searchUserId != null && searchUserId.isNotEmpty) {
-        // まずは全てのドキュメントを取得
-        final allDocumentsSnapshot = await queryRef.get();
+        if (isExactMatch == true) {
+          // 完全一致検索
+          queryRef = queryRef.where('post_user_id', isEqualTo: searchUserId);
+        } else {
+          // 部分一致検索はクライアント側で行う必要があるため、全てのドキュメントを取得
+          final allDocumentsSnapshot = await queryRef.get();
 
-        // 部分一致検索をクライアント側で行う
-        final filteredDocuments = allDocumentsSnapshot.docs.where((doc) {
-          final postUserId = doc['post_user_id'] as String;
-          return postUserId.contains(searchUserId);
-        }).toList();
+          // 部分一致検索をクライアント側で行う
+          final filteredDocuments = allDocumentsSnapshot.docs.where((doc) {
+            final postUserId = doc['post_user_id'] as String;
+            return postUserId.contains(searchUserId);
+          }).toList();
 
-        // クエリ結果を更新
-        queryRef = queryRef.where(FieldPath.documentId,
-            whereIn: filteredDocuments.map((doc) => doc.id).toList());
+          // クエリ結果を更新
+          queryRef = queryRef.where(FieldPath.documentId,
+              whereIn: filteredDocuments.map((doc) => doc.id).toList());
+        }
       }
 
       if (isFollowing == true && userId != null) {
@@ -338,12 +351,14 @@ class SearchItem {
     String? selectedCategory,
     Function(List<DocumentSnapshot>) updateResults, {
     String? searchUserId,
+    bool? isExactMatch,
     bool? isFollowing,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
     if (query.isEmpty &&
         (selectedCategory == null || selectedCategory.isEmpty) &&
+        (searchUserId == null || searchUserId.isEmpty) &&
         (userId == null || userId.isEmpty) &&
         isFollowing == null &&
         startDate == null &&
@@ -366,10 +381,16 @@ class SearchItem {
       // まずは全てのドキュメントを取得
       final allDocumentsSnapshot = await queryRef.get();
 
-      // 部分一致検索をクライアント側で行う
+      // フィルタリングをクライアント側で行う
       final filteredDocuments = allDocumentsSnapshot.docs.where((doc) {
         final postUserId = doc['post_user_id'] as String;
-        return postUserId.contains(searchUserId);
+        if (isExactMatch == true) {
+          // 完全一致検索
+          return postUserId == searchUserId;
+        } else {
+          // 部分一致検索
+          return postUserId.contains(searchUserId);
+        }
       }).toList();
 
       // クエリ結果を更新

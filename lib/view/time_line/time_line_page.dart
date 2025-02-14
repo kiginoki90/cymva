@@ -24,14 +24,31 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
   final ScrollController _scrollController = ScrollController();
   late Future<List<String>>? _favoritePostsFuture;
   final FavoritePost _favoritePost = FavoritePost();
+  final ValueNotifier<bool> _showScrollToTopButton = ValueNotifier(false);
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_scrollListener);
     _favoritePostsFuture = _favoritePost.getFavoritePosts();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(viewModelProvider).getPosts(widget.userId);
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.offset >= 600) {
+      _showScrollToTopButton.value = true;
+    } else {
+      _showScrollToTopButton.value = false;
+    }
   }
 
   @override
@@ -118,6 +135,36 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
           ),
         ),
       ),
+      floatingActionButton: ValueListenableBuilder<bool>(
+        valueListenable: _showScrollToTopButton,
+        builder: (context, value, child) {
+          return value
+              ? GestureDetector(
+                  onDoubleTap: () {
+                    _scrollController.animateTo(
+                      0,
+                      duration: Duration(milliseconds: 500),
+                      curve: Curves.easeInOut,
+                    );
+                  },
+                  child: Container(
+                    width: 56.0,
+                    height: 56.0,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.lightBlue, width: 2.0),
+                      color: Colors.transparent, // 内側を透明にする場合
+                    ),
+                    child: Icon(
+                      Icons.keyboard_double_arrow_up,
+                      color: Colors.lightBlue,
+                      size: 40.0,
+                    ),
+                  ),
+                )
+              : Container();
+        },
+      ),
     );
   }
 }
@@ -130,6 +177,7 @@ class DbManager {
   Future<List<QueryDocumentSnapshot>> getPosts() async {
     Query query = _firestore
         .collection('posts')
+        .where('hide', isEqualTo: false)
         .orderBy('created_time', descending: true)
         .limit(50);
     final querySnapshot = await query.get();
@@ -144,6 +192,7 @@ class DbManager {
 
     Query query = _firestore
         .collection('posts')
+        .where('hide', isEqualTo: false)
         .orderBy('created_time', descending: true)
         .startAfterDocument(_lastDocument!)
         .limit(50);

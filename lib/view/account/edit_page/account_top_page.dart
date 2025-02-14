@@ -7,6 +7,7 @@ import 'package:cymva/view/account/follow_page.dart';
 import 'package:cymva/view/account/follower_page.dart';
 import 'package:cymva/view/admin/admin_page.dart';
 import 'package:cymva/view/post_item/full_screen_image.dart';
+import 'package:cymva/view/post_item/link_text.dart';
 import 'package:cymva/view/post_item/show_account_report_dialog.dart';
 import 'package:cymva/view/search/detailed_search_page.dart';
 import 'package:cymva/view/search/search_page.dart';
@@ -664,9 +665,24 @@ class _AccountTopPageState extends State<AccountTopPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            postAccount!.name,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (postAccount!.lockAccount == true)
+                const Padding(
+                  padding: EdgeInsets.only(right: 4.0),
+                  child: Icon(
+                    Icons.lock,
+                    size: 16,
+                    color: Colors.grey,
+                  ),
+                ),
+              Text(
+                postAccount!.name,
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+            ],
           ),
           Text(
             '@${postAccount!.userId}',
@@ -680,11 +696,13 @@ class _AccountTopPageState extends State<AccountTopPage> {
   Widget _buildSelfIntroduction() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: CustomLinkText(
+      child: LinkText(
         text: postAccount!.selfIntroduction.isNotEmpty
             ? postAccount!.selfIntroduction
             : '',
         userId: followService.userId!,
+        textSize: 13,
+        tapable: true,
       ),
     );
   }

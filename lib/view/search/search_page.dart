@@ -53,7 +53,7 @@ class _SearchPageState extends State<SearchPage> {
 
       if (_currentPage == 0) {
         _searchItem.searchPosts(
-            _searchController.text, widget.userId, _selectedCategory, null, 5,
+            _searchController.text, widget.userId, _selectedCategory, null,
             (results) {
           setState(() {
             _postSearchResults = results;
@@ -88,7 +88,7 @@ class _SearchPageState extends State<SearchPage> {
 
       if (_currentPage == 0) {
         _searchItem.searchPosts(
-            _searchController.text, widget.userId, _selectedCategory, null, 5,
+            _searchController.text, widget.userId, _selectedCategory, null,
             (results) {
           setState(() {
             _postSearchResults = results;
@@ -146,7 +146,7 @@ class _SearchPageState extends State<SearchPage> {
                 onSubmitted: (query) {
                   if (_currentPage == 0) {
                     _searchItem.searchPosts(
-                        query, widget.userId, _selectedCategory, null, 5,
+                        query, widget.userId, _selectedCategory, null,
                         (results) {
                       setState(() {
                         _postSearchResults = results;
@@ -366,7 +366,7 @@ class _SearchPageState extends State<SearchPage> {
   Future<void> _refreshSearchResults() async {
     // データを再取得して_stateを更新する
     await _searchItem.searchPosts(
-        _searchController.text, widget.userId, _selectedCategory, null, 5,
+        _searchController.text, widget.userId, _selectedCategory, null,
         (results) {
       setState(() {
         _postSearchResults = results;
@@ -732,7 +732,7 @@ class _SearchPageState extends State<SearchPage> {
 
     if (_currentPage == 0 && _postSearchResults.isEmpty) {
       _searchItem.searchPosts(
-          _searchController.text, widget.userId, _selectedCategory, null, 5,
+          _searchController.text, widget.userId, _selectedCategory, null,
           (results) {
         setState(() {
           _postSearchResults = results;
@@ -875,7 +875,7 @@ class _SearchPageState extends State<SearchPage> {
                     setState(() {
                       _selectedCategory = category;
                       _searchItem.searchPosts(_searchController.text,
-                          widget.userId, _selectedCategory, null, 5, (results) {
+                          widget.userId, _selectedCategory, null, (results) {
                         setState(() {
                           _postSearchResults = results;
                         });
@@ -917,6 +917,7 @@ class _SearchPageState extends State<SearchPage> {
         final query = result['query'] as String;
         final selectedCategory = result['selectedCategory'] as String?;
         final searchUserId = result['searchUserId'] as String?;
+        final isExactMatch = result['isExactMatch'] as bool;
         final isFollowing = result['isFollowing'] as bool;
         final startDate = result['startDate'] as DateTime?;
         final endDate = result['endDate'] as DateTime?;
@@ -927,13 +928,13 @@ class _SearchPageState extends State<SearchPage> {
           widget.userId,
           selectedCategory,
           null,
-          5,
           (results) {
             setState(() {
               _postSearchResults = results;
             });
           },
           searchUserId: searchUserId,
+          isExactMatch: isExactMatch,
           isFollowing: isFollowing,
           startDate: startDate,
           endDate: endDate,
@@ -951,6 +952,24 @@ class _SearchPageState extends State<SearchPage> {
             });
           },
           searchUserId: searchUserId,
+          isExactMatch: isExactMatch,
+          isFollowing: isFollowing,
+          startDate: startDate,
+          endDate: endDate,
+        );
+
+        // 画像の詳しい検索
+        _searchItem.searchImagePosts(
+          query,
+          widget.userId,
+          selectedCategory,
+          (results) {
+            setState(() {
+              _postSearchResults = results;
+            });
+          },
+          searchUserId: searchUserId,
+          isExactMatch: isExactMatch,
           isFollowing: isFollowing,
           startDate: startDate,
           endDate: endDate,

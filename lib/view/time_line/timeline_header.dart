@@ -12,20 +12,12 @@ class TimelineHeader extends StatefulWidget {
 
 class _TimelineHeaderState extends State<TimelineHeader> {
   int currentPage = 0;
-  late VoidCallback _pageListener;
   final FlutterSecureStorage storage = FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
     _initializeCurrentPage();
-    _pageListener = () {
-      if (mounted) {
-        setState(() {
-          currentPage = widget.pageController.page?.round() ?? 0;
-        });
-      }
-    };
     widget.pageController.addListener(_pageListener);
   }
 
@@ -35,6 +27,15 @@ class _TimelineHeaderState extends State<TimelineHeader> {
     setState(() {
       currentPage = initialPageIndex;
     });
+    widget.pageController.jumpToPage(initialPageIndex);
+  }
+
+  void _pageListener() {
+    if (mounted) {
+      setState(() {
+        currentPage = widget.pageController.page?.round() ?? 0;
+      });
+    }
   }
 
   @override
@@ -52,64 +53,37 @@ class _TimelineHeaderState extends State<TimelineHeader> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              IconButton(
-                icon: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('タイムライン'),
-                    Container(
-                      margin: const EdgeInsets.only(top: 2),
-                      height: 2,
-                      width: 60,
-                      color:
-                          currentPage == 0 ? Colors.blue : Colors.transparent,
-                    ),
-                  ],
-                ),
-                onPressed: () {
-                  widget.pageController.jumpToPage(0);
-                },
-              ),
-              IconButton(
-                icon: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('ランキング'),
-                    Container(
-                      margin: const EdgeInsets.only(top: 2),
-                      height: 2,
-                      width: 60,
-                      color:
-                          currentPage == 1 ? Colors.blue : Colors.transparent,
-                    ),
-                  ],
-                ),
-                onPressed: () {
-                  widget.pageController.jumpToPage(1);
-                },
-              ),
-              IconButton(
-                icon: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('フォロー'),
-                    Container(
-                      margin: const EdgeInsets.only(top: 2),
-                      height: 2,
-                      width: 60,
-                      color:
-                          currentPage == 2 ? Colors.blue : Colors.transparent,
-                    ),
-                  ],
-                ),
-                onPressed: () {
-                  widget.pageController.jumpToPage(2);
-                },
-              ),
+              _buildIconButton('タイムライン', 0),
+              _buildIconButton('ランキング', 1),
+              _buildIconButton('フォロー', 2),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildIconButton(String label, int pageIndex) {
+    return IconButton(
+      icon: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          Container(
+            margin: const EdgeInsets.only(top: 2),
+            height: 2,
+            width: 60,
+            color: currentPage == pageIndex ? Colors.blue : Colors.transparent,
+          ),
+        ],
+      ),
+      onPressed: () {
+        widget.pageController.jumpToPage(pageIndex);
+        storage.write(
+          key: 'TimeLine',
+          value: pageIndex.toString(),
+        );
+      },
     );
   }
 }

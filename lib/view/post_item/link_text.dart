@@ -1,5 +1,4 @@
 import 'package:cymva/view/account/account_page.dart';
-import 'package:cymva/view/account/edit_page/account_top_page.dart';
 import 'package:cymva/view/search/search_page.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -10,8 +9,13 @@ class LinkText extends StatelessWidget {
   final String text;
   final String userId;
   final int textSize;
+  final bool tapable;
 
-  LinkText({required this.text, required this.userId, required this.textSize});
+  LinkText(
+      {required this.text,
+      required this.userId,
+      required this.textSize,
+      this.tapable = false});
 
   @override
   Widget build(BuildContext context) {
@@ -62,10 +66,19 @@ class LinkText extends StatelessWidget {
           text.substring(start), hashtagRegex, mentionRegex, context));
     }
 
-    return SelectableText.rich(
-      TextSpan(children: children),
-      style: TextStyle(fontSize: textSize.toDouble()),
-    );
+    if (tapable == true) {
+      return SelectableText.rich(
+        TextSpan(children: children),
+        style: TextStyle(fontSize: textSize.toDouble()),
+      );
+    } else {
+      return RichText(
+        text: TextSpan(
+          children: children,
+          style: DefaultTextStyle.of(context).style,
+        ),
+      );
+    }
   }
 
   List<InlineSpan> _processTextWithHashtagsAndMentions(String inputText,

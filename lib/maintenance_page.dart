@@ -8,6 +8,7 @@ class MaintenancePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color.fromARGB(255, 187, 223, 239), // 背景色を水色に設定
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),

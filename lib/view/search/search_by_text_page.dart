@@ -53,8 +53,9 @@ class _SearchByTextPageState extends State<SearchByTextPage> {
   Future<void> _fetchMoreSearchResults() async {
     if (!_hasMore) return;
 
-    widget.searchItem.searchPosts(widget.lastQuery, widget.userId,
-        widget.selectedCategory, _lastDocument, 5, (results) {
+    widget.searchItem.searchPosts(
+        widget.lastQuery, widget.userId, widget.selectedCategory, _lastDocument,
+        (results) {
       if (results.isNotEmpty) {
         setState(() {
           _postSearchResults.addAll(results); // 新しい投稿を既存のリストに追加
@@ -187,7 +188,6 @@ Future<void> fetchInitialSearchResults({
     userId,
     selectedCategory,
     null,
-    5,
     (results) {
       updateResults(results);
 

@@ -31,13 +31,30 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
   bool _isLoading = false;
   DocumentSnapshot? _lastDocument;
   final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<bool> _showScrollToTopButton = ValueNotifier(false);
 
   @override
   void initState() {
     super.initState();
     _loadLoginUserId();
+    _scrollController.addListener(_scrollListener);
     _favoritePostsFuture = _favoritePost.getFavoritePosts();
     _blockedAccountsFuture = _fetchBlockedAccounts(widget.userId);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.offset >= 600) {
+      _showScrollToTopButton.value = true;
+    } else {
+      _showScrollToTopButton.value = false;
+    }
   }
 
   Future<void> _loadLoginUserId() async {
@@ -246,6 +263,36 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
                   ),
           ),
         ),
+      ),
+      floatingActionButton: ValueListenableBuilder<bool>(
+        valueListenable: _showScrollToTopButton,
+        builder: (context, value, child) {
+          return value
+              ? GestureDetector(
+                  onDoubleTap: () {
+                    _scrollController.animateTo(
+                      0,
+                      duration: Duration(milliseconds: 500),
+                      curve: Curves.easeInOut,
+                    );
+                  },
+                  child: Container(
+                    width: 56.0,
+                    height: 56.0,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.lightBlue, width: 2.0),
+                      color: Colors.transparent, // 内側を透明にする場合
+                    ),
+                    child: Icon(
+                      Icons.keyboard_double_arrow_up,
+                      color: Colors.lightBlue,
+                      size: 40.0,
+                    ),
+                  ),
+                )
+              : Container();
+        },
       ),
     );
   }

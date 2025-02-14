@@ -31,18 +31,19 @@ class Account {
   });
 
   factory Account.fromDocument(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
     return Account(
-      admin: doc['admin'],
+      admin: data['admin'],
       id: doc.id,
-      parents_id: doc['parents_id'],
-      name: doc['name'],
-      imagePath: doc['image_path'],
-      selfIntroduction: doc['self_introduction'],
-      userId: doc['user_id'],
-      createdTime: doc['created_time'],
-      updatedTime: doc['updated_time'],
-      lockAccount: doc['lock_account'] ?? true,
-      replyMessage: doc['replyMessage'] ?? true,
+      parents_id: data['parents_id'],
+      name: data['name'],
+      imagePath: data['image_path'],
+      selfIntroduction: data['self_introduction'],
+      userId: data['user_id'],
+      createdTime: data['created_time'],
+      updatedTime: data['updated_time'],
+      lockAccount: data['lock_account'] ?? true,
+      replyMessage: data['replyMessage'] ?? true,
     );
   }
 

@@ -139,7 +139,7 @@ class _AccountPageState extends State<AccountPage> {
               return const Center(child: CircularProgressIndicator());
             }
 
-            if (blockSnapshot.data == true) {
+            if (blockSnapshot.data == true && myAccount.admin != 1) {
               // 自分がブロックされている場合の表示
               return Scaffold(
                 body: SafeArea(
@@ -176,7 +176,8 @@ class _AccountPageState extends State<AccountPage> {
                 // ページ遷移の条件をチェック
                 if (postAccount!.lockAccount &&
                     postAccount!.id != myAccount.id &&
-                    !isFollowing) {
+                    !isFollowing &&
+                    myAccount.admin != 1) {
                   // 非公開アカウントの場合の表示
                   return Scaffold(
                     body: SafeArea(

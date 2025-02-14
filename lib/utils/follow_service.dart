@@ -119,7 +119,7 @@ class FollowService {
 
     // Add follow request message
     await messageCollection.add({
-      'created_time': currentTime,
+      'timestamp': currentTime,
       'message_type': 1,
       'request_user': myAccount.id,
       'request_userId': myAccount.userId,

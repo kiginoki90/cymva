@@ -138,8 +138,11 @@ class _LoginPageState extends State<LoginPage> {
               children: [
                 SizedBox(height: 50),
                 Text(
-                  'cymva city',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  'Cymva city',
+                  style: TextStyle(
+                    fontFamily: 'OpenSans', // フォントファミリーを指定
+                    fontSize: 29,
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(20.0),

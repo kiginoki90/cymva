@@ -139,12 +139,12 @@ class _AccountHeaderState extends State<AccountHeader> {
                         children: [
                           Row(
                             children: [
-                              if (postAccount!.lockAccount)
+                              if (postAccount!.lockAccount == true)
                                 const Padding(
                                   padding: EdgeInsets.only(right: 4.0),
                                   child: Icon(
                                     Icons.lock,
-                                    size: 1,
+                                    size: 16,
                                     color: Colors.grey,
                                   ),
                                 ),

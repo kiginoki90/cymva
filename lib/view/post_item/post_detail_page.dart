@@ -12,6 +12,7 @@ import 'package:cymva/view/post_item/show_report_Dialog.dart';
 import 'package:cymva/view/reply_page.dart';
 import 'package:cymva/view/repost_list_page.dart';
 import 'package:cymva/view/repost_page.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/model/post.dart';
@@ -242,6 +243,20 @@ class _PostDetailPageState extends State<PostDetailPage> {
       await deleteSubcollection('favorite_users');
       await deleteSubcollection('repost');
       await deleteSubcollection('reply_post');
+
+      // メインの投稿ドキュメントを取得
+      final postSnapshot = await postDocRef.get();
+      final postData = postSnapshot.data() as Map<String, dynamic>;
+
+      // media_urlがnull以外の場合、画像を削除
+      if (postData['media_url'] != null) {
+        final List<dynamic> mediaUrls = postData['media_url'];
+        for (String mediaUrl in mediaUrls) {
+          final ref = FirebaseStorage.instance.refFromURL(mediaUrl);
+          await ref.delete();
+        }
+      }
+
       // メインの投稿ドキュメントを削除
       await postDocRef.delete();
 
@@ -800,6 +815,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   text: widget.post.content,
                   userId: widget.userId,
                   textSize: 18,
+                  tapable: true,
                 ),
               const SizedBox(height: 10),
 
