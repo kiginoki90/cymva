@@ -1,14 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
+import 'package:cymva/utils/book_mark.dart';
 import 'package:cymva/view/account/account_page.dart';
-import 'package:cymva/view/post_item/full_screen_image.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:cymva/view/post_item/post_detail_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-class RepostListPage extends StatelessWidget {
+class RepostListPage extends StatefulWidget {
   final String postId;
   final String userId;
 
@@ -19,6 +19,19 @@ class RepostListPage extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  _RepostListPageState createState() => _RepostListPageState();
+}
+
+class _RepostListPageState extends State<RepostListPage> {
+  final BookmarkPost _bookmarkPost = BookmarkPost();
+
+  @override
+  void initState() {
+    super.initState();
+    _bookmarkPost.getBookmarkPosts();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -27,7 +40,7 @@ class RepostListPage extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('posts')
-            .doc(postId)
+            .doc(widget.postId)
             .collection('repost') // repostサブコレクションを取得
             .snapshots(),
         builder: (context, snapshot) {
@@ -109,7 +122,19 @@ class RepostListPage extends StatelessWidget {
                                     post: post,
                                     postAccount: postAccount,
                                     replyFlag: ValueNotifier<bool>(false),
-                                    userId: userId,
+                                    userId: widget.userId,
+                                    bookmarkUsersNotifier: _bookmarkPost
+                                        .bookmarkUsersNotifiers[post.id]!,
+                                    isBookmarkedNotifier: ValueNotifier<bool>(
+                                      _bookmarkPost.bookmarkPostsNotifier.value
+                                          .contains(post.id),
+                                    ),
+                                    onBookMsrkToggle: () =>
+                                        _bookmarkPost.toggleBookmark(
+                                      post.id,
+                                      _bookmarkPost.bookmarkPostsNotifier.value
+                                          .contains(post.id),
+                                    ),
                                   ),
                                 ),
                               );

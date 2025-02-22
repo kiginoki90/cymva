@@ -1,11 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
+import 'package:cymva/utils/book_mark.dart';
 import 'package:cymva/view/post_item/post_detail_page.dart';
 import 'package:cymva/view/repost_item.dart';
 import 'package:flutter/material.dart';
 
-class PostVisibilityWidget extends StatelessWidget {
+class PostVisibilityWidget extends StatefulWidget {
   final Account postAccount;
   final String userId;
   final Post repostPost;
@@ -17,12 +18,29 @@ class PostVisibilityWidget extends StatelessWidget {
     required this.repostPost,
   }) : super(key: key);
 
+  @override
+  _PostVisibilityWidgetState createState() => _PostVisibilityWidgetState();
+}
+
+class _PostVisibilityWidgetState extends State<PostVisibilityWidget> {
+  late Future<bool> _isFollowingFuture;
+  late Future<List<String>> _blockedAccountsFuture;
+  final BookmarkPost _bookmarkPost = BookmarkPost();
+
+  @override
+  void initState() {
+    super.initState();
+    _isFollowingFuture = _isFollowing();
+    _blockedAccountsFuture = _fetchBlockedAccounts(widget.userId);
+    _bookmarkPost.getBookmarkPosts();
+  }
+
   Future<bool> _isFollowing() async {
     final userFollowCollection = FirebaseFirestore.instance
         .collection('users')
-        .doc(userId)
+        .doc(widget.userId)
         .collection('follow');
-    final doc = await userFollowCollection.doc(postAccount.id).get();
+    final doc = await userFollowCollection.doc(widget.postAccount.id).get();
     return doc.exists;
   }
 
@@ -40,26 +58,26 @@ class PostVisibilityWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<bool>(
-      future: _isFollowing(),
+      future: _isFollowingFuture,
       builder: (context, followingSnapshot) {
         if (!followingSnapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
         final isFollowing = followingSnapshot.data!;
-        final isOwner = userId == postAccount.id;
+        final isOwner = widget.userId == widget.postAccount.id;
 
         return FutureBuilder<List<String>>(
-          future: _fetchBlockedAccounts(userId),
+          future: _blockedAccountsFuture,
           builder: (context, blockedSnapshot) {
             if (!blockedSnapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
 
             final blockedAccounts = blockedSnapshot.data!;
-            final isBlocked = blockedAccounts.contains(postAccount.id);
+            final isBlocked = blockedAccounts.contains(widget.postAccount.id);
 
-            if ((postAccount.lockAccount && !isFollowing && !isOwner) ||
+            if ((widget.postAccount.lockAccount && !isFollowing && !isOwner) ||
                 isBlocked) {
               return Container(
                 width: double.infinity,
@@ -74,23 +92,37 @@ class PostVisibilityWidget extends StatelessWidget {
                 ),
               );
             } else {
+              _bookmarkPost.bookmarkUsersNotifiers[widget.repostPost.id] ??=
+                  ValueNotifier<int>(0);
+              _bookmarkPost.updateBookmarkUsersCount(widget.repostPost.id);
               return GestureDetector(
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => PostDetailPage(
-                        post: repostPost,
-                        postAccount: postAccount,
+                        post: widget.repostPost,
+                        postAccount: widget.postAccount,
                         replyFlag: ValueNotifier<bool>(false),
-                        userId: userId,
+                        userId: widget.userId,
+                        bookmarkUsersNotifier: _bookmarkPost
+                            .bookmarkUsersNotifiers[widget.repostPost.id]!,
+                        isBookmarkedNotifier: ValueNotifier<bool>(
+                          _bookmarkPost.bookmarkPostsNotifier.value
+                              .contains(widget.repostPost.id),
+                        ),
+                        onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+                          widget.repostPost.id,
+                          _bookmarkPost.bookmarkPostsNotifier.value
+                              .contains(widget.repostPost.id),
+                        ),
                       ),
                     ),
                   );
                 },
                 child: RepostItem(
-                  repostPost: repostPost,
-                  repostPostAccount: postAccount,
+                  repostPost: widget.repostPost,
+                  repostPostAccount: widget.postAccount,
                 ),
               );
             }

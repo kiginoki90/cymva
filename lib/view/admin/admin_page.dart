@@ -122,6 +122,13 @@ class _AdminPageState extends State<AdminPage> {
                                     // isRetweetedNotifier:
                                     //     ValueNotifier<bool>(false),
                                     replyFlag: ValueNotifier<bool>(false),
+                                    bookmarkUsersNotifier:
+                                        ValueNotifier<int>(0),
+                                    isBookmarkedNotifier:
+                                        ValueNotifier<bool>(false),
+                                    onBookMsrkToggle: () {
+                                      // 管理者ページではお気に入り機能を使わないか、または別のロジックを実装
+                                    },
                                     userId: postAccount.id,
                                   ),
                                   Row(

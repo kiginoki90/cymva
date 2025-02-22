@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/utils/book_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:cymva/model/account.dart';
@@ -19,13 +20,11 @@ class FollowTimelinePage extends StatefulWidget {
 }
 
 class _FollowTimelinePageState extends State<FollowTimelinePage> {
-  late Future<List<String>>? _favoritePostsFuture;
-  late Future<List<String>>? _blockedAccountsFuture;
   final FavoritePost _favoritePost = FavoritePost();
+  final BookmarkPost _bookmarkPost = BookmarkPost();
   String? loginUserId;
   final FlutterSecureStorage storage = FlutterSecureStorage();
   List<QueryDocumentSnapshot> _followedPosts = [];
-  List<QueryDocumentSnapshot> _currentPosts = [];
   Map<String, Account?> _accounts = {};
   bool _hasMore = true;
   bool _isLoading = false;
@@ -38,8 +37,9 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
     super.initState();
     _loadLoginUserId();
     _scrollController.addListener(_scrollListener);
-    _favoritePostsFuture = _favoritePost.getFavoritePosts();
-    _blockedAccountsFuture = _fetchBlockedAccounts(widget.userId);
+    _favoritePost.getFavoritePosts();
+    _bookmarkPost.getBookmarkPosts();
+    _fetchBlockedAccounts(widget.userId);
   }
 
   @override
@@ -241,6 +241,10 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
                           ValueNotifier<int>(0);
                       _favoritePost.updateFavoriteUsersCount(post.id);
 
+                      _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+                          ValueNotifier<int>(0);
+                      _bookmarkPost.updateBookmarkUsersCount(post.id);
+
                       return PostItemWidget(
                         key: PageStorageKey(post.id),
                         post: post,
@@ -257,6 +261,17 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
                               .contains(post.id),
                         ),
                         replyFlag: ValueNotifier<bool>(false),
+                        bookmarkUsersNotifier:
+                            _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+                        isBookmarkedNotifier: ValueNotifier<bool>(
+                          _bookmarkPost.bookmarkPostsNotifier.value
+                              .contains(post.id),
+                        ),
+                        onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+                          post.id,
+                          _bookmarkPost.bookmarkPostsNotifier.value
+                              .contains(post.id),
+                        ),
                         userId: widget.userId,
                       );
                     },

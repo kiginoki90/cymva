@@ -11,13 +11,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class ReplyPage extends StatefulWidget {
   final String userId;
   final Post post;
-  final Account repryAccount;
+  final Account postAccount;
 
   const ReplyPage(
       {Key? key,
       required this.userId,
       required this.post,
-      required this.repryAccount})
+      required this.postAccount})
       : super(key: key);
 
   @override
@@ -133,7 +133,7 @@ class _ReplyPageState extends State<ReplyPage> {
 
         // 返信先の投稿の返信数を更新
         if (widget.userId != widget.post.postAccountId &&
-            widget.repryAccount.replyMessage == true) {
+            widget.postAccount.replyMessage == true) {
           _addOrUpdateMessage(replyPostId);
         }
 

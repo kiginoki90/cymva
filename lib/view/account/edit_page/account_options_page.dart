@@ -1,5 +1,6 @@
 import 'package:cymva/view/account/edit_page/options_page/add_account_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/blocked_users_page.dart';
+import 'package:cymva/view/account/edit_page/options_page/bookmark.dart';
 import 'package:cymva/view/account/edit_page/options_page/delete_account_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/support_page.dart';
 import 'package:flutter/material.dart';
@@ -11,7 +12,7 @@ import 'package:cymva/view/start_up/login_page.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AccountOptionsPage extends StatelessWidget {
-  Account myAccount = Authentication.myAccount!;
+  final Account myAccount = Authentication.myAccount!;
   final storage = const FlutterSecureStorage();
 
   @override
@@ -55,20 +56,19 @@ class AccountOptionsPage extends StatelessWidget {
                 );
               },
             ),
-            // _buildOptionItem(
-            //   context,
-            //   icon: Icons.lock,
-            //   label: 'X連携',
-            //   onTap: () {
-            //     Navigator.push(
-            //       context,
-            //       MaterialPageRoute(
-            //         builder: (context) => XAuthPage(userId),
-            //       ),
-            //     );
-            //   },
-            // ),
-            // const Divider(),
+            _buildOptionItem(
+              context,
+              icon: Icons.bookmark,
+              label: '栞',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BookmarkPage(userId: userId),
+                  ),
+                );
+              },
+            ),
             _buildOptionItem(
               context,
               icon: Icons.logout,

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/ad_widget.dart';
+import 'package:cymva/utils/book_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
@@ -21,15 +22,17 @@ class RankingPage extends ConsumerStatefulWidget {
 
 class _RankingPageState extends ConsumerState<RankingPage> {
   final ScrollController _scrollController = ScrollController();
-  late Future<List<String>>? _favoritePostsFuture;
+  // late Future<List<String>>? _favoritePostsFuture;
   final FavoritePost _favoritePost = FavoritePost();
+  final BookmarkPost _bookmarkPost = BookmarkPost();
   final ValueNotifier<bool> _showScrollToTopButton = ValueNotifier(false);
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_scrollListener);
-    _favoritePostsFuture = _favoritePost.getFavoritePosts();
+    _favoritePost.getFavoritePosts();
+    _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(rankingViewModelProvider).getRankingPosts(widget.userId);
     });
@@ -112,6 +115,10 @@ class _RankingPageState extends ConsumerState<RankingPage> {
                           ValueNotifier<int>(0);
                       _favoritePost.updateFavoriteUsersCount(post.id);
 
+                      _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+                          ValueNotifier<int>(0);
+                      _bookmarkPost.updateBookmarkUsersCount(post.id);
+
                       return PostItemWidget(
                         key: PageStorageKey(post.id),
                         post: post,
@@ -128,6 +135,17 @@ class _RankingPageState extends ConsumerState<RankingPage> {
                               .contains(post.id),
                         ),
                         replyFlag: ValueNotifier<bool>(false),
+                        bookmarkUsersNotifier:
+                            _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+                        isBookmarkedNotifier: ValueNotifier<bool>(
+                          _bookmarkPost.bookmarkPostsNotifier.value
+                              .contains(post.id),
+                        ),
+                        onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+                          post.id,
+                          _bookmarkPost.bookmarkPostsNotifier.value
+                              .contains(post.id),
+                        ),
                         userId: widget.userId,
                       );
                     },

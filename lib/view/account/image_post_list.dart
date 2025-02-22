@@ -1,3 +1,4 @@
+import 'package:cymva/utils/book_mark.dart';
 import 'package:cymva/view/account/post_item_account_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,6 +17,7 @@ class ImagePostList extends StatefulWidget {
 
 class _ImagePostListState extends State<ImagePostList> {
   final FavoritePost _favoritePost = FavoritePost();
+  final BookmarkPost _bookmarkPost = BookmarkPost();
   final ScrollController _scrollController = ScrollController();
   List<Post> _allPosts = [];
   bool _hasMore = true;
@@ -26,6 +28,7 @@ class _ImagePostListState extends State<ImagePostList> {
   void initState() {
     super.initState();
     _favoritePost.getFavoritePosts(); // お気に入りの投稿を取得
+    _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
   }
 
   Stream<List<Post>> _postStream() {
@@ -94,6 +97,10 @@ class _ImagePostListState extends State<ImagePostList> {
                         ValueNotifier<int>(0);
                     _favoritePost.updateFavoriteUsersCount(post.postId);
 
+                    _bookmarkPost.bookmarkUsersNotifiers[post.postId] ??=
+                        ValueNotifier<int>(0);
+                    _bookmarkPost.updateBookmarkUsersCount(post.postId);
+
                     return PostItetmAccounWidget(
                       post: post,
                       postAccount: widget.myAccount,
@@ -109,6 +116,17 @@ class _ImagePostListState extends State<ImagePostList> {
                             .contains(post.postId),
                       ),
                       replyFlag: ValueNotifier<bool>(false),
+                      bookmarkUsersNotifier:
+                          _bookmarkPost.bookmarkUsersNotifiers[post.postId]!,
+                      isBookmarkedNotifier: ValueNotifier<bool>(
+                        _bookmarkPost.bookmarkPostsNotifier.value
+                            .contains(post.postId),
+                      ),
+                      onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+                        post.postId,
+                        _bookmarkPost.bookmarkPostsNotifier.value
+                            .contains(post.postId),
+                      ),
                       userId: widget.myAccount.id,
                     );
                   },

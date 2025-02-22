@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/ad_widget.dart';
+import 'package:cymva/utils/book_mark.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/search/detailed_search_page.dart';
@@ -29,6 +30,7 @@ class _SearchPageState extends State<SearchPage> {
   List<DocumentSnapshot> _recentImageResults = [];
   List<Account> _accountSearchResults = [];
   final FavoritePost _favoritePost = FavoritePost();
+  final BookmarkPost _bookmarkPost = BookmarkPost();
   int _currentPage = 0;
   String _lastQuery = '';
   String? _selectedCategory;
@@ -333,6 +335,10 @@ class _SearchPageState extends State<SearchPage> {
                           ValueNotifier<int>(0);
                       _favoritePost.updateFavoriteUsersCount(post.id);
 
+                      _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+                          ValueNotifier<int>(0);
+                      _bookmarkPost.updateBookmarkUsersCount(post.id);
+
                       return PostItemWidget(
                         post: post,
                         postAccount: postAccount,
@@ -347,7 +353,17 @@ class _SearchPageState extends State<SearchPage> {
                               .contains(post.id);
                           _favoritePost.toggleFavorite(post.id, isFavorite);
                         },
-                        // isRetweetedNotifier: ValueNotifier<bool>(false),
+                        bookmarkUsersNotifier:
+                            _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+                        isBookmarkedNotifier: ValueNotifier<bool>(
+                          _bookmarkPost.bookmarkPostsNotifier.value
+                              .contains(post.id),
+                        ),
+                        onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+                          post.id,
+                          _bookmarkPost.bookmarkPostsNotifier.value
+                              .contains(post.id),
+                        ),
                         replyFlag: ValueNotifier<bool>(false),
                         userId: widget.userId,
                       );
@@ -560,6 +576,10 @@ class _SearchPageState extends State<SearchPage> {
                           ValueNotifier<int>(0);
                       _favoritePost.updateFavoriteUsersCount(post.id);
 
+                      _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+                          ValueNotifier<int>(0);
+                      _bookmarkPost.updateBookmarkUsersCount(post.id);
+
                       // PostItemWidget に recentFavoriteCount をそのまま渡す
                       return PostItemWidget(
                         post: post,
@@ -575,7 +595,17 @@ class _SearchPageState extends State<SearchPage> {
                               .contains(post.id);
                           _favoritePost.toggleFavorite(post.id, isFavorite);
                         },
-                        // isRetweetedNotifier: ValueNotifier<bool>(false),
+                        bookmarkUsersNotifier:
+                            _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+                        isBookmarkedNotifier: ValueNotifier<bool>(
+                          _bookmarkPost.bookmarkPostsNotifier.value
+                              .contains(post.id),
+                        ),
+                        onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+                          post.id,
+                          _bookmarkPost.bookmarkPostsNotifier.value
+                              .contains(post.id),
+                        ),
                         replyFlag: ValueNotifier<bool>(false),
                         userId: widget.userId,
                       );
@@ -604,7 +634,7 @@ class _SearchPageState extends State<SearchPage> {
 
 // 画像の検索結果を表示するWidget
   Widget _buildSearchByImagePage() {
-    if (_postSearchResults.isEmpty) {
+    if (_recentImageResults.isEmpty) {
       return const Center(child: Text('検索結果がありません'));
     }
 
@@ -628,13 +658,13 @@ class _SearchPageState extends State<SearchPage> {
             child: RefreshIndicator(
               onRefresh: _refreshPosts, // 更新時に呼び出されるメソッド
               child: ListView.builder(
-                itemCount: _postSearchResults.length +
-                    (_postSearchResults.length ~/ 10) +
+                itemCount: _recentImageResults.length +
+                    (_recentImageResults.length ~/ 10) +
                     1,
                 itemBuilder: (context, index) {
                   if (index ==
-                      _postSearchResults.length +
-                          (_postSearchResults.length ~/ 10)) {
+                      _recentImageResults.length +
+                          (_recentImageResults.length ~/ 10)) {
                     return const Center(child: Text("結果は以上です"));
                   }
 
@@ -643,11 +673,11 @@ class _SearchPageState extends State<SearchPage> {
                   }
 
                   final postIndex = index - (index ~/ 11);
-                  if (postIndex >= _postSearchResults.length) {
+                  if (postIndex >= _recentImageResults.length) {
                     return Container(); // インデックスが範囲外の場合は空のコンテナを返す
                   }
 
-                  final postDoc = _postSearchResults[postIndex];
+                  final postDoc = _recentImageResults[postIndex];
                   final post = Post.fromDocument(postDoc);
 
                   // media_urlがある投稿のみ表示
@@ -687,6 +717,10 @@ class _SearchPageState extends State<SearchPage> {
                           ValueNotifier<int>(0);
                       _favoritePost.updateFavoriteUsersCount(post.id);
 
+                      _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+                          ValueNotifier<int>(0);
+                      _bookmarkPost.updateBookmarkUsersCount(post.id);
+
                       return PostItemWidget(
                         post: post,
                         postAccount: postAccount,
@@ -701,7 +735,17 @@ class _SearchPageState extends State<SearchPage> {
                               .contains(post.id);
                           _favoritePost.toggleFavorite(post.id, isFavorite);
                         },
-                        // isRetweetedNotifier: ValueNotifier<bool>(false),
+                        bookmarkUsersNotifier:
+                            _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+                        isBookmarkedNotifier: ValueNotifier<bool>(
+                          _bookmarkPost.bookmarkPostsNotifier.value
+                              .contains(post.id),
+                        ),
+                        onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+                          post.id,
+                          _bookmarkPost.bookmarkPostsNotifier.value
+                              .contains(post.id),
+                        ),
                         replyFlag: ValueNotifier<bool>(false),
                         userId: widget.userId,
                       );
@@ -889,6 +933,12 @@ class _SearchPageState extends State<SearchPage> {
                           _recentFavoritesResults = results;
                         });
                       });
+                      _searchItem.searchImagePosts(_searchController.text,
+                          widget.userId, _selectedCategory, (results) {
+                        setState(() {
+                          _recentImageResults = results;
+                        });
+                      });
                       Navigator.of(context).pop();
                     });
                   },
@@ -965,7 +1015,7 @@ class _SearchPageState extends State<SearchPage> {
           selectedCategory,
           (results) {
             setState(() {
-              _postSearchResults = results;
+              _recentImageResults = results;
             });
           },
           searchUserId: searchUserId,

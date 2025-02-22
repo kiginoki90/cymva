@@ -1,7 +1,9 @@
 import 'package:cymva/model/account.dart';
+import 'package:cymva/utils/book_mark.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/utils/post_item_utils.dart';
+import 'package:cymva/view/post_item/Icons_action.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/post_item/favorite_list_page.dart';
 import 'package:cymva/view/post_item/link_text.dart';
@@ -14,6 +16,7 @@ import 'package:cymva/view/repost_list_page.dart';
 import 'package:cymva/view/repost_page.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/view/account/account_page.dart';
@@ -25,13 +28,19 @@ class PostDetailPage extends StatefulWidget {
   final Account postAccount;
   final ValueNotifier<bool> replyFlag;
   final String userId;
+  final ValueNotifier<int> bookmarkUsersNotifier;
+  final ValueNotifier<bool> isBookmarkedNotifier;
+  final VoidCallback onBookMsrkToggle;
 
   const PostDetailPage(
       {Key? key,
       required this.post,
       required this.postAccount,
       required this.replyFlag,
-      required this.userId})
+      required this.userId,
+      required this.bookmarkUsersNotifier,
+      required this.isBookmarkedNotifier,
+      required this.onBookMsrkToggle})
       : super(key: key);
 
   @override
@@ -40,10 +49,10 @@ class PostDetailPage extends StatefulWidget {
 
 class _PostDetailPageState extends State<PostDetailPage> {
   late Future<List<Post>> _replyPostsFuture;
-  late Future<List<String>> _favoritePostsFuture;
   final ValueNotifier<int> favoriteCountNotifier = ValueNotifier<int>(0);
   Future<Post?>? _replyToPostFuture;
   final FavoritePost _favoritePost = FavoritePost();
+  final BookmarkPost _bookmarkPost = BookmarkPost();
   final ValueNotifier<int> _replyCountNotifier = ValueNotifier<int>(0);
   final GlobalKey _userRowKey = GlobalKey();
   Post? _repostPost;
@@ -51,6 +60,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
   VideoPlayerController? _videoController;
   final ValueNotifier<int> favoriteUsersNotifier = ValueNotifier<int>(0);
   final ValueNotifier<bool> isFavoriteNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<int> bookmarkUsersNotifier = ValueNotifier<int>(0);
+  final ValueNotifier<bool> isBookmarkedNotifier = ValueNotifier<bool>(false);
   bool isHidden = true;
 
   @override
@@ -58,7 +69,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
     super.initState();
     _fetchFavoriteData();
     _replyPostsFuture = getRePosts(widget.post.postId);
-    _favoritePostsFuture = _favoritePost.getFavoritePosts();
+    _favoritePost.getFavoritePosts();
+    _bookmarkPost.getBookmarkPosts();
     _checkAdminLevel();
 
     if (widget.post.reply != null && widget.post.reply!.isNotEmpty) {
@@ -566,6 +578,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                     _favoritePost.updateFavoriteUsersCount(
                                         replyToPost.postId);
 
+                                    _bookmarkPost.bookmarkUsersNotifiers[
+                                            replyToPost.postId] ??=
+                                        ValueNotifier<int>(0);
+                                    _bookmarkPost.updateBookmarkUsersCount(
+                                        replyToPost.postId);
+
                                     return Row(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
@@ -609,6 +627,27 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                                 },
                                                 replyFlag:
                                                     ValueNotifier<bool>(true),
+                                                bookmarkUsersNotifier: _bookmarkPost
+                                                        .bookmarkUsersNotifiers[
+                                                    replyToPost.postId]!,
+                                                isBookmarkedNotifier:
+                                                    ValueNotifier<bool>(
+                                                  _bookmarkPost
+                                                      .bookmarkPostsNotifier
+                                                      .value
+                                                      .contains(
+                                                          replyToPost.postId),
+                                                ),
+                                                onBookMsrkToggle: () =>
+                                                    _bookmarkPost
+                                                        .toggleBookmark(
+                                                  replyToPost.postId,
+                                                  _bookmarkPost
+                                                      .bookmarkPostsNotifier
+                                                      .value
+                                                      .contains(
+                                                          replyToPost.postId),
+                                                ),
                                                 userId: widget.userId,
                                               ),
                                             ],
@@ -877,117 +916,22 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   ),
                 ),
               if (isHidden == false)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        ValueListenableBuilder<int>(
-                          valueListenable: favoriteUsersNotifier,
-                          builder: (context, value, child) {
-                            return Text(value.toString());
-                          },
-                        ),
-                        const SizedBox(width: 5),
-                        ValueListenableBuilder<bool>(
-                          valueListenable: isFavoriteNotifier,
-                          builder: (context, isFavorite, child) {
-                            return GestureDetector(
-                              onTap: () async {
-                                await _toggleFavorite();
-                                _favoritePost.toggleFavorite(
-                                  widget.post.postId,
-                                  _favoritePost.favoritePostsNotifier.value
-                                      .contains(widget.post.postId),
-                                );
-                              },
-                              child: Icon(
-                                isFavorite ? Icons.star : Icons.star_outline,
-                                color: isFavorite
-                                    ? Color.fromARGB(255, 255, 183, 59)
-                                    : Colors.grey,
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collection('posts')
-                              .doc(widget.post.postId)
-                              .collection('repost')
-                              .snapshots(),
-                          builder: (context, snapshot) {
-                            if (!snapshot.hasData) {
-                              return Text('0');
-                            }
-                            final repostCount = snapshot.data!.docs.length;
-                            return Text(repostCount.toString());
-                          },
-                        ),
-                        const SizedBox(width: 5),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => RepostPage(
-                                  post: widget.post,
-                                  userId: widget.userId,
-                                ),
-                              ),
-                            );
-                          },
-                          child: Icon(
-                            Icons.repeat_outlined,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                    ValueListenableBuilder<int>(
-                      valueListenable: _replyCountNotifier,
-                      builder: (context, replyCount, child) {
-                        return Row(
-                          children: [
-                            Text(replyCount.toString()),
-                            IconButton(
-                              onPressed: (widget.post.postAccountId ==
-                                          widget.userId ||
-                                      widget.post.closeComment != true)
-                                  ? () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => ReplyPage(
-                                            post: widget.post,
-                                            userId: widget.userId,
-                                            repryAccount: widget.postAccount,
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  : null,
-                              icon: Icon(
-                                Icons.comment,
-                                color: widget.post.closeComment == true
-                                    ? Colors.grey
-                                    : Colors.black,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                    // IconButton(
-                    //   onPressed: () {},
-                    //   icon: const Icon(Icons.share),
-                    // ),
-                  ],
+                IconsActionsWidget(
+                  post: widget.post,
+                  postAccount: widget.postAccount,
+                  userId: widget.userId,
+                  bookmarkUsersNotifier: widget.bookmarkUsersNotifier,
+                  isBookmarkedNotifier: widget.isBookmarkedNotifier,
+                  isFavoriteNotifier: isFavoriteNotifier,
+                  replyCountNotifier: _replyCountNotifier,
+                  onFavoriteToggle: () => _favoritePost.toggleFavorite(
+                    widget.post.postId,
+                    _favoritePost.favoritePostsNotifier.value
+                        .contains(widget.post.postId),
+                  ),
+                  onBookMsrkToggle: widget.onBookMsrkToggle,
                 ),
+
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -1089,6 +1033,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                 _favoritePost
                                     .updateFavoriteUsersCount(replyPost.postId);
 
+                                _bookmarkPost.bookmarkUsersNotifiers[
+                                    replyPost.postId] ??= ValueNotifier<int>(0);
+                                _bookmarkPost
+                                    .updateBookmarkUsersCount(replyPost.postId);
+
                                 return PostItemWidget(
                                   post: replyPost,
                                   postAccount: postAccount!,
@@ -1112,6 +1061,19 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                         replyPost.postId);
                                   },
                                   replyFlag: ValueNotifier<bool>(false),
+                                  bookmarkUsersNotifier:
+                                      _bookmarkPost.bookmarkUsersNotifiers[
+                                          replyPost.postId]!,
+                                  isBookmarkedNotifier: ValueNotifier<bool>(
+                                    _bookmarkPost.bookmarkPostsNotifier.value
+                                        .contains(replyPost.postId),
+                                  ),
+                                  onBookMsrkToggle: () =>
+                                      _bookmarkPost.toggleBookmark(
+                                    replyPost.postId,
+                                    _bookmarkPost.bookmarkPostsNotifier.value
+                                        .contains(replyPost.postId),
+                                  ),
                                   userId: widget.userId,
                                 );
                               }

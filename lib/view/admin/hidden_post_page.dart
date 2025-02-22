@@ -88,7 +88,12 @@ class _HiddenPostsPageState extends State<HiddenPostsPage> {
                                 onFavoriteToggle: () {
                                   // お気に入り機能を使用しない場合
                                 },
-                                // isRetweetedNotifier: ValueNotifier<bool>(false),
+                                bookmarkUsersNotifier: ValueNotifier<int>(0),
+                                isBookmarkedNotifier:
+                                    ValueNotifier<bool>(false),
+                                onBookMsrkToggle: () {
+                                  // 管理者ページではお気に入り機能を使わないか、または別のロジックを実装
+                                },
                                 replyFlag: ValueNotifier<bool>(false),
                                 userId: postAccount.id, // 管理者として閲覧する場合
                               ),

@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
@@ -16,6 +18,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
   TextEditingController userIdController = TextEditingController();
   TextEditingController selfIntroductionController = TextEditingController();
   File? image;
+  File? backgroundImage;
   bool isPrivate = false;
   bool followPrivate = true;
   bool replyMessage = true;
@@ -31,10 +34,28 @@ class _EditAccountPageState extends State<EditAccountPage> {
     }
   }
 
+  ImageProvider getBackgroundImage() {
+    if (backgroundImage == null) {
+      return NetworkImage(myAccount?.backgroundImagePath ?? '');
+    } else {
+      return FileImage(backgroundImage!);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _fetchAccountData();
+    nameController.addListener(() {
+      setState(() {
+        _nameCharCount = nameController.text.length;
+      });
+    });
+    selfIntroductionController.addListener(() {
+      setState(() {
+        _introCharCount = selfIntroductionController.text.length;
+      });
+    });
   }
 
   Future<void> _fetchAccountData() async {
@@ -142,6 +163,50 @@ class _EditAccountPageState extends State<EditAccountPage> {
               description: '自己紹介を400字以内で入力してください。',
               currentCharCount: _introCharCount,
             ),
+            SizedBox(height: 20),
+            GestureDetector(
+              onTap: () async {
+                var result = await FunctionUtils.getImageFromGallery(context);
+                if (result != null) {
+                  setState(() {
+                    backgroundImage = File(result.path);
+                  });
+                }
+              },
+              child: Stack(
+                children: [
+                  Container(
+                    width: 150,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(12),
+                      image: DecorationImage(
+                        image: getBackgroundImage(),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    child: backgroundImage == null
+                        ? Icon(Icons.camera_alt,
+                            color: Colors.grey[800], size: 30)
+                        : null,
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Icon(Icons.edit, color: Colors.blue, size: 20),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             SizedBox(height: 30),
             ElevatedButton(
               onPressed: () async {
@@ -203,6 +268,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
 
                 // 文字数のチェックが通ったら更新処理を実行
                 String? imagePath = '';
+                String? backgroundImagePath = '';
 
                 if (image == null) {
                   imagePath = myAccount!.imagePath;
@@ -217,12 +283,30 @@ class _EditAccountPageState extends State<EditAccountPage> {
                   }
                 }
 
+                if (backgroundImage == null) {
+                  backgroundImagePath = myAccount!.backgroundImagePath;
+                  if (backgroundImagePath == null ||
+                      backgroundImagePath.isEmpty) {
+                    await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(myAccount!.id)
+                        .update({'backgroundImagePath': backgroundImagePath});
+                  }
+                } else {
+                  String? result = await FunctionUtils.uploadImage(
+                      myAccount!.id, backgroundImage!, context);
+                  if (result != null) {
+                    backgroundImagePath = result;
+                  }
+                }
+
                 Account updateAccount = Account(
                   id: myAccount!.id,
                   name: nameController.text,
                   userId: userIdController.text,
                   selfIntroduction: selfIntroductionController.text,
                   imagePath: imagePath,
+                  backgroundImagePath: backgroundImagePath,
                   lockAccount: isPrivate,
                   followMessage: followPrivate,
                   replyMessage: replyMessage,
@@ -231,7 +315,12 @@ class _EditAccountPageState extends State<EditAccountPage> {
                 Authentication.myAccount = updateAccount;
                 var result = await UserFirestore.updataUser(updateAccount);
                 if (result == true) {
-                  Navigator.pop(context, true);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            AccountPage(postUserId: myAccount!.id)),
+                  );
                 }
               },
               style: ElevatedButton.styleFrom(

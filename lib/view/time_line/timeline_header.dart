@@ -30,10 +30,17 @@ class _TimelineHeaderState extends State<TimelineHeader> {
     widget.pageController.jumpToPage(initialPageIndex);
   }
 
-  void _pageListener() {
+  void _pageListener() async {
     if (mounted) {
+      final pageIndex = widget.pageController.page?.round() ?? 0;
+      await storage.write(
+        key: 'TimeLine',
+        value: pageIndex.toString(),
+      );
+      final pageIndexString = await storage.read(key: 'TimeLine') ?? '0';
+      final initialPageIndex = int.tryParse(pageIndexString) ?? 0;
       setState(() {
-        currentPage = widget.pageController.page?.round() ?? 0;
+        currentPage = initialPageIndex;
       });
     }
   }
@@ -77,12 +84,17 @@ class _TimelineHeaderState extends State<TimelineHeader> {
           ),
         ],
       ),
-      onPressed: () {
+      onPressed: () async {
         widget.pageController.jumpToPage(pageIndex);
-        storage.write(
+        await storage.write(
           key: 'TimeLine',
           value: pageIndex.toString(),
         );
+        final pageIndexString = await storage.read(key: 'TimeLine') ?? '0';
+        final initialPageIndex = int.tryParse(pageIndexString) ?? 0;
+        setState(() {
+          currentPage = initialPageIndex;
+        });
       },
     );
   }

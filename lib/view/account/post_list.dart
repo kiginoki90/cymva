@@ -1,3 +1,4 @@
+import 'package:cymva/utils/book_mark.dart';
 import 'package:cymva/view/account/post_item_account_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -18,6 +19,7 @@ class PostList extends StatefulWidget {
 
 class _PostListState extends State<PostList> {
   final FavoritePost _favoritePost = FavoritePost();
+  final BookmarkPost _bookmarkPost = BookmarkPost();
   final ScrollController _scrollController = ScrollController();
   List<Post> _allPosts = [];
   bool _hasMore = true;
@@ -28,6 +30,7 @@ class _PostListState extends State<PostList> {
   void initState() {
     super.initState();
     _favoritePost.getFavoritePosts(); // お気に入りの投稿を取得
+    _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
   }
 
   Stream<List<Post>> _postStream() {
@@ -102,6 +105,10 @@ class _PostListState extends State<PostList> {
                         ValueNotifier<int>(0);
                     _favoritePost.updateFavoriteUsersCount(post.postId);
 
+                    _bookmarkPost.bookmarkUsersNotifiers[post.postId] ??=
+                        ValueNotifier<int>(0);
+                    _bookmarkPost.updateBookmarkUsersCount(post.postId);
+
                     return PostItetmAccounWidget(
                       post: post,
                       postAccount: widget.postAccount,
@@ -114,6 +121,17 @@ class _PostListState extends State<PostList> {
                       onFavoriteToggle: () => _favoritePost.toggleFavorite(
                         post.postId,
                         _favoritePost.favoritePostsNotifier.value
+                            .contains(post.postId),
+                      ),
+                      bookmarkUsersNotifier:
+                          _bookmarkPost.bookmarkUsersNotifiers[post.postId]!,
+                      isBookmarkedNotifier: ValueNotifier<bool>(
+                        _bookmarkPost.bookmarkPostsNotifier.value
+                            .contains(post.postId),
+                      ),
+                      onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+                        post.postId,
+                        _bookmarkPost.bookmarkPostsNotifier.value
                             .contains(post.postId),
                       ),
                       replyFlag: ValueNotifier<bool>(false),

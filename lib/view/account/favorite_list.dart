@@ -1,9 +1,8 @@
+import 'package:cymva/utils/book_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/model/account.dart';
-import 'package:cymva/utils/firestore/posts.dart';
-import 'package:cymva/utils/firestore/users.dart'; // Firestoreからユーザー情報を取得するために必要
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 
@@ -18,7 +17,8 @@ class FavoriteList extends StatefulWidget {
 
 class _FavoriteListState extends State<FavoriteList> {
   final FavoritePost _favoritePost = FavoritePost();
-  late Future<List<String>>? _favoritePostsFuture;
+  final BookmarkPost _bookmarkPost = BookmarkPost();
+  // late Future<List<String>>? _favoritePostsFuture;
   List<Post> _posts = [];
   Map<String, Account> _accounts = {};
   bool _hasMore = true;
@@ -29,7 +29,8 @@ class _FavoriteListState extends State<FavoriteList> {
   @override
   void initState() {
     super.initState();
-    _favoritePostsFuture = _favoritePost.getFavoritePosts();
+    _favoritePost.getFavoritePosts();
+    _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
     _fetchInitialFavorites();
   }
 
@@ -185,6 +186,10 @@ class _FavoriteListState extends State<FavoriteList> {
               ValueNotifier<int>(0);
           _favoritePost.updateFavoriteUsersCount(post.id);
 
+          _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+              ValueNotifier<int>(0);
+          _bookmarkPost.updateBookmarkUsersCount(post.id);
+
           return PostItemWidget(
             key: ValueKey(post.id), // これを追加して、各投稿のキーを設定
             post: post,
@@ -199,6 +204,15 @@ class _FavoriteListState extends State<FavoriteList> {
               _favoritePost.favoritePostsNotifier.value.contains(post.id),
             ),
             replyFlag: ValueNotifier<bool>(false),
+            bookmarkUsersNotifier:
+                _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+            isBookmarkedNotifier: ValueNotifier<bool>(
+              _bookmarkPost.bookmarkPostsNotifier.value.contains(post.id),
+            ),
+            onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+              post.id,
+              _bookmarkPost.bookmarkPostsNotifier.value.contains(post.id),
+            ),
             userId: widget.myAccount.id,
           );
         },

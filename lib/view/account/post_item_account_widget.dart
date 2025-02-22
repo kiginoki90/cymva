@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/utils/post_item_utils.dart';
+import 'package:cymva/view/post_item/Icons_action.dart';
 import 'package:cymva/view/post_item/link_text.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:cymva/view/post_item/post_visibility_widget.dart';
@@ -8,9 +9,9 @@ import 'package:cymva/view/repost_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/model/account.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/view/post_item/post_detail_page.dart';
-import 'package:cymva/view/account/account_page.dart';
 import 'dart:async';
 
 class PostItetmAccounWidget extends StatefulWidget {
@@ -20,6 +21,9 @@ class PostItetmAccounWidget extends StatefulWidget {
   final ValueNotifier<bool> isFavoriteNotifier;
   final VoidCallback onFavoriteToggle;
   final ValueNotifier<bool> replyFlag;
+  final ValueNotifier<int> bookmarkUsersNotifier;
+  final ValueNotifier<bool> isBookmarkedNotifier;
+  final VoidCallback onBookMsrkToggle;
   final String userId;
 
   const PostItetmAccounWidget({
@@ -29,6 +33,9 @@ class PostItetmAccounWidget extends StatefulWidget {
     required this.onFavoriteToggle,
     required this.favoriteUsersNotifier,
     required this.replyFlag,
+    required this.bookmarkUsersNotifier,
+    required this.isBookmarkedNotifier,
+    required this.onBookMsrkToggle,
     required this.userId,
     Key? key,
   }) : super(key: key);
@@ -188,6 +195,9 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                 postAccount: widget.postAccount,
                 replyFlag: widget.replyFlag,
                 userId: widget.userId,
+                bookmarkUsersNotifier: widget.bookmarkUsersNotifier,
+                isBookmarkedNotifier: widget.isBookmarkedNotifier,
+                onBookMsrkToggle: widget.onBookMsrkToggle,
               ),
             ),
           );
@@ -212,6 +222,9 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                 postAccount: widget.postAccount,
                 replyFlag: widget.replyFlag,
                 userId: widget.userId,
+                bookmarkUsersNotifier: widget.bookmarkUsersNotifier,
+                isBookmarkedNotifier: widget.isBookmarkedNotifier,
+                onBookMsrkToggle: widget.onBookMsrkToggle,
               ),
             ),
           );
@@ -438,127 +451,18 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                                 ),
                               ),
                             if (isHidden == false)
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      ValueListenableBuilder<int>(
-                                        valueListenable:
-                                            widget.favoriteUsersNotifier,
-                                        builder: (context, value, child) {
-                                          return Text(value.toString());
-                                        },
-                                      ),
-                                      const SizedBox(width: 5),
-                                      ValueListenableBuilder<bool>(
-                                        valueListenable:
-                                            widget.isFavoriteNotifier,
-                                        builder: (context, isFavorite, child) {
-                                          return GestureDetector(
-                                            onTap: () {
-                                              widget.onFavoriteToggle();
-                                              widget.isFavoriteNotifier.value =
-                                                  !widget
-                                                      .isFavoriteNotifier.value;
-                                            },
-                                            child: Icon(
-                                              isFavorite
-                                                  ? Icons.star
-                                                  : Icons.star_outline,
-                                              color: isFavorite
-                                                  ? const Color.fromARGB(
-                                                      255, 255, 183, 59)
-                                                  : Colors.grey,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                  Row(
-                                    children: [
-                                      StreamBuilder<QuerySnapshot>(
-                                        stream: FirebaseFirestore.instance
-                                            .collection('posts')
-                                            .doc(widget.post.postId.isNotEmpty
-                                                ? widget.post.postId
-                                                : widget.post.id)
-                                            .collection('repost')
-                                            .snapshots(),
-                                        builder: (context, snapshot) {
-                                          if (!snapshot.hasData) {
-                                            return Text('0');
-                                          }
-                                          final repostCount =
-                                              snapshot.data!.docs.length;
-                                          return Text(repostCount.toString());
-                                        },
-                                      ),
-                                      const SizedBox(width: 5),
-                                      GestureDetector(
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => RepostPage(
-                                                post: widget.post,
-                                                userId: widget.userId,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        child: Icon(
-                                          Icons.repeat_outlined,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 5),
-                                    ],
-                                  ),
-                                  ValueListenableBuilder<int>(
-                                    valueListenable: _replyCountNotifier,
-                                    builder: (context, replyCount, child) {
-                                      return Row(
-                                        children: [
-                                          Text(replyCount.toString()),
-                                          IconButton(
-                                            onPressed: widget
-                                                        .post.closeComment ==
-                                                    true
-                                                ? null
-                                                : () {
-                                                    Navigator.push(
-                                                      context,
-                                                      MaterialPageRoute(
-                                                        builder: (context) =>
-                                                            ReplyPage(
-                                                          post: widget.post,
-                                                          userId: widget.userId,
-                                                          repryAccount: widget
-                                                              .postAccount,
-                                                        ),
-                                                      ),
-                                                    );
-                                                  },
-                                            icon: Icon(
-                                              Icons.comment,
-                                              color: widget.post.closeComment ==
-                                                      true
-                                                  ? Colors.grey
-                                                  : Colors.black,
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  ),
-                                  // IconButton(
-                                  //   onPressed: () {},
-                                  //   icon: const Icon(Icons.share),
-                                  // ),
-                                ],
+                              IconsActionsWidget(
+                                post: widget.post,
+                                postAccount: widget.postAccount,
+                                userId: widget.userId,
+                                bookmarkUsersNotifier:
+                                    widget.bookmarkUsersNotifier,
+                                isBookmarkedNotifier:
+                                    widget.isBookmarkedNotifier,
+                                isFavoriteNotifier: widget.isFavoriteNotifier,
+                                replyCountNotifier: _replyCountNotifier,
+                                onFavoriteToggle: widget.onFavoriteToggle,
+                                onBookMsrkToggle: widget.onBookMsrkToggle,
                               ),
                           ],
                         ),

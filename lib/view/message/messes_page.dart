@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
+import 'package:cymva/utils/book_mark.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
@@ -20,18 +21,23 @@ class MessesPage extends StatefulWidget {
 class _MessesPageState extends State<MessesPage> {
   List<Map<String, dynamic>> notifications = [];
   final FlutterSecureStorage storage = FlutterSecureStorage();
+  final BookmarkPost _bookmarkPost = BookmarkPost();
 
   @override
   void initState() {
     super.initState();
     _deleteOldMessages(); // 古いメッセージを削除
     _fetchNotifications();
+    _bookmarkPost.getBookmarkPosts();
   }
 
   Future<void> _deleteOldMessages() async {
     final firestore = FirebaseFirestore.instance;
     final currentUserId = widget.userId;
     final now = Timestamp.now();
+    final MonthsAgo = Timestamp.fromMillisecondsSinceEpoch(
+      now.millisecondsSinceEpoch - 4 * 30 * 24 * 60 * 60 * 1000,
+    );
 
     final snapshot = await firestore
         .collection('users')
@@ -43,7 +49,13 @@ class _MessesPageState extends State<MessesPage> {
       final messageRead = doc.data().containsKey('message_read')
           ? doc['message_read'] as Timestamp?
           : null;
-      if (messageRead != null && now.seconds - messageRead.seconds > 86400) {
+      final messageCreated = doc.data().containsKey('timestamp')
+          ? doc['timestamp'] as Timestamp?
+          : null;
+
+      if ((messageRead != null && now.seconds - messageRead.seconds > 86400) ||
+          (messageCreated != null &&
+              messageCreated.seconds < MonthsAgo.seconds)) {
         await doc.reference.delete();
       }
     }
@@ -301,6 +313,9 @@ class _MessesPageState extends State<MessesPage> {
       final post = Post.fromDocument(postSnapshot);
       final postAccount = Account.fromDocument(userSnapshot);
 
+      _bookmarkPost.bookmarkUsersNotifiers[post.id] ??= ValueNotifier<int>(0);
+      _bookmarkPost.updateBookmarkUsersCount(post.id);
+
       // 投稿詳細ページへ遷移
       Navigator.push(
         context,
@@ -310,6 +325,15 @@ class _MessesPageState extends State<MessesPage> {
             postAccount: postAccount,
             replyFlag: ValueNotifier<bool>(false),
             userId: widget.userId,
+            bookmarkUsersNotifier:
+                _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+            isBookmarkedNotifier: ValueNotifier<bool>(
+              _bookmarkPost.bookmarkPostsNotifier.value.contains(post.id),
+            ),
+            onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+              post.id,
+              _bookmarkPost.bookmarkPostsNotifier.value.contains(post.id),
+            ),
           ),
         ),
       );

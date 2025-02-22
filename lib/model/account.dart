@@ -7,6 +7,7 @@ class Account {
   String parents_id;
   String name;
   String imagePath;
+  String? backgroundImagePath;
   String selfIntroduction;
   String userId;
   Timestamp? createdTime;
@@ -21,6 +22,7 @@ class Account {
     this.name = '',
     this.parents_id = '',
     this.imagePath = '',
+    this.backgroundImagePath = '',
     this.selfIntroduction = '',
     this.userId = '',
     this.createdTime,
@@ -38,6 +40,7 @@ class Account {
       parents_id: data['parents_id'],
       name: data['name'],
       imagePath: data['image_path'],
+      backgroundImagePath: data['background_image_path'] ?? '',
       selfIntroduction: data['self_introduction'],
       userId: data['user_id'],
       createdTime: data['created_time'],

@@ -71,6 +71,10 @@ class SearchItem {
 
       final followUserIds = followSnapshot.docs.map((doc) => doc.id).toList();
 
+      if (followUserIds.isEmpty) {
+        return;
+      }
+
       // フォローしているユーザーの投稿のみをフィルタリング
       queryRef = queryRef.where('post_account_id', whereIn: followUserIds);
     }
@@ -410,7 +414,7 @@ class SearchItem {
       final followUserIds = followSnapshot.docs.map((doc) => doc.id).toList();
 
       // フォローしているユーザーの投稿のみをフィルタリング
-      queryRef = queryRef.where('post_user_id', whereIn: followUserIds);
+      queryRef = queryRef.where('post_account_id', whereIn: followUserIds);
     }
 
     // 日付範囲でフィルタリング

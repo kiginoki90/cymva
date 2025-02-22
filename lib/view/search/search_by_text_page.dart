@@ -1,3 +1,4 @@
+import 'package:cymva/utils/book_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/account.dart';
@@ -42,6 +43,7 @@ class _SearchByTextPageState extends State<SearchByTextPage> {
   List<DocumentSnapshot> _postSearchResults = [];
   bool _hasMore = true;
   DocumentSnapshot? _lastDocument;
+  final BookmarkPost _bookmarkPost = BookmarkPost();
 
   @override
   void initState() {
@@ -145,6 +147,10 @@ class _SearchByTextPageState extends State<SearchByTextPage> {
                       ValueNotifier<int>(0);
                   widget.favoritePost.updateFavoriteUsersCount(post.id);
 
+                  _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+                      ValueNotifier<int>(0);
+                  _bookmarkPost.updateBookmarkUsersCount(post.id);
+
                   return PostItemWidget(
                     post: post,
                     postAccount: postAccount,
@@ -159,7 +165,17 @@ class _SearchByTextPageState extends State<SearchByTextPage> {
                           .contains(post.id);
                       widget.favoritePost.toggleFavorite(post.id, isFavorite);
                     },
-                    // isRetweetedNotifier: ValueNotifier<bool>(false),
+                    bookmarkUsersNotifier:
+                        _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+                    isBookmarkedNotifier: ValueNotifier<bool>(
+                      _bookmarkPost.bookmarkPostsNotifier.value
+                          .contains(post.id),
+                    ),
+                    onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+                      post.id,
+                      _bookmarkPost.bookmarkPostsNotifier.value
+                          .contains(post.id),
+                    ),
                     replyFlag: ValueNotifier<bool>(false),
                     userId: widget.userId,
                   );

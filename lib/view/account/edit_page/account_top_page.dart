@@ -2,20 +2,18 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/utils/follow_service.dart';
 import 'package:cymva/view/account/edit_page/account_options_page.dart';
-import 'package:cymva/view/account/edit_page/custom_link_text.dart';
 import 'package:cymva/view/account/follow_page.dart';
 import 'package:cymva/view/account/follower_page.dart';
 import 'package:cymva/view/admin/admin_page.dart';
 import 'package:cymva/view/post_item/full_screen_image.dart';
 import 'package:cymva/view/post_item/link_text.dart';
 import 'package:cymva/view/post_item/show_account_report_dialog.dart';
-import 'package:cymva/view/search/detailed_search_page.dart';
-import 'package:cymva/view/search/search_page.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/view/account/account_page.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 // アカウント詳細ページ
@@ -42,12 +40,14 @@ class _AccountTopPageState extends State<AccountTopPage> {
   Account? postAccount;
   final FollowService followService = FollowService();
   bool isFollowed = false;
+  String? backgroundImageUrl;
 
   @override
   void initState() {
     super.initState();
     _followCountFuture = _getFollowCount();
     _followerCountFuture = _getFollowerCount();
+    _fetchBackgroundImage();
     _initialize();
   }
 
@@ -64,6 +64,23 @@ class _AccountTopPageState extends State<AccountTopPage> {
   Future<void> _checkFollowStatus() async {
     isFollowing = await followService.checkFollowStatus(widget.postAccountId);
     setState(() {});
+  }
+
+  Future<void> _fetchBackgroundImage() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .get();
+
+    if (doc.exists) {
+      final data = doc.data();
+      final imageUrl = data?['background_image'] as String?;
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        setState(() {
+          backgroundImageUrl = imageUrl;
+        });
+      }
+    }
   }
 
   Future<void> _getPostAccount() async {
@@ -119,7 +136,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
         siblingAccounts = accounts;
       });
     } catch (e) {
-      print('同じparents_idを持つアカウントの取得に失敗しました: $e');
+      print('アカウントの取得に失敗しました: $e');
     }
   }
 
@@ -190,11 +207,23 @@ class _AccountTopPageState extends State<AccountTopPage> {
           }
           return true;
         },
-        child: Column(
+        child: Stack(
           children: [
-            _buildHeader(),
-            SizedBox(height: 30),
-            if (widget.userId == widget.postAccountId) _buildSiblingAccounts(),
+            if (backgroundImageUrl != null)
+              Positioned.fill(
+                child: Image.network(
+                  backgroundImageUrl!,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            Column(
+              children: [
+                _buildHeader(),
+                SizedBox(height: 30),
+                if (widget.userId == widget.postAccountId)
+                  _buildSiblingAccounts(),
+              ],
+            ),
           ],
         ),
       ),
@@ -465,19 +494,14 @@ class _AccountTopPageState extends State<AccountTopPage> {
                     SizedBox(
                       height: 25,
                       width: 110,
-                      child: TextButton(
-                        onPressed: () async {
+                      child: GestureDetector(
+                        onDoubleTap: () async {
                           var result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => AdminPage()));
-                          // if (result == true) {
-                          //   setState(() {
-                          //     myAccount = Authentication.myAccount!;
-                          //   });
-                          // }
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => AdminPage()),
+                          );
                         },
-                        child: const Text(''),
                       ),
                     ),
                 ],
@@ -677,14 +701,14 @@ class _AccountTopPageState extends State<AccountTopPage> {
                     color: Colors.grey,
                   ),
                 ),
-              Text(
+              SelectableText(
                 postAccount!.name,
                 style:
                     const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
             ],
           ),
-          Text(
+          SelectableText(
             '@${postAccount!.userId}',
             style: const TextStyle(color: Colors.grey),
           ),
