@@ -5,8 +5,9 @@ import 'package:cymva/model/post.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class FavoriteList extends StatefulWidget {
+class FavoriteList extends ConsumerStatefulWidget {
   final Account myAccount;
 
   const FavoriteList({Key? key, required this.myAccount}) : super(key: key);
@@ -15,208 +16,254 @@ class FavoriteList extends StatefulWidget {
   _FavoriteListState createState() => _FavoriteListState();
 }
 
-class _FavoriteListState extends State<FavoriteList> {
+class _FavoriteListState extends ConsumerState<FavoriteList> {
   final FavoritePost _favoritePost = FavoritePost();
   final BookmarkPost _bookmarkPost = BookmarkPost();
-  // late Future<List<String>>? _favoritePostsFuture;
-  List<Post> _posts = [];
-  Map<String, Account> _accounts = {};
-  bool _hasMore = true;
-  bool _isLoading = false;
-  DocumentSnapshot? _lastDocument;
   final ScrollController _scrollController = ScrollController();
+  bool _isLoadingMore = false;
+  Map<String, Account> _accountCache = {};
 
   @override
   void initState() {
     super.initState();
-    _favoritePost.getFavoritePosts();
+    _loadPosts();
+    _scrollController.addListener(_scrollListener);
+    _favoritePost.getFavoritePosts(); // お気に入りの投稿を取得
     _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
-    _fetchInitialFavorites();
   }
 
-  Future<void> _fetchInitialFavorites() async {
-    setState(() {
-      _isLoading = true;
-    });
+  @override
+  void dispose() {
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
+    super.dispose();
+  }
 
-    final favoritePostIds = await _fetchFavoritePostIds();
-    final posts = await _fetchPosts(favoritePostIds);
-    final accountIds = posts.map((post) => post.postAccountId).toSet().toList();
-    final accounts = await _fetchAccounts(accountIds);
-
-    if (mounted) {
+  void _scrollListener() async {
+    if (_scrollController.offset >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_scrollController.position.outOfRange &&
+        !_isLoadingMore) {
       setState(() {
-        _posts = posts;
-        _accounts = accounts;
-        _isLoading = false;
+        _isLoadingMore = true;
+      });
+      await ref
+          .read(viewModelProvider)
+          .getFavoritePostsNext(widget.myAccount.id);
+      setState(() {
+        _isLoadingMore = false;
       });
     }
   }
 
-  Future<void> _fetchMoreFavorites() async {
-    if (_isLoading || !_hasMore) return;
-
-    // setState(() {
-    //   _isLoading = true;
-    // });
-
-    final favoritePostIds = await _fetchFavoritePostIds();
-    final posts = await _fetchPosts(favoritePostIds);
-    if (posts.isNotEmpty) {
-      final accountIds =
-          posts.map((post) => post.postAccountId).toSet().toList();
-      final accounts = await _fetchAccounts(accountIds);
-
-      if (mounted) {
-        setState(() {
-          _posts.addAll(posts);
-          _accounts.addAll(accounts);
-          _lastDocument = favoritePostIds.last;
-          _isLoading = false;
-        });
-      }
-    } else {
-      if (mounted) {
-        setState(() {
-          _hasMore = false;
-          // _isLoading = false;
-        });
-      }
-    }
+  Future<void> _loadPosts() async {
+    await ref.read(viewModelProvider).getFavoritePosts(widget.myAccount.id);
   }
 
-  Future<List<DocumentSnapshot>> _fetchFavoritePostIds() async {
-    Query query = FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.myAccount.id)
-        .collection('favorite_posts')
-        .orderBy('added_at', descending: true)
-        .limit(10);
-
-    if (_lastDocument != null) {
-      query = query.startAfterDocument(_lastDocument!);
-    }
-
-    final querySnapshot = await query.get();
-    if (querySnapshot.docs.isNotEmpty) {
-      _lastDocument = querySnapshot.docs.last;
-    }
-
-    return querySnapshot.docs;
-  }
-
-  Future<List<Post>> _fetchPosts(List<DocumentSnapshot> favoritePostIds) async {
-    List<Post> posts = [];
-    for (var doc in favoritePostIds) {
-      final postId = doc.id;
-      final postDoc = await FirebaseFirestore.instance
-          .collection('posts')
-          .doc(postId)
-          .get();
-      if (postDoc.exists) {
-        final postData = postDoc.data() as Map<String, dynamic>;
-        posts.add(Post.fromMap(postData, documentSnapshot: postDoc));
-      }
-    }
-    return posts;
-  }
-
-  Future<Map<String, Account>> _fetchAccounts(List<String> accountIds) async {
-    final Map<String, Account> accounts = {};
-    for (String accountId in accountIds) {
-      final account = await _fetchAccount(accountId);
-      if (account != null) {
-        accounts[accountId] = account;
-      }
-    }
-    return accounts;
+  Future<void> _refreshPosts() async {
+    await ref.read(viewModelProvider).getFavoritePosts(widget.myAccount.id);
   }
 
   Future<Account?> _fetchAccount(String accountId) async {
+    if (_accountCache.containsKey(accountId)) {
+      return _accountCache[accountId];
+    }
+
     final userDoc = await FirebaseFirestore.instance
         .collection('users')
         .doc(accountId)
         .get();
     if (userDoc.exists) {
-      return Account.fromDocument(userDoc);
+      final account = Account.fromDocument(userDoc);
+      _accountCache[accountId] = account;
+      return account;
     }
     return null;
   }
 
-  Future<void> _refreshFavorites() async {
-    setState(() {
-      _posts = [];
-      _accounts = {};
-      _lastDocument = null;
-      _hasMore = true;
-    });
-    await _fetchInitialFavorites();
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+    final model = ref.watch(viewModelProvider);
+
+    if (model.postList.isEmpty) {
+      return const Center(child: Text("まだお気に入りの投稿がありません"));
     }
 
-    if (_posts.isEmpty) {
-      return const Center(child: Text('まだお気に入りの投稿がありません'));
-    }
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 500),
+          child: RefreshIndicator(
+            onRefresh: _refreshPosts,
+            child: ListView.builder(
+              controller: _scrollController,
+              itemCount: model.postList.length + 1,
+              itemBuilder: (context, index) {
+                if (index == model.postList.length) {
+                  return _isLoadingMore
+                      ? const Center(child: Text(" Loading..."))
+                      : const Center(child: Text("結果は以上です"));
+                }
 
-    return RefreshIndicator(
-      onRefresh: _refreshFavorites,
-      child: ListView.builder(
-        controller: _scrollController,
-        itemCount: _posts.length + 1,
-        itemBuilder: (context, index) {
-          if (index == _posts.length) {
-            return _hasMore
-                ? TextButton(
-                    onPressed: _fetchMoreFavorites,
-                    child: const Text("もっと読み込む"),
-                  )
-                : const Center(child: Text("結果は以上です"));
-          }
+                final post = model.postList[index];
 
-          Post post = _posts[index];
-          Account postAccount = _accounts[post.postAccountId]!;
+                // お気に入りユーザー数の初期化と更新
+                _favoritePost.favoriteUsersNotifiers[post.postId] ??=
+                    ValueNotifier<int>(0);
+                _favoritePost.updateFavoriteUsersCount(post.postId);
 
-          // お気に入りユーザー数の初期化と更新
-          _favoritePost.favoriteUsersNotifiers[post.id] ??=
-              ValueNotifier<int>(0);
-          _favoritePost.updateFavoriteUsersCount(post.id);
+                _bookmarkPost.bookmarkUsersNotifiers[post.postId] ??=
+                    ValueNotifier<int>(0);
+                _bookmarkPost.updateBookmarkUsersCount(post.postId);
 
-          _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
-              ValueNotifier<int>(0);
-          _bookmarkPost.updateBookmarkUsersCount(post.id);
+                return FutureBuilder<Account?>(
+                  future: _fetchAccount(post.postAccountId),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: Text("アカウント情報が取得できませんでした"));
+                    }
 
-          return PostItemWidget(
-            key: ValueKey(post.id), // これを追加して、各投稿のキーを設定
-            post: post,
-            postAccount: postAccount,
-            favoriteUsersNotifier:
-                _favoritePost.favoriteUsersNotifiers[post.id]!,
-            isFavoriteNotifier: ValueNotifier<bool>(
-              _favoritePost.favoritePostsNotifier.value.contains(post.id),
+                    final postAccount = snapshot.data!;
+
+                    return PostItemWidget(
+                      key: ValueKey(post.postId),
+                      post: post,
+                      postAccount: postAccount,
+                      favoriteUsersNotifier:
+                          _favoritePost.favoriteUsersNotifiers[post.postId]!,
+                      isFavoriteNotifier: ValueNotifier<bool>(
+                        _favoritePost.favoritePostsNotifier.value
+                            .contains(post.postId),
+                      ),
+                      onFavoriteToggle: () => _favoritePost.toggleFavorite(
+                        post.postId,
+                        _favoritePost.favoritePostsNotifier.value
+                            .contains(post.postId),
+                      ),
+                      replyFlag: ValueNotifier<bool>(false),
+                      bookmarkUsersNotifier:
+                          _bookmarkPost.bookmarkUsersNotifiers[post.postId]!,
+                      isBookmarkedNotifier: ValueNotifier<bool>(
+                        _bookmarkPost.bookmarkPostsNotifier.value
+                            .contains(post.postId),
+                      ),
+                      onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+                        post.postId,
+                        _bookmarkPost.bookmarkPostsNotifier.value
+                            .contains(post.postId),
+                      ),
+                      userId: widget.myAccount.id,
+                    );
+                  },
+                );
+              },
             ),
-            onFavoriteToggle: () => _favoritePost.toggleFavorite(
-              post.id,
-              _favoritePost.favoritePostsNotifier.value.contains(post.id),
-            ),
-            replyFlag: ValueNotifier<bool>(false),
-            bookmarkUsersNotifier:
-                _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
-            isBookmarkedNotifier: ValueNotifier<bool>(
-              _bookmarkPost.bookmarkPostsNotifier.value.contains(post.id),
-            ),
-            onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
-              post.id,
-              _bookmarkPost.bookmarkPostsNotifier.value.contains(post.id),
-            ),
-            userId: widget.myAccount.id,
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 }
+
+class DbManager {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  DocumentSnapshot? _lastDocument;
+
+  Future<List<Post>> getFavoritePosts(String userId) async {
+    Query query = _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('favorite_posts')
+        .orderBy('added_at', descending: true)
+        .limit(5);
+
+    final querySnapshot = await query.get();
+    List<Post> posts = [];
+    if (querySnapshot.docs.isNotEmpty) {
+      _lastDocument = querySnapshot.docs.last;
+      List<Future<Post?>> futures = querySnapshot.docs.map((doc) async {
+        final postId = doc.id;
+        final postDoc = await _firestore.collection('posts').doc(postId).get();
+        if (postDoc.exists) {
+          final postData = postDoc.data() as Map<String, dynamic>;
+          return Post.fromMap(postData, documentSnapshot: postDoc);
+        }
+        return null;
+      }).toList();
+
+      posts = (await Future.wait(futures))
+          .where((post) => post != null)
+          .cast<Post>()
+          .toList();
+    } else {
+      print("No posts found.");
+    }
+    return posts;
+  }
+
+  Future<List<Post>> getFavoritePostsNext(String userId) async {
+    if (_lastDocument == null) return [];
+
+    Query query = _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('favorite_posts')
+        .orderBy('added_at', descending: true)
+        .startAfterDocument(_lastDocument!)
+        .limit(5);
+
+    final querySnapshot = await query.get();
+    List<Post> posts = [];
+    if (querySnapshot.docs.isNotEmpty) {
+      _lastDocument = querySnapshot.docs.last;
+      List<Future<Post?>> futures = querySnapshot.docs.map((doc) async {
+        final postId = doc.id;
+        final postDoc = await _firestore.collection('posts').doc(postId).get();
+        if (postDoc.exists) {
+          final postData = postDoc.data() as Map<String, dynamic>;
+          return Post.fromMap(postData, documentSnapshot: postDoc);
+        }
+        return null;
+      }).toList();
+
+      posts = (await Future.wait(futures))
+          .where((post) => post != null)
+          .cast<Post>()
+          .toList();
+    } else {
+      print("No more posts found.");
+    }
+    return posts;
+  }
+}
+
+final viewModelProvider =
+    ChangeNotifierProvider<ViewModel>((ref) => ViewModel(ref));
+
+class ViewModel extends ChangeNotifier {
+  ViewModel(this.ref);
+
+  final Ref ref;
+  List<Post> postList = [];
+  List<Post> currentPostList = [];
+
+  Future<void> getFavoritePosts(String userId) async {
+    postList = [];
+    final dbManager = ref.read(dbManagerProvider);
+
+    currentPostList = await dbManager.getFavoritePosts(userId);
+    postList.addAll(currentPostList);
+    notifyListeners();
+  }
+
+  Future<void> getFavoritePostsNext(String userId) async {
+    currentPostList =
+        await ref.read(dbManagerProvider).getFavoritePostsNext(userId);
+    if (currentPostList.isNotEmpty) {
+      postList.addAll(currentPostList);
+    }
+    notifyListeners();
+  }
+}
+
+final dbManagerProvider = Provider((ref) => DbManager());

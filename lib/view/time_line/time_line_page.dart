@@ -26,15 +26,27 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
   final FavoritePost _favoritePost = FavoritePost();
   final BookmarkPost _bookmarkPost = BookmarkPost();
   final ValueNotifier<bool> _showScrollToTopButton = ValueNotifier(false);
+  DateTime? _startTime; // 開始時刻を記録する変数
+  bool _isLoadingMore = false; // データの追加読み込み中かどうかを示すフラグ
+
+  // ValueNotifierを再利用するためのマップ
+  final Map<String, ValueNotifier<int>> _favoriteUsersNotifiers = {};
+  final Map<String, ValueNotifier<int>> _bookmarkUsersNotifiers = {};
+  final Map<String, ValueNotifier<bool>> _isFavoriteNotifiers = {};
+  final Map<String, ValueNotifier<bool>> _isBookmarkedNotifiers = {};
 
   @override
   void initState() {
     super.initState();
+    _startTime = DateTime.now(); // 開始時刻を記録
     _scrollController.addListener(_scrollListener);
     _favoritePost.getFavoritePosts();
     _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(viewModelProvider).getPosts(widget.userId);
+      final endTime = DateTime.now(); // 終了時刻を記録
+      final duration = endTime.difference(_startTime!); // 処理時間を計算
+      print('TimeLinePageの表示時間: ${duration.inMilliseconds}ミリ秒');
     });
   }
 
@@ -45,7 +57,20 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
     super.dispose();
   }
 
-  void _scrollListener() {
+  void _scrollListener() async {
+    if (_scrollController.offset >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_scrollController.position.outOfRange &&
+        !_isLoadingMore) {
+      setState(() {
+        _isLoadingMore = true;
+      });
+      await ref.read(viewModelProvider).getPostsNext(widget.userId);
+      setState(() {
+        _isLoadingMore = false;
+      });
+    }
+
     if (_scrollController.offset >= 600) {
       _showScrollToTopButton.value = true;
     } else {
@@ -76,17 +101,8 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
                       if (index ==
                           model.stackedPostList.length +
                               (model.stackedPostList.length ~/ 10)) {
-                        return model.currentPostList.isNotEmpty
-                            ? TextButton(
-                                onPressed: () async {
-                                  final currentScrollPosition =
-                                      _scrollController.position.pixels;
-                                  await model.getPostsNext(widget.userId);
-                                  _scrollController
-                                      .jumpTo(currentScrollPosition);
-                                },
-                                child: const Text("もっと読み込む"),
-                              )
+                        return _isLoadingMore
+                            ? const Center(child: Text(" Loading..."))
                             : const Center(child: Text("結果は以上です"));
                       }
 
@@ -110,40 +126,43 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
                         return Container();
                       }
 
-                      _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                      // ValueNotifierを再利用する
+                      _favoriteUsersNotifiers[post.id] ??=
                           ValueNotifier<int>(0);
                       _favoritePost.updateFavoriteUsersCount(post.id);
 
-                      _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+                      _bookmarkUsersNotifiers[post.id] ??=
                           ValueNotifier<int>(0);
                       _bookmarkPost.updateBookmarkUsersCount(post.id);
+
+                      _isFavoriteNotifiers[post.id] ??= ValueNotifier<bool>(
+                        _favoritePost.favoritePostsNotifier.value
+                            .contains(post.id),
+                      );
+
+                      _isBookmarkedNotifiers[post.id] ??= ValueNotifier<bool>(
+                        _bookmarkPost.bookmarkPostsNotifier.value
+                            .contains(post.id),
+                      );
 
                       return PostItemWidget(
                         key: PageStorageKey(post.id),
                         post: post,
                         postAccount: postAccount,
                         favoriteUsersNotifier:
-                            _favoritePost.favoriteUsersNotifiers[post.id]!,
-                        isFavoriteNotifier: ValueNotifier<bool>(
-                          _favoritePost.favoritePostsNotifier.value
-                              .contains(post.id),
-                        ),
+                            _favoriteUsersNotifiers[post.id]!,
+                        isFavoriteNotifier: _isFavoriteNotifiers[post.id]!,
                         onFavoriteToggle: () => _favoritePost.toggleFavorite(
                           post.id,
-                          _favoritePost.favoritePostsNotifier.value
-                              .contains(post.id),
+                          _isFavoriteNotifiers[post.id]!.value,
                         ),
                         replyFlag: ValueNotifier<bool>(false),
                         bookmarkUsersNotifier:
-                            _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
-                        isBookmarkedNotifier: ValueNotifier<bool>(
-                          _bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(post.id),
-                        ),
+                            _bookmarkUsersNotifiers[post.id]!,
+                        isBookmarkedNotifier: _isBookmarkedNotifiers[post.id]!,
                         onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
                           post.id,
-                          _bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(post.id),
+                          _isBookmarkedNotifiers[post.id]!.value,
                         ),
                         userId: widget.userId,
                       );
@@ -172,7 +191,7 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
                       border: Border.all(color: Colors.lightBlue, width: 2.0),
                       color: Colors.transparent, // 内側を透明にする場合
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.keyboard_double_arrow_up,
                       color: Colors.lightBlue,
                       size: 40.0,
@@ -196,7 +215,7 @@ class DbManager {
         .collection('posts')
         .where('hide', isEqualTo: false)
         .orderBy('created_time', descending: true)
-        .limit(50);
+        .limit(15);
     final querySnapshot = await query.get();
     if (querySnapshot.docs.isNotEmpty) {
       _lastDocument = querySnapshot.docs.last;
@@ -212,7 +231,7 @@ class DbManager {
         .where('hide', isEqualTo: false)
         .orderBy('created_time', descending: true)
         .startAfterDocument(_lastDocument!)
-        .limit(50);
+        .limit(15);
     final querySnapshot = await query.get();
     if (querySnapshot.docs.isNotEmpty) {
       _lastDocument = querySnapshot.docs.last;
@@ -275,10 +294,19 @@ class ViewModel extends ChangeNotifier {
 
   Future<void> getPosts(String userId) async {
     stackedPostList = [];
-    currentPostList = await ref.read(dbManagerProvider).getPosts();
-    favoritePosts = await ref.read(dbManagerProvider).getFavoritePosts(userId);
-    blockedAccounts =
-        await ref.read(dbManagerProvider).fetchBlockedAccounts(userId);
+    final dbManager = ref.read(dbManagerProvider);
+
+    // 並列に非同期処理を実行
+    final results = await Future.wait([
+      dbManager.getPosts(),
+      dbManager.getFavoritePosts(userId),
+      dbManager.fetchBlockedAccounts(userId),
+    ]);
+
+    currentPostList = results[0] as List<QueryDocumentSnapshot>;
+    favoritePosts = results[1] as List<String>;
+    blockedAccounts = results[2] as List<String>;
+
     stackedPostList.addAll(currentPostList);
     postUserMap = await UserFirestore.getPostUserMap(
           stackedPostList

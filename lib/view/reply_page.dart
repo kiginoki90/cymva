@@ -261,6 +261,7 @@ class _ReplyPageState extends State<ReplyPage> {
                     MediaDisplayWidget(
                       mediaUrl: widget.post.mediaUrl,
                       category: widget.post.category ?? '',
+                      atStart: true,
                     ),
                   const SizedBox(height: 20),
                   TextField(

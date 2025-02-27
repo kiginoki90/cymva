@@ -546,6 +546,8 @@ class _AccountTopPageState extends State<AccountTopPage> {
             } else {
               toggleFollowStatus();
             }
+            // タップした感覚を提供
+            HapticFeedback.lightImpact();
           },
           child: Text(
             isFollowing ? 'フォロー中' : 'フォロー',

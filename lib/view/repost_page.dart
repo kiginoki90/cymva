@@ -20,6 +20,7 @@ class RepostPage extends StatefulWidget {
 
 class _RepostPageState extends State<RepostPage> {
   final TextEditingController _retweetController = TextEditingController();
+  final ValueNotifier<int> _currentTextLength = ValueNotifier<int>(0);
   String? _postAccountName;
   String? _postAccountIconUrl;
   String? _postAccountId;
@@ -27,7 +28,6 @@ class _RepostPageState extends State<RepostPage> {
   final picker = ImagePicker();
   final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
-  int _currentTextLength = 0;
 
   @override
   void initState() {
@@ -37,9 +37,7 @@ class _RepostPageState extends State<RepostPage> {
   }
 
   void _updateTextLength() {
-    setState(() {
-      _currentTextLength = _retweetController.text.length;
-    });
+    _currentTextLength.value = _retweetController.text.length;
   }
 
   Future<void> _pickMedia() async {
@@ -77,6 +75,7 @@ class _RepostPageState extends State<RepostPage> {
   void dispose() {
     _retweetController.removeListener(_updateTextLength);
     _retweetController.dispose();
+    _currentTextLength.dispose();
     super.dispose();
   }
 
@@ -175,6 +174,7 @@ class _RepostPageState extends State<RepostPage> {
                             MediaDisplayWidget(
                               mediaUrl: widget.post.mediaUrl,
                               category: widget.post.category ?? '',
+                              atStart: true,
                             ),
                           ],
                         ],
@@ -192,19 +192,27 @@ class _RepostPageState extends State<RepostPage> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Text(
-                    '$_currentTextLength / 200',
-                    style: TextStyle(
-                      color:
-                          _currentTextLength > 200 ? Colors.red : Colors.grey,
-                    ),
+                  ValueListenableBuilder<int>(
+                    valueListenable: _currentTextLength,
+                    builder: (context, value, child) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$value / 200',
+                            style: TextStyle(
+                              color: value > 200 ? Colors.red : Colors.grey,
+                            ),
+                          ),
+                          if (value > 200)
+                            const Text(
+                              '引用コメントは200文字以内で入力してください。',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                        ],
+                      );
+                    },
                   ),
-                  const SizedBox(height: 10),
-                  if (_currentTextLength > 200)
-                    const Text(
-                      '引用コメントは200文字以内で入力してください。',
-                      style: TextStyle(color: Colors.red),
-                    ),
                   const SizedBox(height: 20),
                   if (_mediaFiles.isNotEmpty)
                     SizedBox(
@@ -252,7 +260,7 @@ class _RepostPageState extends State<RepostPage> {
                     icon: const Icon(Icons.image),
                   ),
                   ElevatedButton(
-                    onPressed: _currentTextLength > 200
+                    onPressed: _currentTextLength.value > 200
                         ? null
                         : () async {
                             if (_retweetController.text.isNotEmpty ||

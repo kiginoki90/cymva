@@ -55,6 +55,7 @@ dependencies:
   mailer: ^6.3.0
   flutter_link_previewer: ^3.2.2
   google_mobile_ads: ^5.2.0
+  shared_preferences: ^2.5.2
 
 dev_dependencies:
   flutter_test:

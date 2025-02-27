@@ -11,12 +11,9 @@ import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:cymva/view/post_item/post_visibility_widget.dart';
 import 'package:cymva/view/post_item/show_report_Dialog.dart';
-import 'package:cymva/view/reply_page.dart';
 import 'package:cymva/view/repost_list_page.dart';
-import 'package:cymva/view/repost_page.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/view/account/account_page.dart';
@@ -57,7 +54,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
   final GlobalKey _userRowKey = GlobalKey();
   Post? _repostPost;
   Account? _repostPostAccount;
-  VideoPlayerController? _videoController;
   final ValueNotifier<int> favoriteUsersNotifier = ValueNotifier<int>(0);
   final ValueNotifier<bool> isFavoriteNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<int> bookmarkUsersNotifier = ValueNotifier<int>(0);
@@ -76,9 +72,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
     if (widget.post.reply != null && widget.post.reply!.isNotEmpty) {
       _replyToPostFuture = getPostById(widget.post.reply!);
     }
-    if (widget.post.isVideo && widget.post.mediaUrl != null) {
-      _initializeVideoPlayer();
-    }
+    // if (widget.post.isVideo && widget.post.mediaUrl != null) {
+    //   _initializeVideoPlayer();
+    // }
     _fetchRepostDetails();
     _fetchReplyCount();
   }
@@ -165,16 +161,16 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
   }
 
-  void _initializeVideoPlayer() {
-    if (widget.post.mediaUrl != null && widget.post.mediaUrl!.isNotEmpty) {
-      _videoController =
-          VideoPlayerController.networkUrl(Uri.parse(widget.post.mediaUrl![0]))
-            ..initialize().then((_) {
-              setState(() {});
-              _videoController!.play();
-            });
-    }
-  }
+  // void _initializeVideoPlayer() {
+  //   if (widget.post.mediaUrl != null && widget.post.mediaUrl!.isNotEmpty) {
+  //     _videoController =
+  //         VideoPlayerController.networkUrl(Uri.parse(widget.post.mediaUrl![0]))
+  //           ..initialize().then((_) {
+  //             setState(() {});
+  //             _videoController!.play();
+  //           });
+  //   }
+  // }
 
   static final _firestoreInstance = FirebaseFirestore.instance;
 

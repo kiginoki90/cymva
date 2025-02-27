@@ -94,7 +94,7 @@ class _AccountPageState extends State<AccountPage> {
         .doc(postAccountId)
         .get();
 
-    return followSnapshot.exists; // 存在する場合はtrueを返す
+    return followSnapshot.exists;
   }
 
   @override

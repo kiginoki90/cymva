@@ -22,10 +22,10 @@ class RankingPage extends ConsumerStatefulWidget {
 
 class _RankingPageState extends ConsumerState<RankingPage> {
   final ScrollController _scrollController = ScrollController();
-  // late Future<List<String>>? _favoritePostsFuture;
   final FavoritePost _favoritePost = FavoritePost();
   final BookmarkPost _bookmarkPost = BookmarkPost();
   final ValueNotifier<bool> _showScrollToTopButton = ValueNotifier(false);
+  bool _isLoadingMore = false;
 
   @override
   void initState() {
@@ -45,7 +45,22 @@ class _RankingPageState extends ConsumerState<RankingPage> {
     super.dispose();
   }
 
-  void _scrollListener() {
+  void _scrollListener() async {
+    if (_scrollController.offset >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_scrollController.position.outOfRange &&
+        !_isLoadingMore) {
+      setState(() {
+        _isLoadingMore = true;
+      });
+      await ref
+          .read(rankingViewModelProvider)
+          .getRankingPostsNext(widget.userId);
+      setState(() {
+        _isLoadingMore = false;
+      });
+    }
+
     if (_scrollController.offset >= 600) {
       _showScrollToTopButton.value = true;
     } else {
@@ -76,18 +91,8 @@ class _RankingPageState extends ConsumerState<RankingPage> {
                       if (index ==
                           model.rankingPostList.length +
                               (model.rankingPostList.length ~/ 10)) {
-                        return model.currentPostList.isNotEmpty
-                            ? TextButton(
-                                onPressed: () async {
-                                  final currentScrollPosition =
-                                      _scrollController.position.pixels;
-                                  await model
-                                      .getRankingPostsNext(widget.userId);
-                                  _scrollController
-                                      .jumpTo(currentScrollPosition);
-                                },
-                                child: const Text("もっと読み込む"),
-                              )
+                        return _isLoadingMore
+                            ? const Center(child: Text(" Loading..."))
                             : const Center(child: Text("結果は以上です"));
                       }
 
@@ -201,7 +206,7 @@ class DbManager {
         .where('hide', isEqualTo: false)
         .where('created_time', isGreaterThanOrEqualTo: oneWeekAgo)
         .orderBy('created_time', descending: true)
-        .limit(50);
+        .limit(15);
     final querySnapshot = await query.get();
     if (querySnapshot.docs.isNotEmpty) {
       _lastDocument = querySnapshot.docs.last;
@@ -221,7 +226,7 @@ class DbManager {
         .where('created_time', isGreaterThanOrEqualTo: oneWeekAgo)
         .orderBy('created_time', descending: true)
         .startAfterDocument(_lastDocument!)
-        .limit(50);
+        .limit(15);
     final querySnapshot = await query.get();
     if (querySnapshot.docs.isNotEmpty) {
       _lastDocument = querySnapshot.docs.last;
@@ -281,6 +286,7 @@ class RankingViewModel extends ChangeNotifier {
   List<String> favoritePosts = [];
   List<String> blockedAccounts = [];
   Map<String, Account> postUserMap = {};
+
   Future<void> getRankingPosts(String userId) async {
     rankingPostList = [];
     currentPostList = await ref.read(dbManagerProvider).getRankingPosts();
@@ -290,7 +296,8 @@ class RankingViewModel extends ChangeNotifier {
 
     Map<String, int> postPoints = {};
 
-    for (var postDoc in currentPostList) {
+    // 並列に非同期処理を実行
+    await Future.wait(currentPostList.map((postDoc) async {
       Post post = Post.fromDocument(postDoc);
       int points = 0;
 
@@ -308,7 +315,8 @@ class RankingViewModel extends ChangeNotifier {
         } else if (addedAt
             .isAfter(DateTime.now().subtract(Duration(hours: 72)))) {
           points += 2;
-        } else {
+        } else if (addedAt
+            .isAfter(DateTime.now().subtract(Duration(hours: 168)))) {
           points += 1;
         }
       }
@@ -327,7 +335,8 @@ class RankingViewModel extends ChangeNotifier {
         } else if (timestamp
             .isAfter(DateTime.now().subtract(Duration(hours: 72)))) {
           points += 6;
-        } else {
+        } else if (timestamp
+            .isAfter(DateTime.now().subtract(Duration(hours: 168)))) {
           points += 3;
         }
       }
@@ -346,13 +355,14 @@ class RankingViewModel extends ChangeNotifier {
         } else if (timestamp
             .isAfter(DateTime.now().subtract(Duration(hours: 72)))) {
           points += 4;
-        } else {
+        } else if (timestamp
+            .isAfter(DateTime.now().subtract(Duration(hours: 168)))) {
           points += 2;
         }
       }
 
       postPoints[post.id] = points;
-    }
+    }).toList());
 
     // Sort posts by points
     currentPostList.sort((a, b) {
@@ -379,7 +389,8 @@ class RankingViewModel extends ChangeNotifier {
 
       Map<String, int> postPoints = {};
 
-      for (var postDoc in currentPostList) {
+      // 並列に非同期処理を実行
+      await Future.wait(currentPostList.map((postDoc) async {
         Post post = Post.fromDocument(postDoc);
         int points = 0;
 
@@ -394,7 +405,11 @@ class RankingViewModel extends ChangeNotifier {
           DateTime addedAt = (favoriteDoc['added_at'] as Timestamp).toDate();
           if (addedAt.isAfter(DateTime.now().subtract(Duration(hours: 24)))) {
             points += 3;
-          } else {
+          } else if (addedAt
+              .isAfter(DateTime.now().subtract(Duration(hours: 72)))) {
+            points += 2;
+          } else if (addedAt
+              .isAfter(DateTime.now().subtract(Duration(hours: 168)))) {
             points += 1;
           }
         }
@@ -410,13 +425,37 @@ class RankingViewModel extends ChangeNotifier {
           DateTime timestamp = (repostDoc['timestamp'] as Timestamp).toDate();
           if (timestamp.isAfter(DateTime.now().subtract(Duration(hours: 24)))) {
             points += 9;
-          } else {
+          } else if (timestamp
+              .isAfter(DateTime.now().subtract(Duration(hours: 72)))) {
+            points += 6;
+          } else if (timestamp
+              .isAfter(DateTime.now().subtract(Duration(hours: 168)))) {
             points += 3;
           }
         }
 
+        // Calculate points for reply_post
+        QuerySnapshot replySnapshot = await FirebaseFirestore.instance
+            .collection('posts')
+            .doc(post.id)
+            .collection('reply_post')
+            .get();
+
+        for (var replyDoc in replySnapshot.docs) {
+          DateTime timestamp = (replyDoc['timestamp'] as Timestamp).toDate();
+          if (timestamp.isAfter(DateTime.now().subtract(Duration(hours: 24)))) {
+            points += 6;
+          } else if (timestamp
+              .isAfter(DateTime.now().subtract(Duration(hours: 72)))) {
+            points += 4;
+          } else if (timestamp
+              .isAfter(DateTime.now().subtract(Duration(hours: 168)))) {
+            points += 2;
+          }
+        }
+
         postPoints[post.id] = points;
-      }
+      }).toList());
 
       // Sort posts by points
       currentPostList

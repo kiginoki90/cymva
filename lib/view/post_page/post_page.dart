@@ -158,6 +158,10 @@ class _PostPageState extends State<PostPage> {
         return '私は市民国家Cymvaの一員として、この国及び全ての機構生命の繁栄と平和のためにその責務を全うすることを誓います。';
       case '改修要望/バグ':
         return 'またなんかしちゃいました？';
+      case 'イラスト':
+        return '画像1枚+文字0で表示が変わるよ';
+      case '写真':
+        return '画像1枚+文字0で表示が変わるよ';
       default:
         return 'content';
     }

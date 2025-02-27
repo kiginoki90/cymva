@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/utils/book_mark.dart';
+import 'package:cymva/utils/firestore/users.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
@@ -8,7 +10,7 @@ import 'package:cymva/utils/favorite_post.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cymva/ad_widget.dart';
 
-class FollowTimelinePage extends StatefulWidget {
+class FollowTimelinePage extends ConsumerStatefulWidget {
   final String userId;
   FollowTimelinePage({
     super.key,
@@ -16,21 +18,17 @@ class FollowTimelinePage extends StatefulWidget {
   });
 
   @override
-  State<FollowTimelinePage> createState() => _FollowTimelinePageState();
+  _FollowTimelinePageState createState() => _FollowTimelinePageState();
 }
 
-class _FollowTimelinePageState extends State<FollowTimelinePage> {
+class _FollowTimelinePageState extends ConsumerState<FollowTimelinePage> {
   final FavoritePost _favoritePost = FavoritePost();
   final BookmarkPost _bookmarkPost = BookmarkPost();
   String? loginUserId;
   final FlutterSecureStorage storage = FlutterSecureStorage();
-  List<QueryDocumentSnapshot> _followedPosts = [];
-  Map<String, Account?> _accounts = {};
-  bool _hasMore = true;
-  bool _isLoading = false;
-  DocumentSnapshot? _lastDocument;
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<bool> _showScrollToTopButton = ValueNotifier(false);
+  bool _isLoadingMore = false;
 
   @override
   void initState() {
@@ -39,7 +37,6 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
     _scrollController.addListener(_scrollListener);
     _favoritePost.getFavoritePosts();
     _bookmarkPost.getBookmarkPosts();
-    _fetchBlockedAccounts(widget.userId);
   }
 
   @override
@@ -49,7 +46,20 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
     super.dispose();
   }
 
-  void _scrollListener() {
+  void _scrollListener() async {
+    if (_scrollController.offset >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_scrollController.position.outOfRange &&
+        !_isLoadingMore) {
+      setState(() {
+        _isLoadingMore = true;
+      });
+      await ref.read(viewModelProvider).getFollowedPostsNext(widget.userId);
+      setState(() {
+        _isLoadingMore = false;
+      });
+    }
+
     if (_scrollController.offset >= 600) {
       _showScrollToTopButton.value = true;
     } else {
@@ -60,167 +70,37 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
   Future<void> _loadLoginUserId() async {
     loginUserId = await storage.read(key: 'account_id');
     if (loginUserId != null) {
-      _fetchInitialPosts();
+      await ref.read(viewModelProvider).getFollowedPosts(widget.userId);
     }
-  }
-
-  Future<void> _fetchInitialPosts() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    final posts = await _fetchFollowedPosts();
-    final accountIds = posts
-        .map((doc) => Post.fromDocument(doc).postAccountId)
-        .toSet()
-        .toList();
-    final accounts = await _fetchAccounts(accountIds);
-
-    setState(() {
-      _followedPosts = posts;
-      _accounts = accounts;
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _fetchMorePosts() async {
-    if (_isLoading || !_hasMore) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    final posts = await _fetchFollowedPosts();
-    if (posts.isNotEmpty) {
-      final accountIds = posts
-          .map((doc) => Post.fromDocument(doc).postAccountId)
-          .toSet()
-          .toList();
-      final accounts = await _fetchAccounts(accountIds);
-
-      setState(() {
-        _followedPosts.addAll(posts);
-        _accounts.addAll(accounts);
-        _lastDocument = posts.last;
-        _isLoading = false;
-      });
-    } else {
-      setState(() {
-        _hasMore = false;
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<List<String>> _fetchBlockedAccounts(String userId) async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('blockUsers')
-        .get();
-
-    return snapshot.docs
-        .map((doc) => doc['blocked_user_id'] as String)
-        .toList();
-  }
-
-  Future<List<QueryDocumentSnapshot>> _fetchFollowedPosts() async {
-    final followSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.userId)
-        .collection('follow')
-        .get();
-
-    // フォローしているユーザーのIDを格納
-    List<String> followedUserIds =
-        followSnapshot.docs.map((doc) => doc.id).toList();
-
-    if (followedUserIds.isEmpty) return [];
-
-    final blockSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.userId)
-        .collection('blockUsers')
-        .get();
-
-    // ブロックしている、されているユーザーのIDを格納
-    List<String> blockedUserIds = blockSnapshot.docs
-        .map((doc) => doc['blocked_user_id'] as String)
-        .toList();
-
-    followedUserIds.removeWhere((userId) => blockedUserIds.contains(userId));
-
-    if (followedUserIds.isEmpty) return [];
-
-    Query query = FirebaseFirestore.instance
-        .collection('posts')
-        .where('post_account_id', whereIn: followedUserIds)
-        .where('hide', isEqualTo: false)
-        .orderBy('created_time', descending: true)
-        .limit(30);
-
-    if (_lastDocument != null) {
-      query = query.startAfterDocument(_lastDocument!);
-    }
-
-    final postSnapshot = await query.get();
-    return postSnapshot.docs;
-  }
-
-  Future<Map<String, Account?>> _fetchAccounts(List<String> accountIds) async {
-    final Map<String, Account?> accounts = {};
-    for (String accountId in accountIds) {
-      final account = await _fetchAccount(accountId);
-      accounts[accountId] = account;
-    }
-    return accounts;
-  }
-
-  Future<Account?> _fetchAccount(String accountId) async {
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(accountId)
-        .get();
-    if (userDoc.exists) {
-      return Account.fromDocument(userDoc);
-    }
-    return null;
   }
 
   Future<void> _refreshPosts() async {
-    setState(() {
-      _followedPosts = [];
-      _accounts = {};
-      _lastDocument = null;
-      _hasMore = true;
-    });
-    await _fetchInitialPosts();
+    await ref.read(viewModelProvider).getFollowedPosts(widget.userId);
   }
 
   @override
   Widget build(BuildContext context) {
+    final model = ref.watch(viewModelProvider);
+
     return Scaffold(
       body: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: 500),
           child: RefreshIndicator(
             onRefresh: _refreshPosts,
-            child: _followedPosts.isEmpty
+            child: model.followedPostList.isEmpty
                 ? const Center(child: Text("まだ投稿がありません"))
                 : ListView.builder(
                     controller: _scrollController,
-                    itemCount: _followedPosts.length +
-                        (_followedPosts.length ~/ 10) +
+                    itemCount: model.followedPostList.length +
+                        (model.followedPostList.length ~/ 10) +
                         1,
                     itemBuilder: (context, int index) {
                       if (index ==
-                          _followedPosts.length +
-                              (_followedPosts.length ~/ 10)) {
-                        return _hasMore
-                            ? TextButton(
-                                onPressed: _fetchMorePosts,
-                                child: const Text("もっと読み込む"),
-                              )
+                          model.followedPostList.length +
+                              (model.followedPostList.length ~/ 10)) {
+                        return _isLoadingMore
+                            ? const Center(child: Text(" Loading..."))
                             : const Center(child: Text("結果は以上です"));
                       }
 
@@ -229,13 +109,13 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
                       }
 
                       final postIndex = index - (index ~/ 11);
-                      if (postIndex >= _followedPosts.length) {
+                      if (postIndex >= model.followedPostList.length) {
                         return Container(); // インデックスが範囲外の場合は空のコンテナを返す
                       }
 
-                      final postDoc = _followedPosts[postIndex];
+                      final postDoc = model.followedPostList[postIndex];
                       final post = Post.fromDocument(postDoc);
-                      final postAccount = _accounts[post.postAccountId];
+                      final postAccount = model.postUserMap[post.postAccountId];
 
                       _favoritePost.favoriteUsersNotifiers[post.id] ??=
                           ValueNotifier<int>(0);
@@ -310,5 +190,204 @@ class _FollowTimelinePageState extends State<FollowTimelinePage> {
         },
       ),
     );
+  }
+}
+
+final viewModelProvider =
+    ChangeNotifierProvider<ViewModel>((ref) => ViewModel(ref));
+
+class ViewModel extends ChangeNotifier {
+  ViewModel(this.ref);
+
+  final Ref ref;
+  List<QueryDocumentSnapshot> followedPostList = [];
+  List<QueryDocumentSnapshot> currentPostList = [];
+  List<String> favoritePosts = [];
+  List<String> blockedAccounts = [];
+  Map<String, Account> postUserMap = {};
+
+  Future<void> getFollowedPosts(String userId) async {
+    followedPostList = [];
+    final dbManager = ref.read(dbManagerProvider);
+
+    // 並列に非同期処理を実行
+    final results = await Future.wait([
+      dbManager.getFollowedPosts(userId),
+      dbManager.getFavoritePosts(userId),
+      dbManager.fetchBlockedAccounts(userId),
+    ]);
+
+    currentPostList = results[0] as List<QueryDocumentSnapshot>;
+    favoritePosts = results[1] as List<String>;
+    blockedAccounts = results[2] as List<String>;
+
+    followedPostList.addAll(currentPostList);
+    postUserMap = await UserFirestore.getPostUserMap(
+          followedPostList
+              .map((doc) => (doc.data()
+                  as Map<String, dynamic>)['post_account_id'] as String)
+              .toList(),
+        ) ??
+        {};
+    notifyListeners();
+  }
+
+  Future<void> getFollowedPostsNext(String userId) async {
+    currentPostList =
+        await ref.read(dbManagerProvider).getFollowedPostsNext(userId);
+    if (currentPostList.isNotEmpty) {
+      followedPostList.addAll(currentPostList);
+      final newPostUserMap = await UserFirestore.getPostUserMap(
+            currentPostList
+                .map((doc) => (doc.data()
+                    as Map<String, dynamic>)['post_account_id'] as String)
+                .toList(),
+          ) ??
+          {};
+      postUserMap.addAll(newPostUserMap);
+    }
+    notifyListeners();
+  }
+}
+
+final dbManagerProvider = Provider((ref) => DbManager());
+
+class DbManager {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  DocumentSnapshot? _lastDocument;
+
+  Future<List<QueryDocumentSnapshot>> getFollowedPosts(String userId) async {
+    final followSnapshot = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('follow')
+        .get();
+
+    List<String> followedUserIds =
+        followSnapshot.docs.map((doc) => doc.id).toList();
+
+    if (followedUserIds.isEmpty) {
+      print("No followed users found.");
+      return [];
+    }
+
+    final blockSnapshot = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('blockUsers')
+        .get();
+
+    List<String> blockedUserIds = blockSnapshot.docs
+        .map((doc) => doc['blocked_user_id'] as String)
+        .toList();
+
+    followedUserIds.removeWhere((userId) => blockedUserIds.contains(userId));
+
+    if (followedUserIds.isEmpty) {
+      print("All followed users are blocked.");
+      return [];
+    }
+
+    Query query = _firestore
+        .collection('posts')
+        .where('post_account_id', whereIn: followedUserIds)
+        .where('hide', isEqualTo: false)
+        .orderBy('created_time', descending: true)
+        .limit(15);
+
+    final querySnapshot = await query.get();
+    if (querySnapshot.docs.isNotEmpty) {
+      _lastDocument = querySnapshot.docs.last;
+    } else {
+      print("No posts found.");
+    }
+    return querySnapshot.docs;
+  }
+
+  Future<List<QueryDocumentSnapshot>> getFollowedPostsNext(
+      String userId) async {
+    if (_lastDocument == null) return [];
+
+    final followSnapshot = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('follow')
+        .get();
+
+    List<String> followedUserIds =
+        followSnapshot.docs.map((doc) => doc.id).toList();
+
+    if (followedUserIds.isEmpty) {
+      print("No followed users found.");
+      return [];
+    }
+
+    final blockSnapshot = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('blockUsers')
+        .get();
+
+    List<String> blockedUserIds = blockSnapshot.docs
+        .map((doc) => doc['blocked_user_id'] as String)
+        .toList();
+
+    followedUserIds.removeWhere((userId) => blockedUserIds.contains(userId));
+
+    if (followedUserIds.isEmpty) {
+      print("All followed users are blocked.");
+      return [];
+    }
+
+    Query query = _firestore
+        .collection('posts')
+        .where('post_account_id', whereIn: followedUserIds)
+        .where('hide', isEqualTo: false)
+        .orderBy('created_time', descending: true)
+        .startAfterDocument(_lastDocument!)
+        .limit(15);
+
+    final querySnapshot = await query.get();
+    if (querySnapshot.docs.isNotEmpty) {
+      _lastDocument = querySnapshot.docs.last;
+    } else {
+      print("No more posts found.");
+    }
+    return querySnapshot.docs;
+  }
+
+  Future<List<String>> getFavoritePosts(String userId) async {
+    final snapshot = await _firestore
+        .collection('favorites')
+        .doc(userId)
+        .collection('posts')
+        .get();
+
+    return snapshot.docs.map((doc) => doc['post_id'] as String).toList();
+  }
+
+  Future<List<String>> fetchBlockedAccounts(String userId) async {
+    final blockUsersSnapshot = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('blockUsers')
+        .get();
+
+    List<String> blockedUserIds = blockUsersSnapshot.docs
+        .map((doc) => doc['blocked_user_id'] as String)
+        .toList();
+
+    final blockDocSnapshot = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('block')
+        .get();
+
+    List<String> blockDocUserIds = blockDocSnapshot.docs
+        .map((doc) => doc['blocked_user_id'] as String)
+        .toList();
+
+    blockedUserIds.addAll(blockDocUserIds);
+    return blockedUserIds;
   }
 }

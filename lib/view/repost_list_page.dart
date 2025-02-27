@@ -259,6 +259,7 @@ class _RepostListPageState extends State<RepostListPage> {
                                                         category: postData[
                                                                 'category'] ??
                                                             '',
+                                                        atStart: true,
                                                       ),
                                                     ],
                                                   ),

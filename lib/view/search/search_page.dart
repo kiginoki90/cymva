@@ -11,6 +11,7 @@ import 'package:cymva/model/post.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SearchPage extends StatefulWidget {
   final String userId;
@@ -45,80 +46,98 @@ class _SearchPageState extends State<SearchPage> {
     '憲章宣誓',
   ];
   final Map<String, int> _postFavoriteCounts = {};
+  final storage = FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
-
-    if (widget.initialHashtag != null) {
-      _searchController.text = widget.initialHashtag!;
-
-      if (_currentPage == 0) {
-        _searchItem.searchPosts(
-            _searchController.text, widget.userId, _selectedCategory, null,
-            (results) {
-          setState(() {
-            _postSearchResults = results;
-          });
-        });
-      } else if (_currentPage == 1) {
-        _searchItem.searchAccounts(_searchController.text, (results) {
-          setState(() {
-            _accountSearchResults = results;
-          });
-        });
-      } else if (_currentPage == 2) {
-        _searchItem.fetchRecentFavorites(_searchController.text, widget.userId,
-            _selectedCategory, _postFavoriteCounts, (results) {
-          setState(() {
-            _recentFavoritesResults = results;
-          });
-        });
-      } else if (_currentPage == 3) {
-        _searchItem.searchImagePosts(
-            _searchController.text, widget.userId, _selectedCategory,
-            (results) {
-          setState(() {
-            _recentImageResults = results;
-          });
-        });
-      }
-    }
-
-    _searchController.addListener(() {
-      _lastQuery = _searchController.text;
-
-      if (_currentPage == 0) {
-        _searchItem.searchPosts(
-            _searchController.text, widget.userId, _selectedCategory, null,
-            (results) {
-          setState(() {
-            _postSearchResults = results;
-          });
-        });
-      } else if (_currentPage == 1) {
-        _searchItem.searchAccounts(_lastQuery, (results) {
-          setState(() {
-            _accountSearchResults = results;
-          });
-        });
-      } else if (_currentPage == 2) {
-        _searchItem.fetchRecentFavorites(
-            _lastQuery, widget.userId, _selectedCategory, _postFavoriteCounts,
-            (results) {
-          setState(() {
-            _recentFavoritesResults = results;
-          });
-        });
-      } else if (_currentPage == 3) {
-        _searchItem.searchImagePosts(
-            _lastQuery, widget.userId, _selectedCategory, (results) {
-          setState(() {
-            _recentImageResults = results;
-          });
-        });
-      }
+    _clearAllFilters().then((_) {
+      _loadSearchFilters();
     });
+  }
+
+  Future<void> _clearAllFilters() async {
+    await storage.delete(key: 'query');
+    await storage.delete(key: 'selectedCategory');
+    await storage.delete(key: 'searchUserId');
+    await storage.delete(key: 'isExactMatch');
+    await storage.delete(key: 'isFollowing');
+    await storage.delete(key: 'startDate');
+    await storage.delete(key: 'endDate');
+  }
+
+  Future<void> _loadSearchFilters() async {
+    final query = await storage.read(key: 'query') ?? '';
+    _searchController.text = query; // テキストフィールドに最初から入力
+
+    final selectedCategory = await storage.read(key: 'selectedCategory');
+    final searchUserId = await storage.read(key: 'searchUserId');
+    final isExactMatch = (await storage.read(key: 'isExactMatch')) == 'true';
+    final isFollowing = (await storage.read(key: 'isFollowing')) == 'true';
+    final startDateString = await storage.read(key: 'startDate');
+    final endDateString = await storage.read(key: 'endDate');
+    final startDate =
+        startDateString != null ? DateTime.tryParse(startDateString) : null;
+    final endDate =
+        endDateString != null ? DateTime.tryParse(endDateString) : null;
+
+    _lastQuery = _searchController.text;
+    _selectedCategory = selectedCategory;
+
+    _searchItem.searchPosts(
+      query,
+      widget.userId,
+      selectedCategory,
+      null,
+      (results) {
+        setState(() {
+          _postSearchResults = results;
+        });
+      },
+      searchUserId: searchUserId,
+      isExactMatch: isExactMatch,
+      isFollowing: isFollowing,
+      startDate: startDate,
+      endDate: endDate,
+    );
+
+    _searchItem.searchAccounts(query, (results) {
+      setState(() {
+        _accountSearchResults = results;
+      });
+    });
+
+    _searchItem.fetchRecentFavorites(
+      query,
+      widget.userId,
+      selectedCategory,
+      _postFavoriteCounts,
+      (results) {
+        setState(() {
+          _recentFavoritesResults = results;
+        });
+      },
+      searchUserId: searchUserId,
+      isExactMatch: isExactMatch,
+      isFollowing: isFollowing,
+      startDate: startDate,
+      endDate: endDate,
+    );
+    _searchItem.searchImagePosts(
+      query,
+      widget.userId,
+      selectedCategory,
+      (results) {
+        setState(() {
+          _recentImageResults = results;
+        });
+      },
+      searchUserId: searchUserId,
+      isExactMatch: isExactMatch,
+      isFollowing: isFollowing,
+      startDate: startDate,
+      endDate: endDate,
+    );
 
     _favoritePost.getFavoritePosts();
   }
@@ -145,36 +164,42 @@ class _SearchPageState extends State<SearchPage> {
                 inputFormatters: [
                   LengthLimitingTextInputFormatter(40), // 最大50文字に制限
                 ],
-                onSubmitted: (query) {
-                  if (_currentPage == 0) {
-                    _searchItem.searchPosts(
-                        query, widget.userId, _selectedCategory, null,
-                        (results) {
-                      setState(() {
-                        _postSearchResults = results;
-                      });
+                onSubmitted: (query) async {
+                  // ストレージにqueryを保存
+                  await storage.write(key: 'query', value: query);
+                  // その他の項目を削除
+                  await storage.delete(key: 'searchUserId');
+                  await storage.delete(key: 'isExactMatch');
+                  await storage.delete(key: 'isFollowing');
+                  await storage.delete(key: 'startDate');
+                  await storage.delete(key: 'endDate');
+
+                  _searchItem.searchPosts(
+                      query, widget.userId, _selectedCategory, null, (results) {
+                    setState(() {
+                      _postSearchResults = results;
                     });
-                  } else if (_currentPage == 1) {
-                    _searchItem.searchAccounts(query, (results) {
-                      setState(() {
-                        _accountSearchResults = results;
-                      });
+                  });
+
+                  _searchItem.searchAccounts(query, (results) {
+                    setState(() {
+                      _accountSearchResults = results;
                     });
-                  } else if (_currentPage == 2) {
-                    _searchItem.fetchRecentFavorites(query, widget.userId,
-                        _selectedCategory, _postFavoriteCounts, (results) {
-                      setState(() {
-                        _recentFavoritesResults = results;
-                      });
+                  });
+
+                  _searchItem.fetchRecentFavorites(query, widget.userId,
+                      _selectedCategory, _postFavoriteCounts, (results) {
+                    setState(() {
+                      _recentFavoritesResults = results;
                     });
-                  } else if (_currentPage == 3) {
-                    _searchItem.searchImagePosts(
-                        query, widget.userId, _selectedCategory, (results) {
-                      setState(() {
-                        _recentImageResults = results;
-                      });
+                  });
+
+                  _searchItem.searchImagePosts(
+                      query, widget.userId, _selectedCategory, (results) {
+                    setState(() {
+                      _recentImageResults = results;
                     });
-                  }
+                  });
                 },
               ),
             ),
@@ -282,20 +307,20 @@ class _SearchPageState extends State<SearchPage> {
               onRefresh: _refreshSearchResults,
               child: ListView.builder(
                 itemCount: _postSearchResults.length +
-                    (_postSearchResults.length ~/ 10) +
+                    (_postSearchResults.length ~/ 5) +
                     1,
                 itemBuilder: (context, index) {
                   if (index ==
                       _postSearchResults.length +
-                          (_postSearchResults.length ~/ 10)) {
+                          (_postSearchResults.length ~/ 5)) {
                     return const Center(child: Text("結果は以上です"));
                   }
 
-                  if (index % 11 == 10) {
+                  if (index % 6 == 5) {
                     return BannerAdWidget(); // 広告ウィジェットを表示
                   }
 
-                  final postIndex = index - (index ~/ 11);
+                  final postIndex = index - (index ~/ 6);
                   if (postIndex >= _postSearchResults.length) {
                     return Container(); // インデックスが範囲外の場合は空のコンテナを返す
                   }
@@ -524,20 +549,20 @@ class _SearchPageState extends State<SearchPage> {
               onRefresh: _refreshRecentFavorites,
               child: ListView.builder(
                 itemCount: _recentFavoritesResults.length +
-                    (_recentFavoritesResults.length ~/ 10) +
+                    (_recentFavoritesResults.length ~/ 5) +
                     1,
                 itemBuilder: (context, index) {
                   if (index ==
                       _recentFavoritesResults.length +
-                          (_recentFavoritesResults.length ~/ 10)) {
+                          (_recentFavoritesResults.length ~/ 5)) {
                     return const Center(child: Text("結果は以上です"));
                   }
 
-                  if (index % 11 == 10) {
+                  if (index % 6 == 5) {
                     return BannerAdWidget(); // 広告ウィジェットを表示
                   }
 
-                  final postIndex = index - (index ~/ 11);
+                  final postIndex = index - (index ~/ 6);
                   if (postIndex >= _recentFavoritesResults.length) {
                     return Container(); // インデックスが範囲外の場合は空のコンテナを返す
                   }
@@ -659,20 +684,20 @@ class _SearchPageState extends State<SearchPage> {
               onRefresh: _refreshPosts, // 更新時に呼び出されるメソッド
               child: ListView.builder(
                 itemCount: _recentImageResults.length +
-                    (_recentImageResults.length ~/ 10) +
+                    (_recentImageResults.length ~/ 5) +
                     1,
                 itemBuilder: (context, index) {
                   if (index ==
                       _recentImageResults.length +
-                          (_recentImageResults.length ~/ 10)) {
+                          (_recentImageResults.length ~/ 5)) {
                     return const Center(child: Text("結果は以上です"));
                   }
 
-                  if (index % 11 == 10) {
+                  if (index % 6 == 5) {
                     return BannerAdWidget(); // 広告ウィジェットを表示
                   }
 
-                  final postIndex = index - (index ~/ 11);
+                  final postIndex = index - (index ~/ 6);
                   if (postIndex >= _recentImageResults.length) {
                     return Container(); // インデックスが範囲外の場合は空のコンテナを返す
                   }
@@ -771,33 +796,33 @@ class _SearchPageState extends State<SearchPage> {
     });
   }
 
-  void _onPageChanged() {
-    _lastQuery = _searchController.text;
+  void _onPageChanged() async {
+    final query = await storage.read(key: 'query') ?? '';
+    final selectedCategory = await storage.read(key: 'selectedCategory');
 
     if (_currentPage == 0 && _postSearchResults.isEmpty) {
-      _searchItem.searchPosts(
-          _searchController.text, widget.userId, _selectedCategory, null,
+      _searchItem.searchPosts(query, widget.userId, selectedCategory, null,
           (results) {
         setState(() {
           _postSearchResults = results;
         });
       });
     } else if (_currentPage == 1 && _accountSearchResults.isEmpty) {
-      _searchItem.searchAccounts(_lastQuery, (results) {
+      _searchItem.searchAccounts(query, (results) {
         setState(() {
           _accountSearchResults = results;
         });
       });
     } else if (_currentPage == 2 && _recentFavoritesResults.isEmpty) {
       _searchItem.fetchRecentFavorites(
-          _lastQuery, widget.userId, _selectedCategory, _postFavoriteCounts,
+          query, widget.userId, selectedCategory, _postFavoriteCounts,
           (results) {
         setState(() {
           _recentFavoritesResults = results;
         });
       });
     } else if (_currentPage == 3 && _recentImageResults.isEmpty) {
-      _searchItem.searchImagePosts(_lastQuery, widget.userId, _selectedCategory,
+      _searchItem.searchImagePosts(query, widget.userId, selectedCategory,
           (results) {
         setState(() {
           _recentImageResults = results;
@@ -915,7 +940,15 @@ class _SearchPageState extends State<SearchPage> {
               children: categories.map((category) {
                 return ListTile(
                   title: Text(category),
-                  onTap: () {
+                  onTap: () async {
+                    await storage.write(
+                        key: 'selectedCategory', value: category);
+                    await storage.delete(key: 'searchUserId');
+                    await storage.delete(key: 'isExactMatch');
+                    await storage.delete(key: 'isFollowing');
+                    await storage.delete(key: 'startDate');
+                    await storage.delete(key: 'endDate');
+
                     setState(() {
                       _selectedCategory = category;
                       _searchItem.searchPosts(_searchController.text,
@@ -969,6 +1002,7 @@ class _SearchPageState extends State<SearchPage> {
         final searchUserId = result['searchUserId'] as String?;
         final isExactMatch = result['isExactMatch'] as bool;
         final isFollowing = result['isFollowing'] as bool;
+        // final star = result['star'] as bool;
         final startDate = result['startDate'] as DateTime?;
         final endDate = result['endDate'] as DateTime?;
 
@@ -986,6 +1020,7 @@ class _SearchPageState extends State<SearchPage> {
           searchUserId: searchUserId,
           isExactMatch: isExactMatch,
           isFollowing: isFollowing,
+          // star: star,
           startDate: startDate,
           endDate: endDate,
         );
@@ -1004,6 +1039,7 @@ class _SearchPageState extends State<SearchPage> {
           searchUserId: searchUserId,
           isExactMatch: isExactMatch,
           isFollowing: isFollowing,
+          // star: star,
           startDate: startDate,
           endDate: endDate,
         );
@@ -1021,6 +1057,7 @@ class _SearchPageState extends State<SearchPage> {
           searchUserId: searchUserId,
           isExactMatch: isExactMatch,
           isFollowing: isFollowing,
+          // star: star,
           startDate: startDate,
           endDate: endDate,
         );

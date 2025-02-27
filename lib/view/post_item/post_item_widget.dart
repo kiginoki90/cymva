@@ -4,12 +4,9 @@ import 'package:cymva/view/post_item/Icons_action.dart';
 import 'package:cymva/view/post_item/link_text.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:cymva/view/post_item/post_visibility_widget.dart';
-import 'package:cymva/view/reply_page.dart';
-import 'package:cymva/view/repost_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/model/account.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/view/post_item/post_detail_page.dart';
 import 'package:cymva/view/account/account_page.dart';
@@ -79,7 +76,6 @@ class _PostItemWidgetState extends State<PostItemWidget> {
   Future<void> _fetchRepostData() async {
     if (widget.post.repost != null && widget.post.repost!.isNotEmpty) {
       try {
-        // Fetch the original post data from Firestore
         DocumentSnapshot repostSnapshot = await FirebaseFirestore.instance
             .collection('posts')
             .doc(widget.post.repost)
@@ -203,13 +199,41 @@ class _PostItemWidgetState extends State<PostItemWidget> {
             ),
           );
         },
-        child: Container(
-          width: double.infinity,
-          height: MediaQuery.of(context).size.width,
-          child: Image.network(
-            widget.post.mediaUrl![0],
-            fit: BoxFit.cover,
-          ),
+        child: Stack(
+          children: [
+            Container(
+              width: double.infinity,
+              height: MediaQuery.of(context).size.width,
+              child: Image.network(
+                widget.post.mediaUrl![0],
+                fit: BoxFit.cover,
+              ),
+            ),
+            Positioned(
+              top: 8.0,
+              left: 8.0,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: Image.network(
+                  widget.postAccount.imagePath.isNotEmpty
+                      ? widget.postAccount.imagePath
+                      : 'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    // エラー発生時のデフォルト画像表示
+                    return Image.network(
+                      'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -362,16 +386,6 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                 ),
                               ],
                             ),
-                            // if (widget.post.clip)
-                            //   Column(
-                            //     children: [
-                            //       Icon(
-                            //         Icons.push_pin,
-                            //         size: 16, // アイコンのサイズ
-                            //         color: Colors.grey, // アイコンの色
-                            //       ),
-                            //     ],
-                            //   ),
                             const SizedBox(height: 5),
                             Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,

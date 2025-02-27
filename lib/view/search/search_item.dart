@@ -16,10 +16,11 @@ class SearchItem {
     String? searchUserId,
     bool? isExactMatch,
     bool? isFollowing,
+    // bool? star,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    if (query.isEmpty &&
+    if ((query.isEmpty || query == null) &&
         (selectedCategory == null || selectedCategory.isEmpty) &&
         (searchUserId == null || searchUserId.isEmpty) &&
         isFollowing == null &&
@@ -78,6 +79,24 @@ class SearchItem {
       // フォローしているユーザーの投稿のみをフィルタリング
       queryRef = queryRef.where('post_account_id', whereIn: followUserIds);
     }
+
+    //お気に入りのフィルタリング
+    // if (star == true && userId != null) {
+    //   // フォローしているユーザーのリストを取得
+    //   final favoriteSnapshot = await firestore
+    //       .collection('users')
+    //       .doc(userId)
+    //       .collection('favorite_posts')
+    //       .get();
+
+    //   final favoritePosts = favoriteSnapshot.docs.map((doc) => doc.id).toList();
+
+    //   if (favoritePosts.isEmpty) {
+    //     return;
+    //   }
+
+    //   queryRef = queryRef.where('post_id', whereIn: favoritePosts);
+    // }
 
     // 日付範囲でフィルタリング
     if (startDate != null) {
@@ -196,6 +215,7 @@ class SearchItem {
     String? searchUserId,
     bool? isExactMatch,
     bool? isFollowing,
+    // bool? star,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
@@ -204,6 +224,7 @@ class SearchItem {
         (userId == null || userId.isEmpty) &&
         (searchUserId == null || searchUserId.isEmpty) &&
         isFollowing == null &&
+        // star == null &&
         startDate == null &&
         endDate == null) {
       updateResults([]);
@@ -259,6 +280,25 @@ class SearchItem {
         // final filteredSnapshot = await queryRef.get();
         print('フォロー結果の数: ${filteredSnapshot.size}');
       }
+
+      //お気に入りのフィルタリング
+      // if (star == true && userId != null) {
+      //   // フォローしているユーザーのリストを取得
+      //   final favoriteSnapshot = await firestore
+      //       .collection('users')
+      //       .doc(userId)
+      //       .collection('favorite_posts')
+      //       .get();
+
+      //   final favoritePosts =
+      //       favoriteSnapshot.docs.map((doc) => doc.id).toList();
+
+      //   if (favoritePosts.isEmpty) {
+      //     return;
+      //   }
+
+      //   queryRef = queryRef.where('post_id', whereIn: favoritePosts);
+      // }
 
       // 日付範囲でフィルタリング
       if (startDate != null) {
@@ -357,6 +397,7 @@ class SearchItem {
     String? searchUserId,
     bool? isExactMatch,
     bool? isFollowing,
+    // bool? star,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
@@ -416,6 +457,24 @@ class SearchItem {
       // フォローしているユーザーの投稿のみをフィルタリング
       queryRef = queryRef.where('post_account_id', whereIn: followUserIds);
     }
+
+    //お気に入りのフィルタリング
+    // if (star == true && userId != null) {
+    //   // フォローしているユーザーのリストを取得
+    //   final favoriteSnapshot = await firestore
+    //       .collection('users')
+    //       .doc(userId)
+    //       .collection('favorite_posts')
+    //       .get();
+
+    //   final favoritePosts = favoriteSnapshot.docs.map((doc) => doc.id).toList();
+
+    //   if (favoritePosts.isEmpty) {
+    //     return;
+    //   }
+
+    //   queryRef = queryRef.where('post_id', whereIn: favoritePosts);
+    // }
 
     // 日付範囲でフィルタリング
     if (startDate != null) {

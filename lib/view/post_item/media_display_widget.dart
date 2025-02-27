@@ -1,6 +1,8 @@
+import 'package:cymva/view/post_item/video_player_screen.dart';
 import 'package:cymva/view/slide_direction_page_route.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'full_screen_image.dart';
@@ -9,11 +11,13 @@ import 'dart:async';
 class MediaDisplayWidget extends StatefulWidget {
   final List<String>? mediaUrl;
   final String category;
+  final bool atStart;
 
   const MediaDisplayWidget({
     Key? key,
     required this.mediaUrl,
     required this.category,
+    this.atStart = false,
   }) : super(key: key);
 
   @override
@@ -23,13 +27,28 @@ class MediaDisplayWidget extends StatefulWidget {
 class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
   Map<String, bool> _isVideoCache = {};
   Map<String, VideoPlayerController> _videoControllers = {};
+  bool _isMuted = true;
+  VideoPlayerController? _currentlyPlayingController;
 
   @override
   void initState() {
     super.initState();
+    _loadVolumePreference();
     if (widget.mediaUrl != null && widget.mediaUrl!.isNotEmpty) {
       _initializeMedia();
     }
+  }
+
+  Future<void> _loadVolumePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isMuted = prefs.getBool('isMuted') ?? true;
+    });
+  }
+
+  Future<void> _saveVolumePreference(bool isMuted) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool('isMuted', isMuted);
   }
 
   @override
@@ -44,6 +63,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
     for (var controller in _videoControllers.values) {
       controller.dispose();
     }
+    _videoControllers.clear();
   }
 
   Future<void> _initializeMedia() async {
@@ -65,6 +85,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
       final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
       _videoControllers[videoUrl] = controller;
       controller.initialize().then((_) {
+        controller.setVolume(_isMuted ? 0.0 : 1.0);
         if (mounted) {
           setState(() {}); // ビデオコントローラの初期化後に再描画
         }
@@ -93,6 +114,14 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
       _isVideoCache[url] = false; // エラー時は画像として扱う
       return false;
     }
+  }
+
+  void _toggleVolume(VideoPlayerController controller) {
+    setState(() {
+      _isMuted = !_isMuted;
+      controller.setVolume(_isMuted ? 0.0 : 1.0);
+      _saveVolumePreference(_isMuted);
+    });
   }
 
   @override
@@ -156,11 +185,14 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
       },
       child: Stack(
         children: [
-          Image.network(
-            widget.mediaUrl![0],
-            width: screenWidth, // 横幅を画面幅に合わせる
-            height: maxHeight, // 縦の最大値を1.5倍に設定
-            fit: BoxFit.cover,
+          Hero(
+            tag: widget.mediaUrl![0], // ユニークなタグを設定
+            child: Image.network(
+              widget.mediaUrl![0],
+              width: screenWidth, // 横幅を画面幅に合わせる
+              height: maxHeight, // 縦の最大値を1.5倍に設定
+              fit: BoxFit.cover,
+            ),
           ),
           if (widget.mediaUrl!.length > 1)
             Positioned(
@@ -187,7 +219,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
     );
   }
 
-// メディアが1枚の場合の表示（画像）
+  // メディアが1枚の場合の表示（画像）
   Widget _buildSingleMedia(BuildContext context, String mediaUrl) {
     return FutureBuilder<ImageInfo>(
       future: _loadImageInfo(mediaUrl), // 画像の情報を取得する非同期関数
@@ -202,54 +234,31 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
           // アスペクト比を計算
           double aspectRatio = imageWidth / imageHeight;
 
-          // 横長の場合 (アスペクト比が1以上)
-          if (aspectRatio >= 1) {
-            return GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  SlideDirectionPageRoute(
-                    page: FullScreenImagePage(
-                      imageUrls: [mediaUrl],
-                      initialIndex: 0,
-                    ),
-                    isSwipeUp: true,
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                SlideDirectionPageRoute(
+                  page: FullScreenImagePage(
+                    imageUrls: [mediaUrl],
+                    initialIndex: 0,
                   ),
-                );
-              },
-              child: Image.network(
-                mediaUrl,
-                width: screenWidth,
-                height: screenWidth / aspectRatio, // 横長の場合はアスペクト比に基づいて高さを計算
+                  isSwipeUp: true,
+                ),
+              );
+            },
+            child: Container(
+              width: screenWidth,
+              height: screenWidth * 0.75, // 高さを調整
+              child: FittedBox(
                 fit: BoxFit.cover,
+                child: Image.network(
+                  mediaUrl,
+                  fit: BoxFit.cover,
+                ),
               ),
-            );
-          }
-          // 縦長の場合 (アスペクト比が1未満)
-          else {
-            double maxHeight = screenWidth * 0.8;
-
-            return GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  SlideDirectionPageRoute(
-                    page: FullScreenImagePage(
-                      imageUrls: [mediaUrl],
-                      initialIndex: 0,
-                    ),
-                    isSwipeUp: true,
-                  ),
-                );
-              },
-              child: Image.network(
-                mediaUrl,
-                width: screenWidth,
-                height: maxHeight, // 縦長の場合は幅と同じ高さ
-                fit: BoxFit.cover,
-              ),
-            );
-          }
+            ),
+          );
         } else {
           // 画像が読み込まれていない場合の表示
           return _buildPlaceholder(context);
@@ -268,7 +277,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
     );
   }
 
-// 画像の情報を取得するための非同期関数
+  // 画像の情報を取得するための非同期関数
   Future<ImageInfo> _loadImageInfo(String mediaUrl) async {
     Completer<ImageInfo> completer = Completer();
     final imageProvider = NetworkImage(mediaUrl);
@@ -288,51 +297,75 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
 
     return GestureDetector(
       onTap: () {
-        if (controller.value.isPlaying) {
-          controller.pause(); // 動画が再生中の場合は一時停止
-        } else {
-          controller.play(); // 動画が停止中の場合は再生
-        }
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => VideoPlayerScreen(videoUrl: mediaUrl),
+            builder: (context) => VideoPlayerScreen(
+              videoUrl: mediaUrl,
+              controller: controller, // コントローラを渡す
+            ),
           ),
         );
       },
       child: VisibilityDetector(
         key: Key(mediaUrl),
         onVisibilityChanged: (info) {
-          if (info.visibleFraction > 0.5) {
-            if (!controller.value.isPlaying) {
-              // 動画が50%以上表示された場合、初期化のみ行い、自動再生はさせない
-              _initializeVideo(mediaUrl);
-            }
-          } else {
-            // 50%未満表示の場合、再生中なら一時停止
-            if (controller.value.isPlaying) {
-              controller.pause();
+          if (widget.atStart == false) {
+            if (info.visibleFraction > 0.7) {
+              if (_currentlyPlayingController == null ||
+                  !_currentlyPlayingController!.value.isPlaying) {
+                if (!controller.value.isPlaying) {
+                  // 動画が70%以上表示された場合、自動再生
+                  controller.play();
+                  _currentlyPlayingController = controller;
+                }
+              }
+            } else {
+              // 70%未満表示の場合、再生中なら一時停止
+              if (controller.value.isPlaying) {
+                controller.pause();
+                if (_currentlyPlayingController == controller) {
+                  _currentlyPlayingController = null;
+                }
+              }
             }
           }
         },
-        child: Container(
-          width: double.infinity,
-          height: MediaQuery.of(context).size.width,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              AspectRatio(
-                aspectRatio: controller.value.aspectRatio, // 動画のアスペクト比に合わせる
-                child: VideoPlayer(controller),
-              ),
-              if (!controller.value.isPlaying)
-                Icon(
-                  Icons.pause_circle_filled,
-                  color: Colors.white,
-                  size: 64,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            ClipRect(
+              child: Align(
+                alignment: Alignment.center,
+                child: AspectRatio(
+                  aspectRatio: controller.value.aspectRatio, // 動画のアスペクト比に合わせる
+                  child: Container(
+                    width: double.infinity,
+                    height: MediaQuery.of(context).size.width * 0.75, // 高さを調整
+                    child: FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width: controller.value.size.width,
+                        height: controller.value.size.height,
+                        child: VideoPlayer(controller),
+                      ),
+                    ),
+                  ),
                 ),
-            ],
-          ),
+              ),
+            ),
+            Positioned(
+              bottom: 10,
+              right: 10,
+              child: IconButton(
+                icon: Icon(
+                  _isMuted ? Icons.volume_off : Icons.volume_up,
+                  color: Colors.white,
+                ),
+                onPressed: () => _toggleVolume(controller),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -364,8 +397,11 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            VideoPlayerScreen(videoUrl: mediaUrl),
+                        builder: (context) => VideoPlayerScreen(
+                          videoUrl: mediaUrl,
+                          controller:
+                              _videoControllers[mediaUrl]!, // 必要なcontrollerを渡す
+                        ),
                       ),
                     );
                   },
@@ -394,9 +430,12 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                       ),
                     );
                   },
-                  child: Image.network(
-                    mediaUrl,
-                    fit: BoxFit.cover,
+                  child: Hero(
+                    tag: mediaUrl, // ユニークなタグを設定
+                    child: Image.network(
+                      mediaUrl,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 );
               }
@@ -404,158 +443,6 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
           },
         );
       },
-    );
-  }
-}
-
-// 別ウィジェットとしてVideoPlayerScreenを作成
-class VideoPlayerScreen extends StatefulWidget {
-  final String videoUrl;
-
-  const VideoPlayerScreen({Key? key, required this.videoUrl}) : super(key: key);
-
-  @override
-  _VideoPlayerScreenState createState() => _VideoPlayerScreenState();
-}
-
-class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
-  late VideoPlayerController _controller;
-  bool _controlsVisible = true; // コントロールの表示/非表示
-  late Future<void> _initializeVideoPlayerFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
-    _initializeVideoPlayerFuture = _controller.initialize().then((_) {
-      setState(() {}); // 初期化後に再描画
-    });
-    _controller.addListener(() {
-      setState(() {}); // 再生位置の変更を検知して再描画
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-    final seconds = duration.inSeconds.remainder(60);
-    return [
-      if (hours > 0) twoDigits(hours),
-      twoDigits(minutes),
-      twoDigits(seconds),
-    ].join(':');
-  }
-
-  void _toggleControls() {
-    setState(() {
-      _controlsVisible = !_controlsVisible;
-    });
-  }
-
-//動画の表示画面
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black, // 背景色を黒に設定
-      appBar: AppBar(
-        backgroundColor: Colors.black, // AppBarも黒に設定
-      ),
-      body: SafeArea(
-        child: GestureDetector(
-          onTap: _toggleControls,
-          child: FutureBuilder<void>(
-            future: _initializeVideoPlayerFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.done) {
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    AspectRatio(
-                      aspectRatio: _controller.value.aspectRatio,
-                      child: VideoPlayer(_controller),
-                    ),
-                    // 中央に再生・停止ボタンを配置
-                    Positioned(
-                      child: _controlsVisible
-                          ? Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                IconButton(
-                                  iconSize: 64,
-                                  icon: Icon(
-                                    _controller.value.isPlaying
-                                        ? Icons.pause
-                                        : Icons.play_arrow,
-                                    color: Colors.white,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _controller.value.isPlaying
-                                          ? _controller.pause()
-                                          : _controller.play();
-                                    });
-                                  },
-                                ),
-                              ],
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                    // 最下部に時間のバーを配置
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Column(
-                        children: [
-                          VideoProgressIndicator(
-                            _controller,
-                            allowScrubbing: true,
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  _formatDuration(_controller.value.position),
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                                Text(
-                                  _formatDuration(_controller.value.duration),
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              } else {
-                return _buildPlaceholder(context);
-              }
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  // プレースホルダーを表示するウィジェット
-  Widget _buildPlaceholder(BuildContext context) {
-    double screenWidth = MediaQuery.of(context).size.width;
-    return Container(
-      width: screenWidth,
-      height: screenWidth,
-      color: Colors.white,
     );
   }
 }

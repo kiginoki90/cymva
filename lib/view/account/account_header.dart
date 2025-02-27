@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/model/account.dart';
+import 'package:flutter/services.dart';
 
 class AccountHeader extends StatefulWidget {
   final String postUserId;
@@ -35,11 +36,15 @@ class _AccountHeaderState extends State<AccountHeader> {
   void initState() {
     super.initState();
     _initialize();
-    widget.pageController.addListener(() {
+    widget.pageController.addListener(_pageListener);
+  }
+
+  void _pageListener() {
+    if (mounted) {
       setState(() {
         currentPage = widget.pageController.page?.round() ?? 0;
       });
-    });
+    }
   }
 
   Future<void> _initialize() async {
@@ -66,9 +71,11 @@ class _AccountHeaderState extends State<AccountHeader> {
         .get();
 
     if (postUserSnapshot.exists) {
-      setState(() {
-        postAccount = Account.fromDocument(postUserSnapshot);
-      });
+      if (mounted) {
+        setState(() {
+          postAccount = Account.fromDocument(postUserSnapshot);
+        });
+      }
     }
   }
 
@@ -233,6 +240,8 @@ class _AccountHeaderState extends State<AccountHeader> {
             } else {
               toggleFollowStatus(); // 通常のフォロー/フォロー解除処理
             }
+            // タップした感覚を提供
+            HapticFeedback.lightImpact();
           },
           child: Text(
             isFollowing ? 'フォロー中' : 'フォロー',

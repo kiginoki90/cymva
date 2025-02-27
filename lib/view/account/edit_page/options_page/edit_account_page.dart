@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
@@ -18,7 +17,6 @@ class _EditAccountPageState extends State<EditAccountPage> {
   TextEditingController userIdController = TextEditingController();
   TextEditingController selfIntroductionController = TextEditingController();
   File? image;
-  File? backgroundImage;
   bool isPrivate = false;
   bool followPrivate = true;
   bool replyMessage = true;
@@ -34,28 +32,10 @@ class _EditAccountPageState extends State<EditAccountPage> {
     }
   }
 
-  ImageProvider getBackgroundImage() {
-    if (backgroundImage == null) {
-      return NetworkImage(myAccount?.backgroundImagePath ?? '');
-    } else {
-      return FileImage(backgroundImage!);
-    }
-  }
-
   @override
   void initState() {
     super.initState();
     _fetchAccountData();
-    nameController.addListener(() {
-      setState(() {
-        _nameCharCount = nameController.text.length;
-      });
-    });
-    selfIntroductionController.addListener(() {
-      setState(() {
-        _introCharCount = selfIntroductionController.text.length;
-      });
-    });
   }
 
   Future<void> _fetchAccountData() async {
@@ -69,6 +49,8 @@ class _EditAccountPageState extends State<EditAccountPage> {
         isPrivate = myAccount!.lockAccount;
         followPrivate = myAccount!.followMessage;
         replyMessage = myAccount!.replyMessage;
+        _nameCharCount = nameController.text.length;
+        _introCharCount = selfIntroductionController.text.length;
       });
     }
   }
@@ -154,6 +136,11 @@ class _EditAccountPageState extends State<EditAccountPage> {
               hintText: 'あなたの名前を教えてね',
               description: '名前を35字以内で記入してください',
               currentCharCount: _nameCharCount,
+              onChanged: (text) {
+                setState(() {
+                  _nameCharCount = text.length;
+                });
+              },
             ),
             SizedBox(height: 20),
             _buildTextField(
@@ -162,50 +149,11 @@ class _EditAccountPageState extends State<EditAccountPage> {
               hintText: 'あなたのことを教えてね',
               description: '自己紹介を400字以内で入力してください。',
               currentCharCount: _introCharCount,
-            ),
-            SizedBox(height: 20),
-            GestureDetector(
-              onTap: () async {
-                var result = await FunctionUtils.getImageFromGallery(context);
-                if (result != null) {
-                  setState(() {
-                    backgroundImage = File(result.path);
-                  });
-                }
+              onChanged: (text) {
+                setState(() {
+                  _introCharCount = text.length;
+                });
               },
-              child: Stack(
-                children: [
-                  Container(
-                    width: 150,
-                    height: 200,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(12),
-                      image: DecorationImage(
-                        image: getBackgroundImage(),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    child: backgroundImage == null
-                        ? Icon(Icons.camera_alt,
-                            color: Colors.grey[800], size: 30)
-                        : null,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Icon(Icons.edit, color: Colors.blue, size: 20),
-                    ),
-                  ),
-                ],
-              ),
             ),
             SizedBox(height: 30),
             ElevatedButton(
@@ -268,7 +216,6 @@ class _EditAccountPageState extends State<EditAccountPage> {
 
                 // 文字数のチェックが通ったら更新処理を実行
                 String? imagePath = '';
-                String? backgroundImagePath = '';
 
                 if (image == null) {
                   imagePath = myAccount!.imagePath;
@@ -283,30 +230,12 @@ class _EditAccountPageState extends State<EditAccountPage> {
                   }
                 }
 
-                if (backgroundImage == null) {
-                  backgroundImagePath = myAccount!.backgroundImagePath;
-                  if (backgroundImagePath == null ||
-                      backgroundImagePath.isEmpty) {
-                    await FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(myAccount!.id)
-                        .update({'backgroundImagePath': backgroundImagePath});
-                  }
-                } else {
-                  String? result = await FunctionUtils.uploadImage(
-                      myAccount!.id, backgroundImage!, context);
-                  if (result != null) {
-                    backgroundImagePath = result;
-                  }
-                }
-
                 Account updateAccount = Account(
                   id: myAccount!.id,
                   name: nameController.text,
                   userId: userIdController.text,
                   selfIntroduction: selfIntroductionController.text,
                   imagePath: imagePath,
-                  backgroundImagePath: backgroundImagePath,
                   lockAccount: isPrivate,
                   followMessage: followPrivate,
                   replyMessage: replyMessage,
@@ -318,8 +247,9 @@ class _EditAccountPageState extends State<EditAccountPage> {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                        builder: (context) =>
-                            AccountPage(postUserId: myAccount!.id)),
+                      builder: (context) =>
+                          AccountPage(postUserId: myAccount!.id),
+                    ),
                   );
                 }
               },
@@ -406,6 +336,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
     required String hintText,
     required String description,
     required int currentCharCount,
+    required ValueChanged<String> onChanged, // 追加
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -423,6 +354,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
         TextField(
           controller: controller,
           maxLines: null,
+          onChanged: onChanged, // 追加
           decoration: InputDecoration(
             hintText: hintText,
             border: OutlineInputBorder(),

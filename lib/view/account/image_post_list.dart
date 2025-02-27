@@ -5,8 +5,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/favorite_post.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ImagePostList extends StatefulWidget {
+class ImagePostList extends ConsumerStatefulWidget {
   final Account myAccount;
 
   const ImagePostList({Key? key, required this.myAccount}) : super(key: key);
@@ -15,38 +16,149 @@ class ImagePostList extends StatefulWidget {
   _ImagePostListState createState() => _ImagePostListState();
 }
 
-class _ImagePostListState extends State<ImagePostList> {
+class _ImagePostListState extends ConsumerState<ImagePostList> {
   final FavoritePost _favoritePost = FavoritePost();
   final BookmarkPost _bookmarkPost = BookmarkPost();
   final ScrollController _scrollController = ScrollController();
-  List<Post> _allPosts = [];
-  bool _hasMore = true;
-  bool _isLoading = false;
-  DocumentSnapshot? _lastDocument;
+  bool _isLoadingMore = false;
 
   @override
   void initState() {
     super.initState();
+    _loadPosts();
+    _scrollController.addListener(_scrollListener);
     _favoritePost.getFavoritePosts(); // お気に入りの投稿を取得
     _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
   }
 
-  Stream<List<Post>> _postStream() {
-    return FirebaseFirestore.instance
+  @override
+  void dispose() {
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollListener() async {
+    if (_scrollController.offset >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_scrollController.position.outOfRange &&
+        !_isLoadingMore) {
+      setState(() {
+        _isLoadingMore = true;
+      });
+      await ref.read(viewModelProvider).getPostsNext(widget.myAccount.id);
+      setState(() {
+        _isLoadingMore = false;
+      });
+    }
+  }
+
+  Future<void> _loadPosts() async {
+    await ref.read(viewModelProvider).getPosts(widget.myAccount.id);
+  }
+
+  Future<void> _refreshPosts() async {
+    await ref.read(viewModelProvider).getPosts(widget.myAccount.id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final model = ref.watch(viewModelProvider);
+
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 500),
+          child: RefreshIndicator(
+            onRefresh: _refreshPosts,
+            child: model.postList.isEmpty
+                ? const Center(child: Text("まだ投稿がありません"))
+                : ListView.builder(
+                    controller: _scrollController,
+                    itemCount: model.postList.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == model.postList.length) {
+                        return _isLoadingMore
+                            ? const Center(child: Text(" Loading..."))
+                            : const Center(child: Text("結果は以上です"));
+                      }
+
+                      if (index < model.postList.length) {
+                        final post = model.postList[index];
+
+                        // お気に入りユーザー数の初期化と更新
+                        _favoritePost.favoriteUsersNotifiers[post.postId] ??=
+                            ValueNotifier<int>(0);
+                        _favoritePost.updateFavoriteUsersCount(post.postId);
+
+                        _bookmarkPost.bookmarkUsersNotifiers[post.postId] ??=
+                            ValueNotifier<int>(0);
+                        _bookmarkPost.updateBookmarkUsersCount(post.postId);
+
+                        return PostItetmAccounWidget(
+                          post: post,
+                          postAccount: widget.myAccount,
+                          favoriteUsersNotifier: _favoritePost
+                              .favoriteUsersNotifiers[post.postId]!,
+                          isFavoriteNotifier: ValueNotifier<bool>(
+                            _favoritePost.favoritePostsNotifier.value
+                                .contains(post.postId),
+                          ),
+                          onFavoriteToggle: () => _favoritePost.toggleFavorite(
+                            post.postId,
+                            _favoritePost.favoritePostsNotifier.value
+                                .contains(post.postId),
+                          ),
+                          bookmarkUsersNotifier: _bookmarkPost
+                              .bookmarkUsersNotifiers[post.postId]!,
+                          isBookmarkedNotifier: ValueNotifier<bool>(
+                            _bookmarkPost.bookmarkPostsNotifier.value
+                                .contains(post.postId),
+                          ),
+                          onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+                            post.postId,
+                            _bookmarkPost.bookmarkPostsNotifier.value
+                                .contains(post.postId),
+                          ),
+                          replyFlag: ValueNotifier<bool>(false),
+                          userId: widget.myAccount.id,
+                        );
+                      } else {
+                        return const SizedBox.shrink();
+                      }
+                    },
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class DbManager {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  DocumentSnapshot? _lastDocument;
+
+  Future<List<Post>> getPosts(String userId) async {
+    Query query = _firestore
         .collection('users')
-        .doc(widget.myAccount.id)
+        .doc(userId)
         .collection('my_posts')
         .orderBy('created_time', descending: true)
-        .snapshots()
-        .asyncMap((snapshot) async {
-      List<Post> posts = [];
-      for (var doc in snapshot.docs) {
+        .limit(15);
+
+    // if (_lastDocument != null) {
+    //   query = query.startAfterDocument(_lastDocument!);
+    // }
+
+    final querySnapshot = await query.get();
+    List<Post> posts = [];
+    if (querySnapshot.docs.isNotEmpty) {
+      _lastDocument = querySnapshot.docs.last;
+      for (var doc in querySnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         final postId = data['post_id'] as String;
-        final postDoc = await FirebaseFirestore.instance
-            .collection('posts')
-            .doc(postId)
-            .get();
+        final postDoc = await _firestore.collection('posts').doc(postId).get();
         if (postDoc.exists) {
           final postData = postDoc.data() as Map<String, dynamic>;
           final post = Post.fromMap(postData, documentSnapshot: postDoc);
@@ -55,148 +167,72 @@ class _ImagePostListState extends State<ImagePostList> {
           }
         }
       }
-      return posts;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 500),
-          child: StreamBuilder<List<Post>>(
-            stream: _postStream(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (snapshot.hasError) {
-                return const Center(child: Text('データの取得に失敗しました'));
-              }
-
-              if (snapshot.hasData) {
-                _allPosts = snapshot.data!;
-                return ListView.builder(
-                  controller: _scrollController,
-                  itemCount: _allPosts.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index == _allPosts.length) {
-                      return _hasMore
-                          ? TextButton(
-                              onPressed: _fetchMorePosts,
-                              child: const Text("もっと読み込む"),
-                            )
-                          : const Center(child: Text("結果は以上です"));
-                    }
-
-                    final post = _allPosts[index];
-                    // お気に入りユーザー数の初期化と更新
-                    _favoritePost.favoriteUsersNotifiers[post.postId] ??=
-                        ValueNotifier<int>(0);
-                    _favoritePost.updateFavoriteUsersCount(post.postId);
-
-                    _bookmarkPost.bookmarkUsersNotifiers[post.postId] ??=
-                        ValueNotifier<int>(0);
-                    _bookmarkPost.updateBookmarkUsersCount(post.postId);
-
-                    return PostItetmAccounWidget(
-                      post: post,
-                      postAccount: widget.myAccount,
-                      favoriteUsersNotifier:
-                          _favoritePost.favoriteUsersNotifiers[post.postId]!,
-                      isFavoriteNotifier: ValueNotifier<bool>(
-                        _favoritePost.favoritePostsNotifier.value
-                            .contains(post.postId),
-                      ),
-                      onFavoriteToggle: () => _favoritePost.toggleFavorite(
-                        post.postId,
-                        _favoritePost.favoritePostsNotifier.value
-                            .contains(post.postId),
-                      ),
-                      replyFlag: ValueNotifier<bool>(false),
-                      bookmarkUsersNotifier:
-                          _bookmarkPost.bookmarkUsersNotifiers[post.postId]!,
-                      isBookmarkedNotifier: ValueNotifier<bool>(
-                        _bookmarkPost.bookmarkPostsNotifier.value
-                            .contains(post.postId),
-                      ),
-                      onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
-                        post.postId,
-                        _bookmarkPost.bookmarkPostsNotifier.value
-                            .contains(post.postId),
-                      ),
-                      userId: widget.myAccount.id,
-                    );
-                  },
-                );
-              } else {
-                return const Center(child: CircularProgressIndicator());
-              }
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _fetchMorePosts() async {
-    if (_isLoading || !_hasMore) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    final posts = await _fetchPosts();
-    if (posts.isNotEmpty) {
-      setState(() {
-        _allPosts.addAll(posts);
-        _isLoading = false;
-        if (posts.length < 30) {
-          _hasMore = false;
-        }
-        if (posts.isNotEmpty) {
-          _lastDocument = posts.last.documentSnapshot;
-        }
-      });
     } else {
-      setState(() {
-        _hasMore = false;
-        _isLoading = false;
-      });
+      print("No posts found.");
     }
+    return posts;
   }
 
-  Future<List<Post>> _fetchPosts() async {
-    Query query = FirebaseFirestore.instance
+  Future<List<Post>> getPostsNext(String userId) async {
+    if (_lastDocument == null) return [];
+
+    Query query = _firestore
         .collection('users')
-        .doc(widget.myAccount.id)
+        .doc(userId)
         .collection('my_posts')
         .orderBy('created_time', descending: true)
-        .limit(30);
-
-    if (_lastDocument != null) {
-      query = query.startAfterDocument(_lastDocument!);
-    }
+        .startAfterDocument(_lastDocument!)
+        .limit(15);
 
     final querySnapshot = await query.get();
     List<Post> posts = [];
-    for (var doc in querySnapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
-      final postId = data['post_id'] as String;
-      final postDoc = await FirebaseFirestore.instance
-          .collection('posts')
-          .doc(postId)
-          .get();
-      if (postDoc.exists) {
-        final postData = postDoc.data() as Map<String, dynamic>;
-        final post = Post.fromMap(postData, documentSnapshot: postDoc);
-        if (post.mediaUrl != null && post.mediaUrl!.isNotEmpty) {
-          posts.add(post);
+    if (querySnapshot.docs.isNotEmpty) {
+      _lastDocument = querySnapshot.docs.last;
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final postId = data['post_id'] as String;
+        final postDoc = await _firestore.collection('posts').doc(postId).get();
+        if (postDoc.exists) {
+          final postData = postDoc.data() as Map<String, dynamic>;
+          final post = Post.fromMap(postData, documentSnapshot: postDoc);
+          if (post.mediaUrl != null && post.mediaUrl!.isNotEmpty) {
+            posts.add(post);
+          }
         }
       }
+    } else {
+      print("No more posts found.");
     }
     return posts;
   }
 }
+
+final viewModelProvider =
+    ChangeNotifierProvider<ViewModel>((ref) => ViewModel(ref));
+
+class ViewModel extends ChangeNotifier {
+  ViewModel(this.ref);
+
+  final Ref ref;
+  List<Post> postList = [];
+  List<Post> currentPostList = [];
+
+  Future<void> getPosts(String userId) async {
+    postList = [];
+    final dbManager = ref.read(dbManagerProvider);
+
+    currentPostList = await dbManager.getPosts(userId);
+    postList.addAll(currentPostList);
+    notifyListeners();
+  }
+
+  Future<void> getPostsNext(String userId) async {
+    currentPostList = await ref.read(dbManagerProvider).getPostsNext(userId);
+    if (currentPostList.isNotEmpty) {
+      postList.addAll(currentPostList);
+    }
+    notifyListeners();
+  }
+}
+
+final dbManagerProvider = Provider((ref) => DbManager());

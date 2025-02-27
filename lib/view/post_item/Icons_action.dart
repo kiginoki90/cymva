@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:cymva/view/repost_page.dart';
 import 'package:cymva/view/reply_page.dart';
 
-class IconsActionsWidget extends StatelessWidget {
+class IconsActionsWidget extends StatefulWidget {
   final Post post;
   final Account postAccount;
   final String userId;
@@ -31,6 +31,14 @@ class IconsActionsWidget extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  _IconsActionsWidgetState createState() => _IconsActionsWidgetState();
+}
+
+class _IconsActionsWidgetState extends State<IconsActionsWidget> {
+  bool _isProcessingFavorite = false;
+  bool _isProcessingBookmark = false;
+
+  @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -40,12 +48,15 @@ class IconsActionsWidget extends StatelessWidget {
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('posts')
-                  .doc(post.postId)
+                  .doc(widget.post.postId)
                   .collection('favorite_users')
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return Text(
+                    '0',
+                    key: ValueKey<int>(0),
+                  );
                 }
 
                 final favoriteCount = snapshot.data!.docs.length;
@@ -67,22 +78,31 @@ class IconsActionsWidget extends StatelessWidget {
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('users')
-                  .doc(userId)
+                  .doc(widget.userId)
                   .collection('favorite_posts')
-                  .doc(post.postId)
+                  .doc(widget.post.postId)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return Icon(
+                    Icons.star_outline,
+                    color: Colors.grey,
+                  );
                 }
 
                 final isFavorite = snapshot.data!.exists;
 
                 return GestureDetector(
-                  onTap: () {
-                    onFavoriteToggle();
-                    final newValue = !isFavoriteNotifier.value;
-                    isFavoriteNotifier.value = newValue;
+                  onTap: () async {
+                    if (_isProcessingFavorite) return;
+
+                    setState(() {
+                      _isProcessingFavorite = true;
+                    });
+
+                    widget.onFavoriteToggle();
+                    final newValue = !widget.isFavoriteNotifier.value;
+                    widget.isFavoriteNotifier.value = newValue;
 
                     // スナックバーを表示
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -94,6 +114,10 @@ class IconsActionsWidget extends StatelessWidget {
 
                     // タップした感覚を提供
                     HapticFeedback.lightImpact();
+
+                    setState(() {
+                      _isProcessingFavorite = false;
+                    });
                   },
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 500),
@@ -119,7 +143,7 @@ class IconsActionsWidget extends StatelessWidget {
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('posts')
-                  .doc(post.postId)
+                  .doc(widget.post.postId)
                   .collection('repost')
                   .snapshots(),
               builder: (context, snapshot) {
@@ -137,8 +161,8 @@ class IconsActionsWidget extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => RepostPage(
-                      post: post,
-                      userId: userId,
+                      post: widget.post,
+                      userId: widget.userId,
                     ),
                   ),
                 );
@@ -152,29 +176,30 @@ class IconsActionsWidget extends StatelessWidget {
           ],
         ),
         ValueListenableBuilder<int>(
-          valueListenable: replyCountNotifier,
+          valueListenable: widget.replyCountNotifier,
           builder: (context, replyCount, child) {
             return Row(
               children: [
                 Text(replyCount.toString()),
                 IconButton(
-                  onPressed: post.closeComment
+                  onPressed: widget.post.closeComment
                       ? null
                       : () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => ReplyPage(
-                                post: post,
-                                userId: userId,
-                                postAccount: postAccount,
+                                post: widget.post,
+                                userId: widget.userId,
+                                postAccount: widget.postAccount,
                               ),
                             ),
                           );
                         },
                   icon: Icon(
                     Icons.comment,
-                    color: post.closeComment ? Colors.grey : Colors.black,
+                    color:
+                        widget.post.closeComment ? Colors.grey : Colors.black,
                   ),
                 ),
               ],
@@ -183,16 +208,19 @@ class IconsActionsWidget extends StatelessWidget {
         ),
         Row(
           children: [
-            if (postAccount.id == userId)
+            if (widget.postAccount.id == widget.userId)
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('posts')
-                    .doc(post.postId)
+                    .doc(widget.post.postId)
                     .collection('bookmark_users')
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
+                    return Text(
+                      '0',
+                      key: ValueKey<int>(0),
+                    );
                   }
 
                   final bookmarkCount = snapshot.data!.docs.length;
@@ -214,21 +242,30 @@ class IconsActionsWidget extends StatelessWidget {
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('users')
-                  .doc(userId)
+                  .doc(widget.userId)
                   .collection('bookmark_posts')
-                  .doc(post.postId)
+                  .doc(widget.post.postId)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return Icon(
+                    Icons.bookmark_outline,
+                    color: Colors.grey,
+                  );
                 }
 
                 final isBookmarked = snapshot.data!.exists;
                 return GestureDetector(
-                  onTap: () {
-                    onBookMsrkToggle();
-                    final newValue = !isBookmarkedNotifier.value;
-                    isBookmarkedNotifier.value = newValue;
+                  onTap: () async {
+                    if (_isProcessingBookmark) return;
+
+                    setState(() {
+                      _isProcessingBookmark = true;
+                    });
+
+                    widget.onBookMsrkToggle();
+                    final newValue = !widget.isBookmarkedNotifier.value;
+                    widget.isBookmarkedNotifier.value = newValue;
 
                     // スナックバーを表示
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -238,6 +275,10 @@ class IconsActionsWidget extends StatelessWidget {
                       ),
                     );
                     HapticFeedback.lightImpact();
+
+                    setState(() {
+                      _isProcessingBookmark = false;
+                    });
                   },
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 500),

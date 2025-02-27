@@ -175,6 +175,12 @@ class _AddAccountPageState extends State<AddAccountPage> {
         userIdController.text.isNotEmpty &&
         selfIntroductionController.text.isNotEmpty) {
       bool isUnique = await isUserIdUnique(userIdController.text);
+      if (userIdController.text.length < 2) {
+        setState(() {
+          errorMessage = 'ユーザーIDは2文字以上で入力してください';
+        });
+        return;
+      }
       if (!isUnique) {
         setState(() {
           errorMessage = 'そのユーザーIDは既に使われています';
