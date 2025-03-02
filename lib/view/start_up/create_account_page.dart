@@ -81,10 +81,12 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                     maxLength: 30,
                     onChanged: (value) {
                       setState(() {
-                        if (isValidUserId(value)) {
-                          userIdErrorMessage = null;
-                        } else {
+                        if (value.length < 2) {
+                          userIdErrorMessage = 'ユーザーIDは最低2文字必要です';
+                        } else if (!isValidUserId(value)) {
                           userIdErrorMessage = 'ユーザーIDは英数字と記号のみ使用できます';
+                        } else {
+                          userIdErrorMessage = null;
                         }
                       });
                     },

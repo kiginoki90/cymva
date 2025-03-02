@@ -41,9 +41,11 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
 
   Future<void> _loadVolumePreference() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _isMuted = prefs.getBool('isMuted') ?? true;
-    });
+    if (mounted) {
+      setState(() {
+        _isMuted = prefs.getBool('isMuted') ?? true;
+      });
+    }
   }
 
   Future<void> _saveVolumePreference(bool isMuted) async {
@@ -234,31 +236,53 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
           // アスペクト比を計算
           double aspectRatio = imageWidth / imageHeight;
 
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                SlideDirectionPageRoute(
-                  page: FullScreenImagePage(
-                    imageUrls: [mediaUrl],
-                    initialIndex: 0,
+          if (aspectRatio >= 1) {
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  SlideDirectionPageRoute(
+                    page: FullScreenImagePage(
+                      imageUrls: [mediaUrl],
+                      initialIndex: 0,
+                    ),
+                    isSwipeUp: true,
                   ),
-                  isSwipeUp: true,
-                ),
-              );
-            },
-            child: Container(
-              width: screenWidth,
-              height: screenWidth * 0.75, // 高さを調整
-              child: FittedBox(
+                );
+              },
+              child: Image.network(
+                mediaUrl,
+                width: screenWidth,
+                height: screenWidth / aspectRatio, // 横長の場合はアスペクト比に基づいて高さを計算
                 fit: BoxFit.cover,
-                child: Image.network(
-                  mediaUrl,
-                  fit: BoxFit.cover,
-                ),
               ),
-            ),
-          );
+            );
+          }
+          // 縦長の場合 (アスペクト比が1未満)
+          else {
+            double maxHeight = screenWidth * 0.8;
+
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  SlideDirectionPageRoute(
+                    page: FullScreenImagePage(
+                      imageUrls: [mediaUrl],
+                      initialIndex: 0,
+                    ),
+                    isSwipeUp: true,
+                  ),
+                );
+              },
+              child: Image.network(
+                mediaUrl,
+                width: screenWidth,
+                height: maxHeight, // 縦長の場合は幅と同じ高さ
+                fit: BoxFit.cover,
+              ),
+            );
+          }
         } else {
           // 画像が読み込まれていない場合の表示
           return _buildPlaceholder(context);

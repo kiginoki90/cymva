@@ -33,7 +33,7 @@ class _ReplyPageState extends State<ReplyPage> {
   final picker = ImagePicker();
   final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
-  int _currentTextLength = 0;
+  final ValueNotifier<int> _currentTextLength = ValueNotifier<int>(0);
 
   @override
   void initState() {
@@ -43,9 +43,7 @@ class _ReplyPageState extends State<ReplyPage> {
   }
 
   void _updateTextLength() {
-    setState(() {
-      _currentTextLength = _replyController.text.length;
-    });
+    _currentTextLength.value = _replyController.text.length;
   }
 
   Future<void> _pickMedia() async {
@@ -185,6 +183,7 @@ class _ReplyPageState extends State<ReplyPage> {
   void dispose() {
     _replyController.removeListener(_updateTextLength);
     _replyController.dispose();
+    _currentTextLength.dispose();
     super.dispose();
   }
 
@@ -273,19 +272,31 @@ class _ReplyPageState extends State<ReplyPage> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Text(
-                    '$_currentTextLength / 200',
-                    style: TextStyle(
-                      color:
-                          _currentTextLength > 200 ? Colors.red : Colors.grey,
-                    ),
+                  ValueListenableBuilder<int>(
+                    valueListenable: _currentTextLength,
+                    builder: (context, value, child) {
+                      return Text(
+                        '$value / 200',
+                        style: TextStyle(
+                          color: value > 200 ? Colors.red : Colors.grey,
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 10),
-                  if (_currentTextLength > 200)
-                    const Text(
-                      '返信は200文字以内で入力してください。',
-                      style: TextStyle(color: Colors.red),
-                    ),
+                  ValueListenableBuilder<int>(
+                    valueListenable: _currentTextLength,
+                    builder: (context, value, child) {
+                      if (value > 200) {
+                        return const Text(
+                          '返信は200文字以内で入力してください。',
+                          style: TextStyle(color: Colors.red),
+                        );
+                      } else {
+                        return const SizedBox.shrink();
+                      }
+                    },
+                  ),
                   const SizedBox(height: 20),
                   if (_mediaFiles.isNotEmpty)
                     SizedBox(
@@ -331,7 +342,8 @@ class _ReplyPageState extends State<ReplyPage> {
                     icon: const Icon(Icons.image),
                   ),
                   ElevatedButton(
-                    onPressed: _currentTextLength > 200 ? null : _sendReply,
+                    onPressed:
+                        _currentTextLength.value > 200 ? null : _sendReply,
                     child: const Text('返信を送信'),
                   ),
                 ],

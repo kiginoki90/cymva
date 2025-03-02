@@ -17,7 +17,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/view/account/account_page.dart';
-import 'package:video_player/video_player.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PostDetailPage extends StatefulWidget {
@@ -64,7 +63,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
   void initState() {
     super.initState();
     _fetchFavoriteData();
-    _replyPostsFuture = getRePosts(widget.post.postId);
+    _replyPostsFuture = getRePosts(widget.post.id);
     _favoritePost.getFavoritePosts();
     _bookmarkPost.getBookmarkPosts();
     _checkAdminLevel();
@@ -81,7 +80,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
   void _fetchReplyCount() {
     String documentId =
-        widget.post.id.isNotEmpty ? widget.post.id : widget.post.postId;
+        widget.post.id.isNotEmpty ? widget.post.id : widget.post.id;
 
     FirebaseFirestore.instance
         .collection('posts')
@@ -97,7 +96,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
     // Firestoreからお気に入り数とお気に入り状態を取得
     final favoriteCountSnapshot = await FirebaseFirestore.instance
         .collection('posts')
-        .doc(widget.post.postId)
+        .doc(widget.post.id)
         .collection('favorite_users')
         .get();
 
@@ -106,7 +105,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
     // 自分がすでにお気に入りに追加しているかどうかを確認
     final isFavoriteSnapshot = await FirebaseFirestore.instance
         .collection('posts')
-        .doc(widget.post.postId)
+        .doc(widget.post.id)
         .collection('favorite_users')
         .doc(widget.userId)
         .get();
@@ -117,7 +116,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
   Future<void> _toggleFavorite() async {
     final postRef = FirebaseFirestore.instance
         .collection('posts')
-        .doc(widget.post.postId)
+        .doc(widget.post.id)
         .collection('favorite_users')
         .doc(widget.userId);
 
@@ -146,7 +145,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
         final favoriteCountSnapshot = await FirebaseFirestore.instance
             .collection('posts')
-            .doc(_repostPost!.postId)
+            .doc(_repostPost!.id)
             .collection('favorite_users')
             .get();
         int favoriteCount = favoriteCountSnapshot.size; // ユーザー数を取得
@@ -180,10 +179,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
       var postSnapshot =
           await _firestoreInstance.collection('posts').doc(postId).get();
       if (postSnapshot.exists) {
-        var postDetailData = postSnapshot.data();
-        if (postDetailData != null) {
-          return Post.fromMap(postDetailData);
-        }
+        return Post.fromDocument(postSnapshot);
       }
       return null;
     } catch (e) {
@@ -225,7 +221,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
   Future<void> _deletePost(BuildContext context) async {
     try {
       final postDocRef =
-          _firestoreInstance.collection('posts').doc(widget.post.postId);
+          _firestoreInstance.collection('posts').doc(widget.post.id);
 
       // サブコレクション内のすべてのドキュメントを削除する関数
       Future<void> deleteSubcollection(String subcollectionName) async {
@@ -243,7 +239,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
             .collection('posts')
             .doc(widget.post.reply)
             .collection('reply_post')
-            .doc(widget.post.postId)
+            .doc(widget.post.id)
             .delete();
       }
 
@@ -268,14 +264,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
       // メインの投稿ドキュメントを削除
       await postDocRef.delete();
 
-      // ユーザーのポスト一覧からも削除
-      await _firestoreInstance
-          .collection('users')
-          .doc(widget.post.postAccountId)
-          .collection('my_posts')
-          .doc(widget.post.postId)
-          .delete();
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('投稿を削除しました')),
       );
@@ -289,7 +277,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
   void _toggleCloseComment() async {
     final postRef =
-        FirebaseFirestore.instance.collection('posts').doc(widget.post.postId);
+        FirebaseFirestore.instance.collection('posts').doc(widget.post.id);
 
     try {
       // 現在のcloseCommentの値を取得
@@ -316,9 +304,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
   Future<void> _updatePostClipStatus(bool clipStatus) async {
     try {
       // FirestoreのpostsコレクションにあるpostIdのドキュメントを取得
-      final postRef = FirebaseFirestore.instance
-          .collection('posts')
-          .doc(widget.post.postId);
+      final postRef =
+          FirebaseFirestore.instance.collection('posts').doc(widget.post.id);
 
       // 更新するデータ
       final data = {
@@ -331,18 +318,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
       // Firestoreに更新を反映
       await postRef.update(data);
 
-      // userコレクションのmy_postsに対しても更新を反映
-      final userRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId) // userIdを使用してユーザーを特定
-          .collection('my_posts')
-          .doc(widget.post.postId); // 同じpostIdでmy_postsのドキュメントを特定
-
-      // userのmy_postsに対しても更新
-      await userRef.update(data);
-
-      print(
-          'Post clip status updated to $clipStatus and user my_posts updated');
+      print('Post clip status updated to $clipStatus and user posts updated');
     } catch (e) {
       print('Error updating post clip status: $e');
     }
@@ -380,10 +356,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
         var postSnapshot =
             await _firestoreInstance.collection('posts').doc(replyPostId).get();
         if (postSnapshot.exists) {
+          var post = Post.fromDocument(postSnapshot);
           var postDetailData = postSnapshot.data();
           if (postDetailData != null) {
-            var post = Post.fromMap(postDetailData);
-
             // userIdとpost_account_idが一致する場合は優先してリストに追加
             if (post.postAccountId == widget.post.postAccountId) {
               prioritizedPosts.add(post);
@@ -569,16 +544,16 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                     );
                                   } else {
                                     _favoritePost.favoriteUsersNotifiers[
-                                            replyToPost.postId] ??=
+                                            replyToPost.id] ??=
                                         ValueNotifier<int>(0);
                                     _favoritePost.updateFavoriteUsersCount(
-                                        replyToPost.postId);
+                                        replyToPost.id);
 
                                     _bookmarkPost.bookmarkUsersNotifiers[
-                                            replyToPost.postId] ??=
+                                            replyToPost.id] ??=
                                         ValueNotifier<int>(0);
                                     _bookmarkPost.updateBookmarkUsersCount(
-                                        replyToPost.postId);
+                                        replyToPost.id);
 
                                     return Row(
                                       crossAxisAlignment:
@@ -594,55 +569,52 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                                 postAccount: postAccount!,
                                                 favoriteUsersNotifier: _favoritePost
                                                         .favoriteUsersNotifiers[
-                                                    replyToPost.postId]!,
-                                                isFavoriteNotifier:
-                                                    ValueNotifier<bool>(
-                                                        _favoritePost
-                                                            .favoritePostsNotifier
-                                                            .value
-                                                            .contains(
-                                                                replyToPost
-                                                                    .postId)),
-                                                onFavoriteToggle: () {
-                                                  _favoritePost.toggleFavorite(
-                                                    replyToPost.postId,
+                                                    replyToPost.id]!,
+                                                isFavoriteNotifier: ValueNotifier<
+                                                        bool>(
                                                     _favoritePost
                                                         .favoritePostsNotifier
                                                         .value
                                                         .contains(
-                                                            replyToPost.postId),
+                                                            replyToPost.id)),
+                                                onFavoriteToggle: () {
+                                                  _favoritePost.toggleFavorite(
+                                                    replyToPost.id,
+                                                    _favoritePost
+                                                        .favoritePostsNotifier
+                                                        .value
+                                                        .contains(
+                                                            replyToPost.id),
                                                   );
                                                   _favoritePost
-                                                              .favoriteUsersNotifiers[
-                                                          replyToPost
-                                                              .postId] ??=
-                                                      ValueNotifier<int>(0);
+                                                          .favoriteUsersNotifiers[
+                                                      replyToPost
+                                                          .id] ??= ValueNotifier<
+                                                      int>(0);
                                                   _favoritePost
                                                       .updateFavoriteUsersCount(
-                                                          replyToPost.postId);
+                                                          replyToPost.id);
                                                 },
                                                 replyFlag:
                                                     ValueNotifier<bool>(true),
                                                 bookmarkUsersNotifier: _bookmarkPost
                                                         .bookmarkUsersNotifiers[
-                                                    replyToPost.postId]!,
+                                                    replyToPost.id]!,
                                                 isBookmarkedNotifier:
                                                     ValueNotifier<bool>(
                                                   _bookmarkPost
                                                       .bookmarkPostsNotifier
                                                       .value
-                                                      .contains(
-                                                          replyToPost.postId),
+                                                      .contains(replyToPost.id),
                                                 ),
                                                 onBookMsrkToggle: () =>
                                                     _bookmarkPost
                                                         .toggleBookmark(
-                                                  replyToPost.postId,
+                                                  replyToPost.id,
                                                   _bookmarkPost
                                                       .bookmarkPostsNotifier
                                                       .value
-                                                      .contains(
-                                                          replyToPost.postId),
+                                                      .contains(replyToPost.id),
                                                 ),
                                                 userId: widget.userId,
                                               ),
@@ -757,7 +729,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => FavoriteListPage(
-                                    postId: widget.post.postId,
+                                    postId: widget.post.id,
                                   ),
                                 ),
                               );
@@ -804,8 +776,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => ShowReportDialog(
-                                      postId: widget.post.postId),
+                                  builder: (context) =>
+                                      ShowReportDialog(postId: widget.post.id),
                                 ),
                               );
                             } else if (value == 'Option 2') {
@@ -921,9 +893,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   isFavoriteNotifier: isFavoriteNotifier,
                   replyCountNotifier: _replyCountNotifier,
                   onFavoriteToggle: () => _favoritePost.toggleFavorite(
-                    widget.post.postId,
+                    widget.post.id,
                     _favoritePost.favoritePostsNotifier.value
-                        .contains(widget.post.postId),
+                        .contains(widget.post.id),
                   ),
                   onBookMsrkToggle: widget.onBookMsrkToggle,
                 ),
@@ -934,7 +906,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => RepostListPage(
-                        postId: widget.post.postId,
+                        postId: widget.post.id,
                         userId: widget.userId,
                       ),
                     ),
@@ -1025,50 +997,47 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                   );
                                 }
                                 _favoritePost.favoriteUsersNotifiers[
-                                    replyPost.postId] ??= ValueNotifier<int>(0);
+                                    replyPost.id] ??= ValueNotifier<int>(0);
                                 _favoritePost
-                                    .updateFavoriteUsersCount(replyPost.postId);
+                                    .updateFavoriteUsersCount(replyPost.id);
 
                                 _bookmarkPost.bookmarkUsersNotifiers[
-                                    replyPost.postId] ??= ValueNotifier<int>(0);
+                                    replyPost.id] ??= ValueNotifier<int>(0);
                                 _bookmarkPost
-                                    .updateBookmarkUsersCount(replyPost.postId);
+                                    .updateBookmarkUsersCount(replyPost.id);
 
                                 return PostItemWidget(
                                   post: replyPost,
                                   postAccount: postAccount!,
-                                  favoriteUsersNotifier:
-                                      _favoritePost.favoriteUsersNotifiers[
-                                          replyPost.postId]!,
+                                  favoriteUsersNotifier: _favoritePost
+                                      .favoriteUsersNotifiers[replyPost.id]!,
                                   isFavoriteNotifier: ValueNotifier<bool>(
                                     _favoritePost.favoritePostsNotifier.value
-                                        .contains(replyPost.postId),
+                                        .contains(replyPost.id),
                                   ),
                                   onFavoriteToggle: () {
                                     _favoritePost.toggleFavorite(
-                                      replyPost.postId,
+                                      replyPost.id,
                                       _favoritePost.favoritePostsNotifier.value
-                                          .contains(replyPost.postId),
+                                          .contains(replyPost.id),
                                     );
                                     _favoritePost.favoriteUsersNotifiers[
-                                            replyPost.postId] ??=
-                                        ValueNotifier<int>(0);
-                                    _favoritePost.updateFavoriteUsersCount(
-                                        replyPost.postId);
+                                        replyPost.id] ??= ValueNotifier<int>(0);
+                                    _favoritePost
+                                        .updateFavoriteUsersCount(replyPost.id);
                                   },
                                   replyFlag: ValueNotifier<bool>(false),
-                                  bookmarkUsersNotifier:
-                                      _bookmarkPost.bookmarkUsersNotifiers[
-                                          replyPost.postId]!,
+                                  bookmarkUsersNotifier: _bookmarkPost
+                                      .bookmarkUsersNotifiers[replyPost.id]!,
                                   isBookmarkedNotifier: ValueNotifier<bool>(
                                     _bookmarkPost.bookmarkPostsNotifier.value
-                                        .contains(replyPost.postId),
+                                        .contains(replyPost.id),
                                   ),
                                   onBookMsrkToggle: () =>
                                       _bookmarkPost.toggleBookmark(
-                                    replyPost.postId,
+                                    replyPost.id,
                                     _bookmarkPost.bookmarkPostsNotifier.value
-                                        .contains(replyPost.postId),
+                                        .contains(replyPost.id),
                                   ),
                                   userId: widget.userId,
                                 );

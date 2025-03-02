@@ -89,38 +89,38 @@ class _PostListState extends ConsumerState<PostList> {
                         final post = model.postList[index];
 
                         // お気に入りユーザー数の初期化と更新
-                        _favoritePost.favoriteUsersNotifiers[post.postId] ??=
+                        _favoritePost.favoriteUsersNotifiers[post.id] ??=
                             ValueNotifier<int>(0);
-                        _favoritePost.updateFavoriteUsersCount(post.postId);
+                        _favoritePost.updateFavoriteUsersCount(post.id);
 
-                        _bookmarkPost.bookmarkUsersNotifiers[post.postId] ??=
+                        _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
                             ValueNotifier<int>(0);
-                        _bookmarkPost.updateBookmarkUsersCount(post.postId);
+                        _bookmarkPost.updateBookmarkUsersCount(post.id);
 
                         return PostItetmAccounWidget(
                           post: post,
                           postAccount: widget.postAccount,
-                          favoriteUsersNotifier: _favoritePost
-                              .favoriteUsersNotifiers[post.postId]!,
+                          favoriteUsersNotifier:
+                              _favoritePost.favoriteUsersNotifiers[post.id]!,
                           isFavoriteNotifier: ValueNotifier<bool>(
                             _favoritePost.favoritePostsNotifier.value
-                                .contains(post.postId),
+                                .contains(post.id),
                           ),
                           onFavoriteToggle: () => _favoritePost.toggleFavorite(
-                            post.postId,
+                            post.id,
                             _favoritePost.favoritePostsNotifier.value
-                                .contains(post.postId),
+                                .contains(post.id),
                           ),
-                          bookmarkUsersNotifier: _bookmarkPost
-                              .bookmarkUsersNotifiers[post.postId]!,
+                          bookmarkUsersNotifier:
+                              _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
                           isBookmarkedNotifier: ValueNotifier<bool>(
                             _bookmarkPost.bookmarkPostsNotifier.value
-                                .contains(post.postId),
+                                .contains(post.id),
                           ),
                           onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
-                            post.postId,
+                            post.id,
                             _bookmarkPost.bookmarkPostsNotifier.value
-                                .contains(post.postId),
+                                .contains(post.id),
                           ),
                           replyFlag: ValueNotifier<bool>(false),
                           userId: widget.myAccount.id,
@@ -147,9 +147,8 @@ class DbManager {
 
     // clipがtrueの投稿を取得
     Query queryTrue = _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('my_posts')
+        .collection('posts')
+        .where('post_account_id', isEqualTo: userId)
         .where('clip', isEqualTo: true)
         .orderBy('clipTime', descending: true)
         .limit(15);
@@ -157,28 +156,17 @@ class DbManager {
     final querySnapshotTrue = await queryTrue.get();
     if (querySnapshotTrue.docs.isNotEmpty) {
       _lastDocumentTrue = querySnapshotTrue.docs.last;
-      List<Future<Post?>> futuresTrue = querySnapshotTrue.docs.map((doc) async {
-        final data = doc.data() as Map<String, dynamic>;
-        final postId = data['post_id'] as String;
-        final postDoc = await _firestore.collection('posts').doc(postId).get();
-        if (postDoc.exists) {
-          final postData = postDoc.data() as Map<String, dynamic>;
-          return Post.fromMap(postData, documentSnapshot: postDoc);
-        }
-        return null;
+      List<Post> truePosts = querySnapshotTrue.docs.map((doc) {
+        // final data = doc.data() as Map<String, dynamic>;
+        return Post.fromDocument(doc);
       }).toList();
-
-      posts.addAll((await Future.wait(futuresTrue))
-          .where((post) => post != null)
-          .cast<Post>()
-          .toList());
+      posts.addAll(truePosts);
     }
 
     // clipがfalseの投稿を取得
     Query queryFalse = _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('my_posts')
+        .collection('posts')
+        .where('post_account_id', isEqualTo: userId)
         .where('clip', isEqualTo: false)
         .orderBy('created_time', descending: true)
         .limit(15);
@@ -186,22 +174,10 @@ class DbManager {
     final querySnapshotFalse = await queryFalse.get();
     if (querySnapshotFalse.docs.isNotEmpty) {
       _lastDocumentFalse = querySnapshotFalse.docs.last;
-      List<Future<Post?>> futuresFalse =
-          querySnapshotFalse.docs.map((doc) async {
-        final data = doc.data() as Map<String, dynamic>;
-        final postId = data['post_id'] as String;
-        final postDoc = await _firestore.collection('posts').doc(postId).get();
-        if (postDoc.exists) {
-          final postData = postDoc.data() as Map<String, dynamic>;
-          return Post.fromMap(postData, documentSnapshot: postDoc);
-        }
-        return null;
+      List<Post> falsePosts = querySnapshotFalse.docs.map((doc) {
+        return Post.fromDocument(doc);
       }).toList();
-
-      posts.addAll((await Future.wait(futuresFalse))
-          .where((post) => post != null)
-          .cast<Post>()
-          .toList());
+      posts.addAll(falsePosts);
     }
 
     if (posts.isEmpty) {
@@ -217,9 +193,8 @@ class DbManager {
     // clipがtrueの投稿を取得
     if (_lastDocumentTrue != null) {
       Query queryTrue = _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('my_posts')
+          .collection('posts')
+          .where('post_account_id', isEqualTo: userId)
           .where('clip', isEqualTo: true)
           .orderBy('clipTime', descending: true)
           .startAfterDocument(_lastDocumentTrue!)
@@ -228,32 +203,17 @@ class DbManager {
       final querySnapshotTrue = await queryTrue.get();
       if (querySnapshotTrue.docs.isNotEmpty) {
         _lastDocumentTrue = querySnapshotTrue.docs.last;
-        List<Future<Post?>> futuresTrue =
-            querySnapshotTrue.docs.map((doc) async {
-          final data = doc.data() as Map<String, dynamic>;
-          final postId = data['post_id'] as String;
-          final postDoc =
-              await _firestore.collection('posts').doc(postId).get();
-          if (postDoc.exists) {
-            final postData = postDoc.data() as Map<String, dynamic>;
-            return Post.fromMap(postData, documentSnapshot: postDoc);
-          }
-          return null;
+        List<Post> truePosts = querySnapshotTrue.docs.map((doc) {
+          return Post.fromDocument(doc);
         }).toList();
-
-        posts.addAll((await Future.wait(futuresTrue))
-            .where((post) => post != null)
-            .cast<Post>()
-            .toList());
+        posts.addAll(truePosts);
       }
     }
-
     // clipがfalseの投稿を取得
     if (_lastDocumentFalse != null) {
       Query queryFalse = _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('my_posts')
+          .collection('posts')
+          .where('post_account_id', isEqualTo: userId)
           .where('clip', isEqualTo: false)
           .orderBy('created_time', descending: true)
           .startAfterDocument(_lastDocumentFalse!)
@@ -262,28 +222,15 @@ class DbManager {
       final querySnapshotFalse = await queryFalse.get();
       if (querySnapshotFalse.docs.isNotEmpty) {
         _lastDocumentFalse = querySnapshotFalse.docs.last;
-        List<Future<Post?>> futuresFalse =
-            querySnapshotFalse.docs.map((doc) async {
-          final data = doc.data() as Map<String, dynamic>;
-          final postId = data['post_id'] as String;
-          final postDoc =
-              await _firestore.collection('posts').doc(postId).get();
-          if (postDoc.exists) {
-            final postData = postDoc.data() as Map<String, dynamic>;
-            return Post.fromMap(postData, documentSnapshot: postDoc);
-          }
-          return null;
+        List<Post> falsePosts = querySnapshotFalse.docs.map((doc) {
+          return Post.fromDocument(doc);
         }).toList();
-
-        posts.addAll((await Future.wait(futuresFalse))
-            .where((post) => post != null)
-            .cast<Post>()
-            .toList());
+        posts.addAll(falsePosts);
       }
     }
 
     if (posts.isEmpty) {
-      print("No more posts found.");
+      print("No posts found.");
     }
 
     return posts;

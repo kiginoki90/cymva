@@ -178,14 +178,6 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
       // メインの投稿ドキュメントを削除
       await postDocRef.delete();
 
-      // ユーザーのポスト一覧からも削除
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(postAccountId)
-          .collection('my_posts')
-          .doc(postId)
-          .delete();
-
       print('投稿を削除しました');
     } catch (e) {
       print('投稿の削除に失敗しました: $e');
@@ -196,8 +188,6 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
   Future<void> _deleteUserFromSubcollections(String userId) async {
     final userDocRef =
         FirebaseFirestore.instance.collection('users').doc(userId);
-
-    await deleteSubcollection(userDocRef, 'my_posts');
 
     await deleteSubcollection(userDocRef, 'message');
 
@@ -212,6 +202,8 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
 
     // blockUsersサブコレクションから削除
     await deleteSubcollection(userDocRef, 'blockUsers');
+
+    await deleteSubcollection(userDocRef, 'my_posts');
   }
 
   // サブコレクションからドキュメントを削除する汎用メソッド

@@ -81,26 +81,25 @@ class Post {
     );
   }
 
-  // Create a Post from a Map
-  factory Post.fromMap(Map<String, dynamic> data,
-      {DocumentSnapshot? documentSnapshot}) {
-    return Post(
-      id: documentSnapshot?.id ?? '',
-      content: data['content'] ?? '',
-      postAccountId: data['post_account_id'] ?? '',
-      postUserId: data['post_user_id'] ?? '',
-      createdTime: data['created_time'] as Timestamp?,
-      mediaUrl: List<String>.from(data['media_url'] ?? []),
-      isVideo: data['is_video'] ?? false,
-      postId: data['post_id'] ?? '',
-      reply: data['reply'] as String?,
-      repost: data['repost'] as String?,
-      category: data['category'] as String?,
-      hide: data.containsKey('hide') ? data['hide'] as bool : false,
-      clip: data.containsKey('clip') ? data['clip'] as bool : false,
-      clipTime: data['clip_time'] as Timestamp?,
-      documentSnapshot: documentSnapshot,
-      closeComment: data['closeComment'] ?? false,
-    );
-  }
+  // factory Post.fromMap(Map<String, dynamic> data,
+  //     {DocumentSnapshot? documentSnapshot}) {
+  //   return Post(
+  //     id: documentSnapshot?.id ?? data['id'] ?? '',
+  //     content: data['content'] ?? '',
+  //     postAccountId: data['post_account_id'] ?? '',
+  //     postUserId: data['post_user_id'] ?? '',
+  //     createdTime: data['created_time'] as Timestamp?,
+  //     mediaUrl: List<String>.from(data['media_url'] ?? []),
+  //     isVideo: data['is_video'] ?? false,
+  //     postId: data['post_id'] ?? '',
+  //     reply: data['reply'] as String?,
+  //     repost: data['repost'] as String?,
+  //     category: data['category'] as String?,
+  //     hide: data.containsKey('hide') ? data['hide'] as bool : false,
+  //     clip: data.containsKey('clip') ? data['clip'] as bool : false,
+  //     clipTime: data['clip_time'] as Timestamp?,
+  //     documentSnapshot: documentSnapshot,
+  //     closeComment: data['closeComment'] ?? false,
+  //   );
+  // }
 }

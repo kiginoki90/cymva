@@ -108,13 +108,13 @@ class _FavoriteListState extends ConsumerState<FavoriteList> {
                 final post = model.postList[index];
 
                 // お気に入りユーザー数の初期化と更新
-                _favoritePost.favoriteUsersNotifiers[post.postId] ??=
+                _favoritePost.favoriteUsersNotifiers[post.id] ??=
                     ValueNotifier<int>(0);
-                _favoritePost.updateFavoriteUsersCount(post.postId);
+                _favoritePost.updateFavoriteUsersCount(post.id);
 
-                _bookmarkPost.bookmarkUsersNotifiers[post.postId] ??=
+                _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
                     ValueNotifier<int>(0);
-                _bookmarkPost.updateBookmarkUsersCount(post.postId);
+                _bookmarkPost.updateBookmarkUsersCount(post.id);
 
                 return FutureBuilder<Account?>(
                   future: _fetchAccount(post.postAccountId),
@@ -126,31 +126,31 @@ class _FavoriteListState extends ConsumerState<FavoriteList> {
                     final postAccount = snapshot.data!;
 
                     return PostItemWidget(
-                      key: ValueKey(post.postId),
+                      key: ValueKey(post.id),
                       post: post,
                       postAccount: postAccount,
                       favoriteUsersNotifier:
-                          _favoritePost.favoriteUsersNotifiers[post.postId]!,
+                          _favoritePost.favoriteUsersNotifiers[post.id]!,
                       isFavoriteNotifier: ValueNotifier<bool>(
                         _favoritePost.favoritePostsNotifier.value
-                            .contains(post.postId),
+                            .contains(post.id),
                       ),
                       onFavoriteToggle: () => _favoritePost.toggleFavorite(
                         post.postId,
                         _favoritePost.favoritePostsNotifier.value
-                            .contains(post.postId),
+                            .contains(post.id),
                       ),
                       replyFlag: ValueNotifier<bool>(false),
                       bookmarkUsersNotifier:
-                          _bookmarkPost.bookmarkUsersNotifiers[post.postId]!,
+                          _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
                       isBookmarkedNotifier: ValueNotifier<bool>(
                         _bookmarkPost.bookmarkPostsNotifier.value
-                            .contains(post.postId),
+                            .contains(post.id),
                       ),
                       onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
-                        post.postId,
+                        post.id,
                         _bookmarkPost.bookmarkPostsNotifier.value
-                            .contains(post.postId),
+                            .contains(post.id),
                       ),
                       userId: widget.myAccount.id,
                     );
@@ -175,7 +175,7 @@ class DbManager {
         .doc(userId)
         .collection('favorite_posts')
         .orderBy('added_at', descending: true)
-        .limit(5);
+        .limit(10);
 
     final querySnapshot = await query.get();
     List<Post> posts = [];
@@ -185,8 +185,8 @@ class DbManager {
         final postId = doc.id;
         final postDoc = await _firestore.collection('posts').doc(postId).get();
         if (postDoc.exists) {
-          final postData = postDoc.data() as Map<String, dynamic>;
-          return Post.fromMap(postData, documentSnapshot: postDoc);
+          // final postData = postDoc.data() as Map<String, dynamic>;
+          return Post.fromDocument(postDoc);
         }
         return null;
       }).toList();
@@ -210,7 +210,7 @@ class DbManager {
         .collection('favorite_posts')
         .orderBy('added_at', descending: true)
         .startAfterDocument(_lastDocument!)
-        .limit(5);
+        .limit(10);
 
     final querySnapshot = await query.get();
     List<Post> posts = [];
@@ -220,8 +220,7 @@ class DbManager {
         final postId = doc.id;
         final postDoc = await _firestore.collection('posts').doc(postId).get();
         if (postDoc.exists) {
-          final postData = postDoc.data() as Map<String, dynamic>;
-          return Post.fromMap(postData, documentSnapshot: postDoc);
+          return Post.fromDocument(postDoc);
         }
         return null;
       }).toList();

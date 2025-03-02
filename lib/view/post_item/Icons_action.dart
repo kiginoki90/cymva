@@ -48,7 +48,7 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('posts')
-                  .doc(widget.post.postId)
+                  .doc(widget.post.id)
                   .collection('favorite_users')
                   .snapshots(),
               builder: (context, snapshot) {
@@ -80,7 +80,7 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
                   .collection('users')
                   .doc(widget.userId)
                   .collection('favorite_posts')
-                  .doc(widget.post.postId)
+                  .doc(widget.post.id)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
@@ -143,7 +143,7 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('posts')
-                  .doc(widget.post.postId)
+                  .doc(widget.post.id)
                   .collection('repost')
                   .snapshots(),
               builder: (context, snapshot) {
@@ -212,7 +212,7 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('posts')
-                    .doc(widget.post.postId)
+                    .doc(widget.post.id)
                     .collection('bookmark_users')
                     .snapshots(),
                 builder: (context, snapshot) {
@@ -244,7 +244,7 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
                   .collection('users')
                   .doc(widget.userId)
                   .collection('bookmark_posts')
-                  .doc(widget.post.postId)
+                  .doc(widget.post.id)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {

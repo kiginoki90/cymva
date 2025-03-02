@@ -23,6 +23,51 @@ class _LoginPageState extends State<LoginPage> {
   String? errorMessage;
   final storage = const FlutterSecureStorage();
   bool _isObscured = true;
+  int _failedAttempts = 0;
+  DateTime? _lockoutEndTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFailedAttempts();
+  }
+
+  Future<void> _loadFailedAttempts() async {
+    String? failedAttemptsStr = await storage.read(key: 'failed_attempts');
+    String? lockoutEndTimeStr = await storage.read(key: 'lockout_end_time');
+    if (failedAttemptsStr != null) {
+      setState(() {
+        _failedAttempts = int.parse(failedAttemptsStr);
+      });
+    }
+    if (lockoutEndTimeStr != null) {
+      setState(() {
+        _lockoutEndTime = DateTime.parse(lockoutEndTimeStr);
+      });
+    }
+  }
+
+  Future<void> _incrementFailedAttempts() async {
+    setState(() {
+      _failedAttempts++;
+    });
+    await storage.write(
+        key: 'failed_attempts', value: _failedAttempts.toString());
+    if (_failedAttempts > 6) {
+      _lockoutEndTime = DateTime.now().add(Duration(minutes: 30));
+      await storage.write(
+          key: 'lockout_end_time', value: _lockoutEndTime.toString());
+    }
+  }
+
+  Future<void> _resetFailedAttempts() async {
+    setState(() {
+      _failedAttempts = 0;
+      _lockoutEndTime = null;
+    });
+    await storage.delete(key: 'failed_attempts');
+    await storage.delete(key: 'lockout_end_time');
+  }
 
   Future<void> _sendPasswordResetEmail() async {
     String email = emailController.text;
@@ -90,42 +135,6 @@ class _LoginPageState extends State<LoginPage> {
       print('parents_idが見つかりません');
     }
   }
-
-  // Future<void> _userAccountStorage(String userId) async {
-  //   final firestore = FirebaseFirestore.instance;
-  //   final storage = FlutterSecureStorage();
-
-  //   try {
-  //     // Firestoreからユーザー情報を取得
-  //     DocumentSnapshot userDoc =
-  //         await firestore.collection('users').doc(userId).get();
-
-  //     // ユーザー情報が存在する場合
-  //     if (userDoc.exists) {
-  //       // ユーザーデータを取得
-  //       var userData = userDoc.data() as Map<String, dynamic>;
-
-  //       // 必要なフィールドをローカルストレージに保存
-  //       await storage.write(
-  //           key: 'image_path', value: userData['image_path'] ?? '');
-  //       await storage.write(
-  //           key: 'key_account', value: userData['key_account'] ?? '');
-  //       await storage.write(key: 'name', value: userData['name'] ?? '');
-  //       await storage.write(
-  //           key: 'parents_id', value: userData['parents_id'] ?? '');
-  //       await storage.write(
-  //           key: 'self_introduction',
-  //           value: userData['self_introduction'] ?? '');
-  //       await storage.write(
-  //           key: 'updated_time', value: userData['updated_time'] ?? '');
-  //       await storage.write(key: 'user_id', value: userData['user_id'] ?? '');
-  //     } else {
-  //       print("ユーザー情報が見つかりませんでした");
-  //     }
-  //   } catch (e) {
-  //     print("Firestoreからデータを取得する際にエラーが発生しました: $e");
-  //   }
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -221,6 +230,22 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(height: 70),
                 ElevatedButton(
                   onPressed: () async {
+                    if (_lockoutEndTime != null &&
+                        DateTime.now().isBefore(_lockoutEndTime!)) {
+                      setState(() {
+                        errorMessage =
+                            '5回の失敗により、一時的にロックされています。\nしばらくしてから再試行してください。';
+                      });
+                      return;
+                    }
+
+                    // 失敗の回数が5回以上かつ最後の失敗から5分以上経っていれば、失敗の回数をリセット
+                    if (_failedAttempts >= 5 &&
+                        _lockoutEndTime != null &&
+                        DateTime.now().isAfter(_lockoutEndTime!)) {
+                      await _resetFailedAttempts();
+                    }
+
                     Authentication.myAccount = null;
 
                     try {
@@ -239,7 +264,7 @@ class _LoginPageState extends State<LoginPage> {
                             // parents_idのpasswordChangeTokenを保存
                             await _saveParentsTokenToStorage(result.user!.uid);
 
-                            // await _userAccountStorage(result.user!.uid);
+                            await _resetFailedAttempts(); // 成功時に失敗回数をリセット
 
                             Navigator.pushReplacement(
                               context,
@@ -261,8 +286,17 @@ class _LoginPageState extends State<LoginPage> {
                           });
                         }
                       } else {
+                        await _incrementFailedAttempts(); // 失敗時に失敗回数をインクリメント
                         setState(() {
-                          errorMessage = 'サインインに失敗しました';
+                          if (_failedAttempts >= 5) {
+                            _lockoutEndTime =
+                                DateTime.now().add(Duration(minutes: 30));
+                            errorMessage =
+                                '複数回の失敗により、一時的にロックされています。\nしばらくしてから再試行してください。';
+                          } else {
+                            errorMessage =
+                                'ログインに失敗しました。失敗回数: $_failedAttempts\n5回の失敗で一時的にロックされます';
+                          }
                         });
                       }
                     } catch (e) {

@@ -9,11 +9,6 @@ class PostFirestore {
 
   static Future<String?> addPost(Post newPost) async {
     try {
-      final CollectionReference _userPost = _firestoreInstance
-          .collection('users')
-          .doc(newPost.postAccountId)
-          .collection('my_posts');
-
       // 新しい投稿データのマップを作成
       Map<String, dynamic> postData = {
         'content': newPost.content,
@@ -39,17 +34,6 @@ class PostFirestore {
       await docRef.update({
         'post_id': docRef.id,
       });
-
-      // ユーザーの投稿サブコレクションにドキュメントを追加
-      await _userPost.doc(docRef.id).set({
-        'post_id': docRef.id,
-        'created_time': Timestamp.now(),
-        'clip': false,
-        'clipTime': null,
-      });
-
-      // // favorite_users サブコレクションを空で作成（スター一覧）
-      // await docRef.collection('favorite_users').doc('placeholder').set({});
 
       print('投稿完了');
       return docRef.id; // 作成した投稿のドキュメントIDを返す
