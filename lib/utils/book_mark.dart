@@ -10,21 +10,22 @@ class BookmarkPost {
   final FlutterSecureStorage storage = FlutterSecureStorage();
   String? userId;
 
-  Future<List<String>> getBookmarkPosts() async {
+  Future<List<String>> getBookmarkPosts(String postId) async {
     userId = await storage.read(key: 'account_id') ??
         FirebaseAuth.instance.currentUser?.uid;
 
     if (userId == null) return [];
 
     final bookmarkPostsSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('bookmark_posts')
+        .collection('posts')
+        .doc(postId)
+        .collection('bookmark_users')
         .get();
 
     final bookmarkPosts =
         bookmarkPostsSnapshot.docs.map((doc) => doc.id).toSet();
     bookmarkPostsNotifier.value = bookmarkPosts;
+
     return bookmarkPosts.toList();
   }
 
@@ -38,11 +39,6 @@ class BookmarkPost {
       return;
     }
 
-    final bookmarkPostsCollection = FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('bookmark_posts');
-
     final bookmarkUsersCollection = FirebaseFirestore.instance
         .collection('posts')
         .doc(postId)
@@ -52,16 +48,11 @@ class BookmarkPost {
 
     try {
       if (isBookmarked) {
-        // ブックマークから削除
-        await bookmarkPostsCollection.doc(postId).delete();
         await bookmarkUsersCollection.doc(userId).delete();
       } else {
-        // ブックマークに追加
-        await bookmarkPostsCollection.doc(postId).set({
-          'added_at': timestamp, // 投稿が追加された時間を記録
-        });
         await bookmarkUsersCollection.doc(userId).set({
-          'added_at': timestamp, // ユーザーが投稿をブックマークにした時間を記録
+          'added_at': timestamp,
+          'user_id': userId,
         });
       }
 

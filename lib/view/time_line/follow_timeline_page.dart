@@ -35,8 +35,8 @@ class _FollowTimelinePageState extends ConsumerState<FollowTimelinePage> {
     super.initState();
     _loadLoginUserId();
     _scrollController.addListener(_scrollListener);
-    _favoritePost.getFavoritePosts();
-    _bookmarkPost.getBookmarkPosts();
+    // _favoritePost.getFavoritePosts();
+    // _bookmarkPost.getBookmarkPosts();
   }
 
   @override

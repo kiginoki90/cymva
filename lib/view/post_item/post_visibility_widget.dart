@@ -32,7 +32,7 @@ class _PostVisibilityWidgetState extends State<PostVisibilityWidget> {
     super.initState();
     _isFollowingFuture = _isFollowing();
     _blockedAccountsFuture = _fetchBlockedAccounts(widget.userId);
-    _bookmarkPost.getBookmarkPosts();
+    // _bookmarkPost.getBookmarkPosts();
   }
 
   Future<bool> _isFollowing() async {

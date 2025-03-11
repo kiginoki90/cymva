@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
+import 'package:cymva/utils/favorite_post.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cymva/view/repost_page.dart';
 import 'package:cymva/view/reply_page.dart';
+import 'package:cymva/utils/book_mark.dart';
 
 class IconsActionsWidget extends StatefulWidget {
   final Post post;
@@ -14,8 +16,8 @@ class IconsActionsWidget extends StatefulWidget {
   final ValueNotifier<bool> isBookmarkedNotifier;
   final ValueNotifier<bool> isFavoriteNotifier;
   final ValueNotifier<int> replyCountNotifier;
-  final VoidCallback onFavoriteToggle;
-  final VoidCallback onBookMsrkToggle;
+  // final VoidCallback onFavoriteToggle;
+  // final VoidCallback onBookMsrkToggle;
 
   const IconsActionsWidget({
     Key? key,
@@ -26,8 +28,8 @@ class IconsActionsWidget extends StatefulWidget {
     required this.isBookmarkedNotifier,
     required this.isFavoriteNotifier,
     required this.replyCountNotifier,
-    required this.onFavoriteToggle,
-    required this.onBookMsrkToggle,
+    // required this.onFavoriteToggle,
+    // required this.onBookMsrkToggle,
   }) : super(key: key);
 
   @override
@@ -37,6 +39,8 @@ class IconsActionsWidget extends StatefulWidget {
 class _IconsActionsWidgetState extends State<IconsActionsWidget> {
   bool _isProcessingFavorite = false;
   bool _isProcessingBookmark = false;
+  final BookmarkPost _bookmarkPost = BookmarkPost();
+  final FavoritePost _favoritePost = FavoritePost();
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +66,7 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
                 final favoriteCount = snapshot.data!.docs.length;
 
                 return AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 500),
+                  duration: const Duration(milliseconds: 400),
                   transitionBuilder:
                       (Widget child, Animation<double> animation) {
                     return ScaleTransition(scale: animation, child: child);
@@ -77,10 +81,10 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
             const SizedBox(width: 5),
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(widget.userId)
-                  .collection('favorite_posts')
+                  .collection('posts')
                   .doc(widget.post.id)
+                  .collection('favorite_users')
+                  .doc(widget.userId)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
@@ -89,7 +93,6 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
                     color: Colors.grey,
                   );
                 }
-
                 final isFavorite = snapshot.data!.exists;
 
                 return GestureDetector(
@@ -100,14 +103,24 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
                       _isProcessingFavorite = true;
                     });
 
-                    widget.onFavoriteToggle();
-                    final newValue = !widget.isFavoriteNotifier.value;
-                    widget.isFavoriteNotifier.value = newValue;
+                    // Firestoreのドキュメントを確認
+                    final docSnapshot = await FirebaseFirestore.instance
+                        .collection('posts')
+                        .doc(widget.post.id)
+                        .collection('favorite_users')
+                        .doc(widget.userId)
+                        .get();
+
+                    final snackBarMessage =
+                        docSnapshot.exists ? 'スターを返して貰いました' : 'スターを送りました';
+
+                    await _favoritePost.toggleFavorite(
+                        widget.post.id, docSnapshot.exists);
 
                     // スナックバーを表示
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(newValue ? 'スターを送りました' : 'スターを返して貰いました'),
+                        content: Text(snackBarMessage),
                         duration: Duration(seconds: 2),
                       ),
                     );
@@ -120,7 +133,7 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
                     });
                   },
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 500),
+                    duration: const Duration(milliseconds: 400),
                     transitionBuilder:
                         (Widget child, Animation<double> animation) {
                       return ScaleTransition(scale: animation, child: child);
@@ -226,7 +239,7 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
                   final bookmarkCount = snapshot.data!.docs.length;
 
                   return AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 500),
+                    duration: const Duration(milliseconds: 400),
                     transitionBuilder:
                         (Widget child, Animation<double> animation) {
                       return ScaleTransition(scale: animation, child: child);
@@ -241,10 +254,10 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
             const SizedBox(width: 5),
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(widget.userId)
-                  .collection('bookmark_posts')
+                  .collection('posts')
                   .doc(widget.post.id)
+                  .collection('bookmark_users')
+                  .doc(widget.userId)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
@@ -255,6 +268,7 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
                 }
 
                 final isBookmarked = snapshot.data!.exists;
+
                 return GestureDetector(
                   onTap: () async {
                     if (_isProcessingBookmark) return;
@@ -263,14 +277,25 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
                       _isProcessingBookmark = true;
                     });
 
-                    widget.onBookMsrkToggle();
-                    final newValue = !widget.isBookmarkedNotifier.value;
-                    widget.isBookmarkedNotifier.value = newValue;
+                    // Firestoreのドキュメントを確認
+                    final docSnapshot = await FirebaseFirestore.instance
+                        .collection('posts')
+                        .doc(widget.post.id)
+                        .collection('bookmark_users')
+                        .doc(widget.userId)
+                        .get();
+
+                    await _bookmarkPost.toggleBookmark(
+                        widget.post.id, docSnapshot.exists);
+
+                    // スナックバーのメッセージを設定
+                    final snackBarMessage =
+                        docSnapshot.exists ? '栞を外しました' : '栞を挟みました';
 
                     // スナックバーを表示
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(newValue ? '栞を挟みました' : '栞を外しました'),
+                        content: Text(snackBarMessage),
                         duration: Duration(seconds: 2),
                       ),
                     );
@@ -281,7 +306,7 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
                     });
                   },
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 500),
+                    duration: const Duration(milliseconds: 400),
                     transitionBuilder:
                         (Widget child, Animation<double> animation) {
                       return ScaleTransition(scale: animation, child: child);

@@ -16,14 +16,15 @@ class SearchItem {
     String? searchUserId,
     bool? isExactMatch,
     bool? isFollowing,
-    // bool? star,
+    bool? star,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    if ((query.isEmpty || query == null) &&
+    if ((query.isEmpty) &&
         (selectedCategory == null || selectedCategory.isEmpty) &&
         (searchUserId == null || searchUserId.isEmpty) &&
-        isFollowing == null &&
+        isFollowing != true &&
+        star != true &&
         startDate == null &&
         endDate == null) {
       updateResults([]);
@@ -38,6 +39,8 @@ class SearchItem {
     if (selectedCategory != null && selectedCategory.isNotEmpty) {
       queryRef = queryRef.where('category', isEqualTo: selectedCategory);
     }
+
+    List<String> filteredDocumentIds = [];
 
     // ユーザーIDでフィルタリング
     if (searchUserId != null && searchUserId.isNotEmpty) {
@@ -56,10 +59,12 @@ class SearchItem {
         }
       }).toList();
 
-      // クエリ結果を更新
-      queryRef = queryRef.where(FieldPath.documentId,
-          whereIn: filteredDocuments.map((doc) => doc.id).toList());
+      // フィルタリングされたドキュメントのIDをリストに追加
+      filteredDocumentIds.addAll(filteredDocuments.map((doc) => doc.id));
     }
+
+    List<String> followUserIds = [];
+    List<String> favoritePostIds = [];
 
     // フォローしているかどうかでフィルタリング
     if (isFollowing == true && userId != null) {
@@ -70,33 +75,32 @@ class SearchItem {
           .collection('follow')
           .get();
 
-      final followUserIds = followSnapshot.docs.map((doc) => doc.id).toList();
+      followUserIds = followSnapshot.docs.map((doc) => doc.id).toList();
 
       if (followUserIds.isEmpty) {
+        updateResults([]);
         return;
       }
-
-      // フォローしているユーザーの投稿のみをフィルタリング
-      queryRef = queryRef.where('post_account_id', whereIn: followUserIds);
     }
 
-    //お気に入りのフィルタリング
-    // if (star == true && userId != null) {
-    //   // フォローしているユーザーのリストを取得
-    //   final favoriteSnapshot = await firestore
-    //       .collection('users')
-    //       .doc(userId)
-    //       .collection('favorite_posts')
-    //       .get();
+    // お気に入りユーザーのフィルタリング
+    if (star == true && userId != null) {
+      // お気に入りユーザーの投稿を取得
+      final favoriteSnapshot = await FirebaseFirestore.instance
+          .collectionGroup('favorite_users')
+          .where('user_id', isEqualTo: userId)
+          .orderBy('added_at', descending: true)
+          .get();
 
-    //   final favoritePosts = favoriteSnapshot.docs.map((doc) => doc.id).toList();
+      favoritePostIds = favoriteSnapshot.docs
+          .map((doc) => doc.reference.parent.parent!.id)
+          .toList();
 
-    //   if (favoritePosts.isEmpty) {
-    //     return;
-    //   }
-
-    //   queryRef = queryRef.where('post_id', whereIn: favoritePosts);
-    // }
+      if (favoritePostIds.isEmpty) {
+        updateResults([]);
+        return;
+      }
+    }
 
     // 日付範囲でフィルタリング
     if (startDate != null) {
@@ -132,7 +136,32 @@ class SearchItem {
         .take(100) // ここで結果を100件までに制限
         .toList();
 
-    updateResults(filteredPosts);
+// フォローしているユーザーとお気に入りユーザーのフィルタリングを適用
+    List<DocumentSnapshot> finalFilteredPosts = filteredPosts;
+    if (followUserIds.isNotEmpty && favoritePostIds.isNotEmpty) {
+      finalFilteredPosts = filteredPosts
+          .where((doc) =>
+              followUserIds.contains(doc['post_account_id']) &&
+              favoritePostIds.contains(doc.id))
+          .toList();
+    } else if (followUserIds.isNotEmpty) {
+      finalFilteredPosts = filteredPosts
+          .where((doc) => followUserIds.contains(doc['post_account_id']))
+          .toList();
+    } else if (favoritePostIds.isNotEmpty) {
+      finalFilteredPosts = filteredPosts
+          .where((doc) => favoritePostIds.contains(doc.id))
+          .toList();
+    }
+
+    // ユーザーIDでフィルタリングされたドキュメントのIDを適用
+    if (filteredDocumentIds.isNotEmpty) {
+      finalFilteredPosts = finalFilteredPosts
+          .where((doc) => filteredDocumentIds.contains(doc.id))
+          .toList();
+    }
+
+    updateResults(finalFilteredPosts);
   }
 
   Future<void> searchAccounts(
@@ -215,16 +244,15 @@ class SearchItem {
     String? searchUserId,
     bool? isExactMatch,
     bool? isFollowing,
-    // bool? star,
+    bool? star,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
     if (query.isEmpty &&
         (selectedCategory == null || selectedCategory.isEmpty) &&
-        (userId == null || userId.isEmpty) &&
         (searchUserId == null || searchUserId.isEmpty) &&
-        isFollowing == null &&
-        // star == null &&
+        isFollowing != true &&
+        star == null &&
         startDate == null &&
         endDate == null) {
       updateResults([]);
@@ -240,30 +268,34 @@ class SearchItem {
         queryRef = queryRef.where('category', isEqualTo: selectedCategory);
       }
 
+      List<String> filteredDocumentIds = [];
+
       // ユーザーIDでフィルタリング
       if (searchUserId != null && searchUserId.isNotEmpty) {
-        if (isExactMatch == true) {
-          // 完全一致検索
-          queryRef = queryRef.where('post_user_id', isEqualTo: searchUserId);
-        } else {
-          // 部分一致検索はクライアント側で行う必要があるため、全てのドキュメントを取得
-          final allDocumentsSnapshot = await queryRef.get();
+        // まずは全てのドキュメントを取得
+        final allDocumentsSnapshot = await queryRef.get();
 
-          // 部分一致検索をクライアント側で行う
-          final filteredDocuments = allDocumentsSnapshot.docs.where((doc) {
-            final postUserId = doc['post_user_id'] as String;
+        // フィルタリングをクライアント側で行う
+        final filteredDocuments = allDocumentsSnapshot.docs.where((doc) {
+          final postUserId = doc['post_user_id'] as String;
+          if (isExactMatch!) {
+            // 完全一致検索
+            return postUserId == searchUserId;
+          } else {
+            // 部分一致検索
             return postUserId.contains(searchUserId);
-          }).toList();
+          }
+        }).toList();
 
-          // クエリ結果を更新
-          queryRef = queryRef.where(FieldPath.documentId,
-              whereIn: filteredDocuments.map((doc) => doc.id).toList());
-        }
+        // フィルタリングされたドキュメントのIDをリストに追加
+        filteredDocumentIds.addAll(filteredDocuments.map((doc) => doc.id));
       }
 
-      if (isFollowing == true && userId != null) {
-        final filteredSnapshot = await queryRef.get();
+      List<String> followUserIds = [];
+      List<String> favoritePostIds = [];
 
+      // フォローしているかどうかでフィルタリング
+      if (isFollowing == true && userId != null) {
         // フォローしているユーザーのリストを取得
         final followSnapshot = await firestore
             .collection('users')
@@ -271,34 +303,32 @@ class SearchItem {
             .collection('follow')
             .get();
 
-        final followUserIds = followSnapshot.docs.map((doc) => doc.id).toList();
+        followUserIds = followSnapshot.docs.map((doc) => doc.id).toList();
 
-        // フォローしているユーザーの投稿のみをフィルタリング
-        queryRef = queryRef.where('post_account_id', whereIn: followUserIds);
-
-        // フィルタリングされた結果の数を確認
-        // final filteredSnapshot = await queryRef.get();
-        print('フォロー結果の数: ${filteredSnapshot.size}');
+        if (followUserIds.isEmpty) {
+          updateResults([]);
+          return;
+        }
       }
 
-      //お気に入りのフィルタリング
-      // if (star == true && userId != null) {
-      //   // フォローしているユーザーのリストを取得
-      //   final favoriteSnapshot = await firestore
-      //       .collection('users')
-      //       .doc(userId)
-      //       .collection('favorite_posts')
-      //       .get();
+      // お気に入りユーザーのフィルタリング
+      if (star == true && userId != null) {
+        // お気に入りユーザーの投稿を取得
+        final favoriteSnapshot = await FirebaseFirestore.instance
+            .collectionGroup('favorite_users')
+            .where('user_id', isEqualTo: userId)
+            .orderBy('added_at', descending: true)
+            .get();
 
-      //   final favoritePosts =
-      //       favoriteSnapshot.docs.map((doc) => doc.id).toList();
+        favoritePostIds = favoriteSnapshot.docs
+            .map((doc) => doc.reference.parent.parent!.id)
+            .toList();
 
-      //   if (favoritePosts.isEmpty) {
-      //     return;
-      //   }
-
-      //   queryRef = queryRef.where('post_id', whereIn: favoritePosts);
-      // }
+        if (favoritePostIds.isEmpty) {
+          updateResults([]);
+          return;
+        }
+      }
 
       // 日付範囲でフィルタリング
       if (startDate != null) {
@@ -365,7 +395,32 @@ class SearchItem {
       // 最終的な結果を100件までに制限
       final limitedResults = postWithFavorites.take(100).toList();
 
-      updateResults(limitedResults);
+      // フォローしているユーザーとお気に入りユーザーのフィルタリングを適用
+      List<DocumentSnapshot> finalFilteredPosts = limitedResults;
+      if (followUserIds.isNotEmpty && favoritePostIds.isNotEmpty) {
+        finalFilteredPosts = limitedResults
+            .where((doc) =>
+                followUserIds.contains(doc['post_account_id']) &&
+                favoritePostIds.contains(doc.id))
+            .toList();
+      } else if (followUserIds.isNotEmpty) {
+        finalFilteredPosts = limitedResults
+            .where((doc) => followUserIds.contains(doc['post_account_id']))
+            .toList();
+      } else if (favoritePostIds.isNotEmpty) {
+        finalFilteredPosts = limitedResults
+            .where((doc) => favoritePostIds.contains(doc.id))
+            .toList();
+      }
+
+      // ユーザーIDでフィルタリングされたドキュメントのIDを適用
+      if (filteredDocumentIds.isNotEmpty) {
+        finalFilteredPosts = finalFilteredPosts
+            .where((doc) => filteredDocumentIds.contains(doc.id))
+            .toList();
+      }
+
+      updateResults(finalFilteredPosts);
     } catch (error) {
       // エラーハンドリング
       print('Error fetching recent favorites: $error');
@@ -397,15 +452,15 @@ class SearchItem {
     String? searchUserId,
     bool? isExactMatch,
     bool? isFollowing,
-    // bool? star,
+    bool? star,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
     if (query.isEmpty &&
         (selectedCategory == null || selectedCategory.isEmpty) &&
         (searchUserId == null || searchUserId.isEmpty) &&
-        (userId == null || userId.isEmpty) &&
-        isFollowing == null &&
+        isFollowing != true &&
+        star != true &&
         startDate == null &&
         endDate == null) {
       updateResults([]);
@@ -420,6 +475,8 @@ class SearchItem {
     if (selectedCategory != null && selectedCategory.isNotEmpty) {
       queryRef = queryRef.where('category', isEqualTo: selectedCategory);
     }
+
+    List<String> filteredDocumentIds = [];
 
     // ユーザーIDでフィルタリング
     if (searchUserId != null && searchUserId.isNotEmpty) {
@@ -438,10 +495,12 @@ class SearchItem {
         }
       }).toList();
 
-      // クエリ結果を更新
-      queryRef = queryRef.where(FieldPath.documentId,
-          whereIn: filteredDocuments.map((doc) => doc.id).toList());
+      // フィルタリングされたドキュメントのIDをリストに追加
+      filteredDocumentIds.addAll(filteredDocuments.map((doc) => doc.id));
     }
+
+    List<String> followUserIds = [];
+    List<String> favoritePostIds = [];
 
     // フォローしているかどうかでフィルタリング
     if (isFollowing == true && userId != null) {
@@ -452,29 +511,32 @@ class SearchItem {
           .collection('follow')
           .get();
 
-      final followUserIds = followSnapshot.docs.map((doc) => doc.id).toList();
+      followUserIds = followSnapshot.docs.map((doc) => doc.id).toList();
 
-      // フォローしているユーザーの投稿のみをフィルタリング
-      queryRef = queryRef.where('post_account_id', whereIn: followUserIds);
+      if (followUserIds.isEmpty) {
+        updateResults([]);
+        return;
+      }
     }
 
-    //お気に入りのフィルタリング
-    // if (star == true && userId != null) {
-    //   // フォローしているユーザーのリストを取得
-    //   final favoriteSnapshot = await firestore
-    //       .collection('users')
-    //       .doc(userId)
-    //       .collection('favorite_posts')
-    //       .get();
+    // お気に入りユーザーのフィルタリング
+    if (star == true && userId != null) {
+      // お気に入りユーザーの投稿を取得
+      final favoriteSnapshot = await FirebaseFirestore.instance
+          .collectionGroup('favorite_users')
+          .where('user_id', isEqualTo: userId)
+          .orderBy('added_at', descending: true)
+          .get();
 
-    //   final favoritePosts = favoriteSnapshot.docs.map((doc) => doc.id).toList();
+      favoritePostIds = favoriteSnapshot.docs
+          .map((doc) => doc.reference.parent.parent!.id)
+          .toList();
 
-    //   if (favoritePosts.isEmpty) {
-    //     return;
-    //   }
-
-    //   queryRef = queryRef.where('post_id', whereIn: favoritePosts);
-    // }
+      if (favoritePostIds.isEmpty) {
+        updateResults([]);
+        return;
+      }
+    }
 
     // 日付範囲でフィルタリング
     if (startDate != null) {
@@ -510,6 +572,31 @@ class SearchItem {
         .take(100)
         .toList(); // ここで結果を100件までに制限
 
-    updateResults(filteredPosts);
+    // フォローしているユーザーとお気に入りユーザーのフィルタリングを適用
+    List<DocumentSnapshot> finalFilteredPosts = filteredPosts;
+    if (followUserIds.isNotEmpty && favoritePostIds.isNotEmpty) {
+      finalFilteredPosts = filteredPosts
+          .where((doc) =>
+              followUserIds.contains(doc['post_account_id']) &&
+              favoritePostIds.contains(doc.id))
+          .toList();
+    } else if (followUserIds.isNotEmpty) {
+      finalFilteredPosts = filteredPosts
+          .where((doc) => followUserIds.contains(doc['post_account_id']))
+          .toList();
+    } else if (favoritePostIds.isNotEmpty) {
+      finalFilteredPosts = filteredPosts
+          .where((doc) => favoritePostIds.contains(doc.id))
+          .toList();
+    }
+
+    // ユーザーIDでフィルタリングされたドキュメントのIDを適用
+    if (filteredDocumentIds.isNotEmpty) {
+      finalFilteredPosts = finalFilteredPosts
+          .where((doc) => filteredDocumentIds.contains(doc.id))
+          .toList();
+    }
+
+    updateResults(finalFilteredPosts);
   }
 }

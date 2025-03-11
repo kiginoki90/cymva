@@ -58,22 +58,21 @@ class _PostDetailPageState extends State<PostDetailPage> {
   final ValueNotifier<int> bookmarkUsersNotifier = ValueNotifier<int>(0);
   final ValueNotifier<bool> isBookmarkedNotifier = ValueNotifier<bool>(false);
   bool isHidden = true;
+  String? _imageUrl;
 
   @override
   void initState() {
     super.initState();
     _fetchFavoriteData();
     _replyPostsFuture = getRePosts(widget.post.id);
-    _favoritePost.getFavoritePosts();
-    _bookmarkPost.getBookmarkPosts();
+    // _favoritePost.getFavoritePosts();
+    // _bookmarkPost.getBookmarkPosts();
     _checkAdminLevel();
+    _getImageUrl();
 
     if (widget.post.reply != null && widget.post.reply!.isNotEmpty) {
       _replyToPostFuture = getPostById(widget.post.reply!);
     }
-    // if (widget.post.isVideo && widget.post.mediaUrl != null) {
-    //   _initializeVideoPlayer();
-    // }
     _fetchRepostDetails();
     _fetchReplyCount();
   }
@@ -406,12 +405,39 @@ class _PostDetailPageState extends State<PostDetailPage> {
     super.dispose();
   }
 
+  Future<void> _getImageUrl() async {
+    // FirestoreからURLを取得
+    DocumentSnapshot<Map<String, dynamic>> doc = await FirebaseFirestore
+        .instance
+        .collection('setting')
+        .doc('AppBarIMG')
+        .get();
+    String? imageUrl = doc.data()?['PostDetailPage'];
+    if (imageUrl != null) {
+      // Firebase StorageからダウンロードURLを取得
+      final ref = FirebaseStorage.instance.refFromURL(imageUrl);
+      String downloadUrl = await ref.getDownloadURL();
+      setState(() {
+        _imageUrl = downloadUrl;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // お気に入りユーザー数の初期化と更新
     return Scaffold(
       appBar: AppBar(
-        title: const Text('投稿の詳細'),
+        title: _imageUrl == null
+            ? const Text('投稿の詳細', style: TextStyle(color: Colors.black))
+            : Image.network(
+                _imageUrl!,
+                fit: BoxFit.cover,
+                height: kToolbarHeight,
+              ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.black),
       ),
       body: Padding(
         padding: const EdgeInsets.all(10.0),
@@ -892,12 +918,12 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   isBookmarkedNotifier: widget.isBookmarkedNotifier,
                   isFavoriteNotifier: isFavoriteNotifier,
                   replyCountNotifier: _replyCountNotifier,
-                  onFavoriteToggle: () => _favoritePost.toggleFavorite(
-                    widget.post.id,
-                    _favoritePost.favoritePostsNotifier.value
-                        .contains(widget.post.id),
-                  ),
-                  onBookMsrkToggle: widget.onBookMsrkToggle,
+                  // onFavoriteToggle: () => _favoritePost.toggleFavorite(
+                  //   widget.post.id,
+                  //   _favoritePost.favoritePostsNotifier.value
+                  //       .contains(widget.post.id),
+                  // ),
+                  // onBookMsrkToggle: widget.onBookMsrkToggle,
                 ),
 
               GestureDetector(

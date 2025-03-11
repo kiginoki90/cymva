@@ -40,7 +40,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
     super.initState();
     _initializePageController();
     _pageController = PageController();
-    _favoritePostsFuture = _favoritePost.getFavoritePosts();
+    // _favoritePostsFuture = _favoritePost.getFavoritePosts();
     _loadAccount();
   }
 

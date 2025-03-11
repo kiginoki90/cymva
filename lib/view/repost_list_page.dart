@@ -28,7 +28,7 @@ class _RepostListPageState extends State<RepostListPage> {
   @override
   void initState() {
     super.initState();
-    _bookmarkPost.getBookmarkPosts();
+    // _bookmarkPost.getBookmarkPosts();
   }
 
   @override

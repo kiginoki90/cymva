@@ -1,3 +1,4 @@
+import 'package:cymva/ad_widget.dart';
 import 'package:cymva/utils/book_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,8 +10,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class FavoriteList extends ConsumerStatefulWidget {
   final Account myAccount;
+  final userId;
 
-  const FavoriteList({Key? key, required this.myAccount}) : super(key: key);
+  const FavoriteList({Key? key, required this.myAccount, required this.userId})
+      : super(key: key);
 
   @override
   _FavoriteListState createState() => _FavoriteListState();
@@ -28,8 +31,8 @@ class _FavoriteListState extends ConsumerState<FavoriteList> {
     super.initState();
     _loadPosts();
     _scrollController.addListener(_scrollListener);
-    _favoritePost.getFavoritePosts(); // お気に入りの投稿を取得
-    _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
+    // _favoritePost.getFavoritePosts(); // お気に入りの投稿を取得
+    // _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
   }
 
   @override
@@ -97,15 +100,26 @@ class _FavoriteListState extends ConsumerState<FavoriteList> {
             onRefresh: _refreshPosts,
             child: ListView.builder(
               controller: _scrollController,
-              itemCount: model.postList.length + 1,
+              itemCount:
+                  model.postList.length + (model.postList.length ~/ 10) + 1,
               itemBuilder: (context, index) {
-                if (index == model.postList.length) {
+                if (index ==
+                    model.postList.length + (model.postList.length ~/ 10)) {
                   return _isLoadingMore
                       ? const Center(child: Text(" Loading..."))
                       : const Center(child: Text("結果は以上です"));
                 }
 
-                final post = model.postList[index];
+                if (index % 11 == 10) {
+                  return BannerAdWidget(); // 広告ウィジェットを表示
+                }
+
+                final postIndex = index - (index ~/ 11);
+                if (postIndex >= model.postList.length) {
+                  return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+                }
+
+                final post = model.postList[postIndex];
 
                 // お気に入りユーザー数の初期化と更新
                 _favoritePost.favoriteUsersNotifiers[post.id] ??=
@@ -152,7 +166,7 @@ class _FavoriteListState extends ConsumerState<FavoriteList> {
                         _bookmarkPost.bookmarkPostsNotifier.value
                             .contains(post.id),
                       ),
-                      userId: widget.myAccount.id,
+                      userId: widget.userId,
                     );
                   },
                 );
@@ -170,67 +184,79 @@ class DbManager {
   DocumentSnapshot? _lastDocument;
 
   Future<List<Post>> getFavoritePosts(String userId) async {
-    Query query = _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('favorite_posts')
-        .orderBy('added_at', descending: true)
-        .limit(10);
-
-    final querySnapshot = await query.get();
     List<Post> posts = [];
-    if (querySnapshot.docs.isNotEmpty) {
-      _lastDocument = querySnapshot.docs.last;
-      List<Future<Post?>> futures = querySnapshot.docs.map((doc) async {
-        final postId = doc.id;
-        final postDoc = await _firestore.collection('posts').doc(postId).get();
-        if (postDoc.exists) {
-          // final postData = postDoc.data() as Map<String, dynamic>;
-          return Post.fromDocument(postDoc);
-        }
-        return null;
-      }).toList();
+    try {
+      Query query = _firestore
+          .collectionGroup('favorite_users')
+          .where('user_id', isEqualTo: userId)
+          .orderBy('added_at', descending: true)
+          .limit(10);
 
-      posts = (await Future.wait(futures))
-          .where((post) => post != null)
-          .cast<Post>()
-          .toList();
-    } else {
-      print("No posts found.");
+      final querySnapshot = await query.get();
+
+      print('取得したドキュメントの数: ${querySnapshot.docs.length}');
+
+      if (querySnapshot.docs.isNotEmpty) {
+        _lastDocument = querySnapshot.docs.last;
+        List<Future<Post?>> futures = querySnapshot.docs.map((doc) async {
+          final postId = doc.reference.parent.parent!.id;
+          final postDoc =
+              await _firestore.collection('posts').doc(postId).get();
+          if (postDoc.exists) {
+            return Post.fromDocument(postDoc);
+          }
+          return null;
+        }).toList();
+
+        posts = (await Future.wait(futures))
+            .where((post) => post != null)
+            .cast<Post>()
+            .toList();
+      } else {
+        print("No posts found.");
+      }
+    } catch (e) {
+      print("Error getting favorite posts: $e");
     }
     return posts;
   }
 
   Future<List<Post>> getFavoritePostsNext(String userId) async {
-    if (_lastDocument == null) return [];
+    if (_lastDocument == null) {
+      return [];
+    }
 
-    Query query = _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('favorite_posts')
-        .orderBy('added_at', descending: true)
-        .startAfterDocument(_lastDocument!)
-        .limit(10);
-
-    final querySnapshot = await query.get();
     List<Post> posts = [];
-    if (querySnapshot.docs.isNotEmpty) {
-      _lastDocument = querySnapshot.docs.last;
-      List<Future<Post?>> futures = querySnapshot.docs.map((doc) async {
-        final postId = doc.id;
-        final postDoc = await _firestore.collection('posts').doc(postId).get();
-        if (postDoc.exists) {
-          return Post.fromDocument(postDoc);
-        }
-        return null;
-      }).toList();
+    try {
+      Query query = _firestore
+          .collectionGroup('favorite_users')
+          .where('user_id', isEqualTo: userId)
+          .orderBy('added_at', descending: true)
+          .startAfterDocument(_lastDocument!)
+          .limit(10);
 
-      posts = (await Future.wait(futures))
-          .where((post) => post != null)
-          .cast<Post>()
-          .toList();
-    } else {
-      print("No more posts found.");
+      final querySnapshot = await query.get();
+      if (querySnapshot.docs.isNotEmpty) {
+        _lastDocument = querySnapshot.docs.last;
+        List<Future<Post?>> futures = querySnapshot.docs.map((doc) async {
+          final postId = doc.reference.parent.parent!.id;
+          final postDoc =
+              await _firestore.collection('posts').doc(postId).get();
+          if (postDoc.exists) {
+            return Post.fromDocument(postDoc);
+          }
+          return null;
+        }).toList();
+
+        posts = (await Future.wait(futures))
+            .where((post) => post != null)
+            .cast<Post>()
+            .toList();
+      } else {
+        print("No more posts found.");
+      }
+    } catch (e) {
+      print("Error getting next favorite posts: $e");
     }
     return posts;
   }

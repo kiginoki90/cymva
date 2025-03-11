@@ -5,6 +5,7 @@ import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/search/detailed_search_page.dart';
 import 'package:cymva/view/search/search_item.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
@@ -62,6 +63,7 @@ class _SearchPageState extends State<SearchPage> {
     await storage.delete(key: 'searchUserId');
     await storage.delete(key: 'isExactMatch');
     await storage.delete(key: 'isFollowing');
+    await storage.delete(key: 'star');
     await storage.delete(key: 'startDate');
     await storage.delete(key: 'endDate');
   }
@@ -74,6 +76,7 @@ class _SearchPageState extends State<SearchPage> {
     final searchUserId = await storage.read(key: 'searchUserId');
     final isExactMatch = (await storage.read(key: 'isExactMatch')) == 'true';
     final isFollowing = (await storage.read(key: 'isFollowing')) == 'true';
+    final star = (await storage.read(key: 'star')) == 'true';
     final startDateString = await storage.read(key: 'startDate');
     final endDateString = await storage.read(key: 'endDate');
     final startDate =
@@ -97,6 +100,7 @@ class _SearchPageState extends State<SearchPage> {
       searchUserId: searchUserId,
       isExactMatch: isExactMatch,
       isFollowing: isFollowing,
+      star: star,
       startDate: startDate,
       endDate: endDate,
     );
@@ -120,6 +124,7 @@ class _SearchPageState extends State<SearchPage> {
       searchUserId: searchUserId,
       isExactMatch: isExactMatch,
       isFollowing: isFollowing,
+      // star: star,
       startDate: startDate,
       endDate: endDate,
     );
@@ -135,11 +140,12 @@ class _SearchPageState extends State<SearchPage> {
       searchUserId: searchUserId,
       isExactMatch: isExactMatch,
       isFollowing: isFollowing,
+      // star: star,
       startDate: startDate,
       endDate: endDate,
     );
 
-    _favoritePost.getFavoritePosts();
+    // _favoritePost.getFavoritePosts();
   }
 
   @override
@@ -912,6 +918,26 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
+  Future<String?> _getImageUrl() async {
+    try {
+      // FirestoreからURLを取得
+      DocumentSnapshot<Map<String, dynamic>> doc = await FirebaseFirestore
+          .instance
+          .collection('setting')
+          .doc('AppBarIMG')
+          .get();
+      String? imageUrl = doc.data()?['showCategoryDialog'];
+      if (imageUrl != null) {
+        // Firebase StorageからダウンロードURLを取得
+        final ref = FirebaseStorage.instance.refFromURL(imageUrl);
+        return await ref.getDownloadURL();
+      }
+    } catch (e) {
+      print('Error fetching image URL: $e');
+    }
+    return null;
+  }
+
   void _showCategoryDialog() async {
     showDialog(
       context: context,
@@ -920,7 +946,22 @@ class _SearchPageState extends State<SearchPage> {
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('カテゴリーの選択'),
+              FutureBuilder<String?>(
+                future: _getImageUrl(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Text('');
+                  } else if (snapshot.hasError || !snapshot.hasData) {
+                    return const Text('カテゴリーの選択');
+                  } else {
+                    return Image.network(
+                      snapshot.data!,
+                      fit: BoxFit.cover,
+                      height: kToolbarHeight,
+                    );
+                  }
+                },
+              ),
               IconButton(
                 icon: Icon(
                   Icons.new_label,
@@ -946,6 +987,7 @@ class _SearchPageState extends State<SearchPage> {
                     await storage.delete(key: 'searchUserId');
                     await storage.delete(key: 'isExactMatch');
                     await storage.delete(key: 'isFollowing');
+                    await storage.delete(key: 'star');
                     await storage.delete(key: 'startDate');
                     await storage.delete(key: 'endDate');
 
@@ -996,72 +1038,79 @@ class _SearchPageState extends State<SearchPage> {
       },
     ).then((result) {
       if (result != null) {
-        // 検索条件を受け取る
-        final query = result['query'] as String;
-        final selectedCategory = result['selectedCategory'] as String?;
-        final searchUserId = result['searchUserId'] as String?;
-        final isExactMatch = result['isExactMatch'] as bool;
-        final isFollowing = result['isFollowing'] as bool;
-        // final star = result['star'] as bool;
-        final startDate = result['startDate'] as DateTime?;
-        final endDate = result['endDate'] as DateTime?;
-
-        // 検索条件を適用して検索を実行
-        _searchItem.searchPosts(
-          query,
-          widget.userId,
-          selectedCategory,
-          null,
-          (results) {
-            setState(() {
-              _postSearchResults = results;
-            });
-          },
-          searchUserId: searchUserId,
-          isExactMatch: isExactMatch,
-          isFollowing: isFollowing,
-          // star: star,
-          startDate: startDate,
-          endDate: endDate,
-        );
-
-        // 検索条件を適用して検索を実行
-        _searchItem.fetchRecentFavorites(
-          query,
-          widget.userId,
-          selectedCategory,
-          _postFavoriteCounts,
-          (results) {
-            setState(() {
-              _recentFavoritesResults = results;
-            });
-          },
-          searchUserId: searchUserId,
-          isExactMatch: isExactMatch,
-          isFollowing: isFollowing,
-          // star: star,
-          startDate: startDate,
-          endDate: endDate,
-        );
-
-        // 画像の詳しい検索
-        _searchItem.searchImagePosts(
-          query,
-          widget.userId,
-          selectedCategory,
-          (results) {
-            setState(() {
-              _recentImageResults = results;
-            });
-          },
-          searchUserId: searchUserId,
-          isExactMatch: isExactMatch,
-          isFollowing: isFollowing,
-          // star: star,
-          startDate: startDate,
-          endDate: endDate,
-        );
+        // 検索条件をストレージから読み取って適用
+        _applySearchFiltersFromStorage();
       }
     });
+  }
+
+  Future<void> _applySearchFiltersFromStorage() async {
+    final query = await storage.read(key: 'query') ?? '';
+    final selectedCategory = await storage.read(key: 'selectedCategory');
+    final searchUserId = await storage.read(key: 'searchUserId') ?? '';
+    final isExactMatch = (await storage.read(key: 'isExactMatch')) == 'true';
+    final isFollowing = (await storage.read(key: 'isFollowing')) == 'true';
+    final star = (await storage.read(key: 'star')) == 'true';
+    final startDateString = await storage.read(key: 'startDate');
+    final startDate =
+        startDateString != null ? DateTime.tryParse(startDateString) : null;
+    final endDateString = await storage.read(key: 'endDate');
+    final endDate =
+        endDateString != null ? DateTime.tryParse(endDateString) : null;
+
+    // 検索条件を適用して検索を実行
+    _searchItem.searchPosts(
+      query,
+      widget.userId,
+      selectedCategory,
+      null,
+      (results) {
+        setState(() {
+          _postSearchResults = results;
+        });
+      },
+      searchUserId: searchUserId,
+      isExactMatch: isExactMatch,
+      isFollowing: isFollowing,
+      star: star,
+      startDate: startDate,
+      endDate: endDate,
+    );
+
+    // 検索条件を適用して検索を実行
+    _searchItem.fetchRecentFavorites(
+      query,
+      widget.userId,
+      selectedCategory,
+      _postFavoriteCounts,
+      (results) {
+        setState(() {
+          _recentFavoritesResults = results;
+        });
+      },
+      searchUserId: searchUserId,
+      isExactMatch: isExactMatch,
+      isFollowing: isFollowing,
+      star: star,
+      startDate: startDate,
+      endDate: endDate,
+    );
+    // 画像の詳しい検索
+    _searchItem.searchImagePosts(
+      query,
+      widget.userId,
+      selectedCategory,
+      (results) {
+        setState(() {
+          _recentImageResults = results;
+        });
+      },
+      searchUserId: searchUserId,
+      isExactMatch: isExactMatch,
+      isFollowing: isFollowing,
+      star: star,
+      startDate: startDate,
+      endDate: endDate,
+    );
   }
 }

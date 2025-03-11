@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cymva/utils/function_utils.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -28,12 +29,14 @@ class _RepostPageState extends State<RepostPage> {
   final picker = ImagePicker();
   final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
+  String? _imageUrl;
 
   @override
   void initState() {
     super.initState();
     _fetchPostAccountInfo();
     _retweetController.addListener(_updateTextLength);
+    _getImageUrl();
   }
 
   void _updateTextLength() {
@@ -79,6 +82,23 @@ class _RepostPageState extends State<RepostPage> {
     super.dispose();
   }
 
+  Future<void> _getImageUrl() async {
+    DocumentSnapshot<Map<String, dynamic>> doc = await FirebaseFirestore
+        .instance
+        .collection('setting')
+        .doc('AppBarIMG')
+        .get();
+    String? imageUrl = doc.data()?['RepostPage'];
+    if (imageUrl != null) {
+      // Firebase StorageからダウンロードURLを取得
+      final ref = FirebaseStorage.instance.refFromURL(imageUrl);
+      String downloadUrl = await ref.getDownloadURL();
+      setState(() {
+        _imageUrl = downloadUrl;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
@@ -86,7 +106,16 @@ class _RepostPageState extends State<RepostPage> {
     return Scaffold(
       key: scaffoldMessengerKey,
       appBar: AppBar(
-        title: const Text('引用'),
+        title: _imageUrl == null
+            ? const Text('引用', style: TextStyle(color: Colors.black))
+            : Image.network(
+                _imageUrl!,
+                fit: BoxFit.cover,
+                height: kToolbarHeight,
+              ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.black),
       ),
       body: Stack(
         children: [

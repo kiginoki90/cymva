@@ -40,8 +40,8 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
     super.initState();
     _startTime = DateTime.now(); // 開始時刻を記録
     _scrollController.addListener(_scrollListener);
-    _favoritePost.getFavoritePosts();
-    _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
+    // _favoritePost.getFavoritePosts();
+    // _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(viewModelProvider).getPosts(widget.userId);
       final endTime = DateTime.now(); // 終了時刻を記録

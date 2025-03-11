@@ -1,3 +1,4 @@
+import 'package:cymva/ad_widget.dart';
 import 'package:cymva/utils/book_mark.dart';
 import 'package:cymva/view/account/post_item_account_widget.dart';
 import 'package:flutter/material.dart';
@@ -27,8 +28,8 @@ class _ImagePostListState extends ConsumerState<ImagePostList> {
     super.initState();
     _loadPosts();
     _scrollController.addListener(_scrollListener);
-    _favoritePost.getFavoritePosts(); // お気に入りの投稿を取得
-    _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
+    // _favoritePost.getFavoritePosts(); // お気に入りの投稿を取得
+    // _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
   }
 
   @override
@@ -75,57 +76,66 @@ class _ImagePostListState extends ConsumerState<ImagePostList> {
                 ? const Center(child: Text("まだ投稿がありません"))
                 : ListView.builder(
                     controller: _scrollController,
-                    itemCount: model.postList.length + 1,
+                    itemCount: model.postList.length +
+                        (model.postList.length ~/ 10) +
+                        1,
                     itemBuilder: (context, index) {
-                      if (index == model.postList.length) {
+                      if (index ==
+                          model.postList.length +
+                              (model.postList.length ~/ 10)) {
                         return _isLoadingMore
                             ? const Center(child: Text(" Loading..."))
                             : const Center(child: Text("結果は以上です"));
                       }
 
-                      if (index < model.postList.length) {
-                        final post = model.postList[index];
-
-                        // お気に入りユーザー数の初期化と更新
-                        _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                            ValueNotifier<int>(0);
-                        _favoritePost.updateFavoriteUsersCount(post.id);
-
-                        _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
-                            ValueNotifier<int>(0);
-                        _bookmarkPost.updateBookmarkUsersCount(post.id);
-
-                        return PostItetmAccounWidget(
-                          post: post,
-                          postAccount: widget.myAccount,
-                          favoriteUsersNotifier:
-                              _favoritePost.favoriteUsersNotifiers[post.id]!,
-                          isFavoriteNotifier: ValueNotifier<bool>(
-                            _favoritePost.favoritePostsNotifier.value
-                                .contains(post.id),
-                          ),
-                          onFavoriteToggle: () => _favoritePost.toggleFavorite(
-                            post.id,
-                            _favoritePost.favoritePostsNotifier.value
-                                .contains(post.id),
-                          ),
-                          bookmarkUsersNotifier:
-                              _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
-                          isBookmarkedNotifier: ValueNotifier<bool>(
-                            _bookmarkPost.bookmarkPostsNotifier.value
-                                .contains(post.id),
-                          ),
-                          onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
-                            post.id,
-                            _bookmarkPost.bookmarkPostsNotifier.value
-                                .contains(post.id),
-                          ),
-                          replyFlag: ValueNotifier<bool>(false),
-                          userId: widget.myAccount.id,
-                        );
-                      } else {
-                        return const SizedBox.shrink();
+                      if (index % 11 == 10) {
+                        return BannerAdWidget(); // 広告ウィジェットを表示
                       }
+
+                      final postIndex = index - (index ~/ 11);
+                      if (postIndex >= model.postList.length) {
+                        return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+                      }
+
+                      final post = model.postList[postIndex];
+
+                      // お気に入りユーザー数の初期化と更新
+                      _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                          ValueNotifier<int>(0);
+                      _favoritePost.updateFavoriteUsersCount(post.id);
+
+                      _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+                          ValueNotifier<int>(0);
+                      _bookmarkPost.updateBookmarkUsersCount(post.id);
+
+                      return PostItetmAccounWidget(
+                        post: post,
+                        postAccount: widget.myAccount,
+                        favoriteUsersNotifier:
+                            _favoritePost.favoriteUsersNotifiers[post.id]!,
+                        isFavoriteNotifier: ValueNotifier<bool>(
+                          _favoritePost.favoritePostsNotifier.value
+                              .contains(post.id),
+                        ),
+                        onFavoriteToggle: () => _favoritePost.toggleFavorite(
+                          post.id,
+                          _favoritePost.favoritePostsNotifier.value
+                              .contains(post.id),
+                        ),
+                        bookmarkUsersNotifier:
+                            _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+                        isBookmarkedNotifier: ValueNotifier<bool>(
+                          _bookmarkPost.bookmarkPostsNotifier.value
+                              .contains(post.id),
+                        ),
+                        onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+                          post.id,
+                          _bookmarkPost.bookmarkPostsNotifier.value
+                              .contains(post.id),
+                        ),
+                        replyFlag: ValueNotifier<bool>(false),
+                        userId: widget.myAccount.id,
+                      );
                     },
                   ),
           ),

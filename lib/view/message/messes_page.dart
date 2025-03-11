@@ -6,6 +6,7 @@ import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/post_item/post_detail_page.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -22,13 +23,15 @@ class _MessesPageState extends State<MessesPage> {
   List<Map<String, dynamic>> notifications = [];
   final FlutterSecureStorage storage = FlutterSecureStorage();
   final BookmarkPost _bookmarkPost = BookmarkPost();
+  String? _imageUrl;
 
   @override
   void initState() {
     super.initState();
     _deleteOldMessages(); // 古いメッセージを削除
     _fetchNotifications();
-    _bookmarkPost.getBookmarkPosts();
+    _getImageUrl();
+    // _bookmarkPost.getBookmarkPosts();
   }
 
   Future<void> _deleteOldMessages() async {
@@ -353,13 +356,40 @@ class _MessesPageState extends State<MessesPage> {
     return "$formattedDate $formattedTime";
   }
 
+  Future<void> _getImageUrl() async {
+    // FirestoreからURLを取得
+    DocumentSnapshot<Map<String, dynamic>> doc = await FirebaseFirestore
+        .instance
+        .collection('setting')
+        .doc('AppBarIMG')
+        .get();
+    String? imageUrl = doc.data()?['MessesPage'];
+    if (imageUrl != null) {
+      // Firebase StorageからダウンロードURLを取得
+      final ref = FirebaseStorage.instance.refFromURL(imageUrl);
+      String downloadUrl = await ref.getDownloadURL();
+      setState(() {
+        _imageUrl = downloadUrl;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         centerTitle: true,
-        title: Text('通知'),
+        title: _imageUrl == null
+            ? const Text('通知', style: TextStyle(color: Colors.black))
+            : Image.network(
+                _imageUrl!,
+                fit: BoxFit.cover,
+                height: kToolbarHeight,
+              ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.black),
       ),
       body: ListView.builder(
         itemCount: notifications.length,

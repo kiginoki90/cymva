@@ -1,8 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/view/account/edit_page/options_page/add_account_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/blocked_users_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/bookmark.dart';
 import 'package:cymva/view/account/edit_page/options_page/delete_account_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/support_page.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
@@ -15,12 +17,48 @@ class AccountOptionsPage extends StatelessWidget {
   final Account myAccount = Authentication.myAccount!;
   final storage = const FlutterSecureStorage();
 
+  Future<String?> _getImageUrl() async {
+    try {
+      // FirestoreからURLを取得
+      DocumentSnapshot<Map<String, dynamic>> doc = await FirebaseFirestore
+          .instance
+          .collection('setting')
+          .doc('AppBarIMG')
+          .get();
+      String? imageUrl = doc.data()?['AccountOptionsPage'];
+      if (imageUrl != null) {
+        // Firebase StorageからダウンロードURLを取得
+        final ref = FirebaseStorage.instance.refFromURL(imageUrl);
+        return await ref.getDownloadURL();
+      }
+    } catch (e) {
+      print('Error fetching image URL: $e');
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     String userId = myAccount.id;
     return Scaffold(
       appBar: AppBar(
-        title: Text('Account Options', style: TextStyle(color: Colors.black)),
+        title: FutureBuilder<String?>(
+          future: _getImageUrl(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Text('');
+            } else if (snapshot.hasError || !snapshot.hasData) {
+              return const Text('Account Options',
+                  style: TextStyle(color: Colors.black));
+            } else {
+              return Image.network(
+                snapshot.data!,
+                fit: BoxFit.cover,
+                height: kToolbarHeight,
+              );
+            }
+          },
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.black),

@@ -28,8 +28,8 @@ class _BookmarkPageState extends ConsumerState<BookmarkPage> {
     super.initState();
     _loadPosts();
     _scrollController.addListener(_scrollListener);
-    _favoritePost.getFavoritePosts(); // お気に入りの投稿を取得
-    _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
+    // _favoritePost.getFavoritePosts(); // お気に入りの投稿を取得
+    // _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
   }
 
   @override
@@ -208,66 +208,81 @@ class DbManager {
   DocumentSnapshot? _lastDocument;
 
   Future<List<Post>> getBookmarkPosts(String userId) async {
-    Query query = _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('bookmark_posts')
-        .orderBy('added_at', descending: true)
-        .limit(10);
-
-    final querySnapshot = await query.get();
     List<Post> posts = [];
-    if (querySnapshot.docs.isNotEmpty) {
-      _lastDocument = querySnapshot.docs.last;
-      List<Future<Post?>> futures = querySnapshot.docs.map((doc) async {
-        final postId = doc.id;
-        final postDoc = await _firestore.collection('posts').doc(postId).get();
-        if (postDoc.exists) {
-          return Post.fromDocument(postDoc);
-        }
-        return null;
-      }).toList();
+    try {
+      Query query = _firestore
+          .collectionGroup('bookmark_users')
+          .where('user_id', isEqualTo: userId)
+          .orderBy('added_at', descending: true)
+          .limit(10);
 
-      posts = (await Future.wait(futures))
-          .where((post) => post != null)
-          .cast<Post>()
-          .toList();
-    } else {
-      print("No posts found.");
+      final querySnapshot = await query.get();
+
+      print('取得したドキュメントの数: ${querySnapshot.docs.length}');
+
+      if (querySnapshot.docs.isNotEmpty) {
+        _lastDocument = querySnapshot.docs.last;
+        List<Future<Post?>> futures = querySnapshot.docs.map((doc) async {
+          final postId = doc.reference.parent.parent!.id;
+          final postDoc =
+              await _firestore.collection('posts').doc(postId).get();
+          if (postDoc.exists) {
+            return Post.fromDocument(postDoc);
+          }
+          return null;
+        }).toList();
+
+        posts = (await Future.wait(futures))
+            .where((post) => post != null)
+            .cast<Post>()
+            .toList();
+      } else {
+        print("No posts found.");
+      }
+    } catch (e) {
+      print("Error getting bookmarked posts: $e");
     }
     return posts;
   }
 
   Future<List<Post>> getBookmarkPostsNext(String userId) async {
-    if (_lastDocument == null) return [];
-
-    Query query = _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('bookmark_posts')
-        .orderBy('added_at', descending: true)
-        .startAfterDocument(_lastDocument!)
-        .limit(10);
-
-    final querySnapshot = await query.get();
+    if (_lastDocument == null) {
+      return [];
+    }
     List<Post> posts = [];
-    if (querySnapshot.docs.isNotEmpty) {
-      _lastDocument = querySnapshot.docs.last;
-      List<Future<Post?>> futures = querySnapshot.docs.map((doc) async {
-        final postId = doc.id;
-        final postDoc = await _firestore.collection('posts').doc(postId).get();
-        if (postDoc.exists) {
-          return Post.fromDocument(postDoc);
-        }
-        return null;
-      }).toList();
+    try {
+      Query query = _firestore
+          .collectionGroup('bookmark_users')
+          .where('user_id', isEqualTo: userId)
+          .orderBy('added_at', descending: true)
+          .startAfterDocument(_lastDocument!)
+          .limit(10);
 
-      posts = (await Future.wait(futures))
-          .where((post) => post != null)
-          .cast<Post>()
-          .toList();
-    } else {
-      print("No more posts found.");
+      final querySnapshot = await query.get();
+
+      print('取得したドキュメントの数: ${querySnapshot.docs.length}');
+
+      if (querySnapshot.docs.isNotEmpty) {
+        _lastDocument = querySnapshot.docs.last;
+        List<Future<Post?>> futures = querySnapshot.docs.map((doc) async {
+          final postId = doc.reference.parent.parent!.id;
+          final postDoc =
+              await _firestore.collection('posts').doc(postId).get();
+          if (postDoc.exists) {
+            return Post.fromDocument(postDoc);
+          }
+          return null;
+        }).toList();
+
+        posts = (await Future.wait(futures))
+            .where((post) => post != null)
+            .cast<Post>()
+            .toList();
+      } else {
+        print("No posts found.");
+      }
+    } catch (e) {
+      print("Error getting bookmarked posts: $e");
     }
     return posts;
   }

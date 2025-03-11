@@ -10,22 +10,22 @@ class FavoritePost {
   final FlutterSecureStorage storage = FlutterSecureStorage();
   String? userId;
 
-  Future<List<String>> getFavoritePosts() async {
+  Future<List<String>> getFavoritePosts(String postId) async {
     userId = await storage.read(key: 'account_id') ??
         FirebaseAuth.instance.currentUser?.uid;
 
     if (userId == null) return [];
 
-    final favoritePostsSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('favorite_posts')
+    final favoriteUsersSnapshot = await FirebaseFirestore.instance
+        .collection('posts')
+        .doc(postId)
+        .collection('favorite_users')
         .get();
 
-    final favoritePosts =
-        favoritePostsSnapshot.docs.map((doc) => doc.id).toSet();
-    favoritePostsNotifier.value = favoritePosts;
-    return favoritePosts.toList();
+    final favoriteUsers =
+        favoriteUsersSnapshot.docs.map((doc) => doc.id).toSet();
+    favoritePostsNotifier.value = favoriteUsers;
+    return favoriteUsers.toList();
   }
 
   Future<void> toggleFavorite(String postId, bool isFavorite) async {
@@ -38,11 +38,6 @@ class FavoritePost {
       return;
     }
 
-    final favoritePostsCollection = FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('favorite_posts');
-
     final favoriteUsersCollection = FirebaseFirestore.instance
         .collection('posts')
         .doc(postId)
@@ -53,15 +48,12 @@ class FavoritePost {
     try {
       if (isFavorite) {
         // お気に入りから削除
-        await favoritePostsCollection.doc(postId).delete();
         await favoriteUsersCollection.doc(userId).delete();
       } else {
         // お気に入りに追加
-        await favoritePostsCollection.doc(postId).set({
-          'added_at': timestamp, // 投稿が追加された時間を記録
-        });
         await favoriteUsersCollection.doc(userId).set({
           'added_at': timestamp, // ユーザーが投稿をお気に入りにした時間を記録
+          'user_id': userId,
         });
       }
 

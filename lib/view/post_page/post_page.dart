@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/utils/firestore/posts.dart';
@@ -28,6 +29,7 @@ class _PostPageState extends State<PostPage> {
   final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
   Map<String, dynamic>? accountData;
+  String? _imageUrl;
 
   String? selectedCategory;
   final List<String> categories = [
@@ -62,6 +64,7 @@ class _PostPageState extends State<PostPage> {
     fetchUserProfileImage();
     _fetchAccountData();
     _loadDraft();
+    _getImageUrl();
   }
 
   Future<void> fetchUserProfileImage() async {
@@ -178,6 +181,24 @@ class _PostPageState extends State<PostPage> {
     FocusScope.of(context).unfocus(); // キーボードを閉じる
   }
 
+  Future<void> _getImageUrl() async {
+    // FirestoreからURLを取得
+    DocumentSnapshot<Map<String, dynamic>> doc = await FirebaseFirestore
+        .instance
+        .collection('setting')
+        .doc('AppBarIMG')
+        .get();
+    String? imageUrl = doc.data()?['PostPage'];
+    if (imageUrl != null) {
+      // Firebase StorageからダウンロードURLを取得
+      final ref = FirebaseStorage.instance.refFromURL(imageUrl);
+      String downloadUrl = await ref.getDownloadURL();
+      setState(() {
+        _imageUrl = downloadUrl;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // キーボードの高さを取得
@@ -187,10 +208,16 @@ class _PostPageState extends State<PostPage> {
       key: scaffoldMessengerKey,
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('投稿'),
-        elevation: 2,
-        iconTheme: const IconThemeData(color: Colors.black),
-        automaticallyImplyLeading: false,
+        title: _imageUrl == null
+            ? const Text('投稿', style: TextStyle(color: Colors.black))
+            : Image.network(
+                _imageUrl!,
+                fit: BoxFit.cover,
+                height: kToolbarHeight,
+              ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.black),
         actions: [
           if (userProfileImageUrl != null)
             Padding(

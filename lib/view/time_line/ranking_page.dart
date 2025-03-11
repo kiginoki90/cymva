@@ -31,8 +31,8 @@ class _RankingPageState extends ConsumerState<RankingPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_scrollListener);
-    _favoritePost.getFavoritePosts();
-    _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
+    // _favoritePost.getFavoritePosts();
+    // _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(rankingViewModelProvider).getRankingPosts(widget.userId);
     });

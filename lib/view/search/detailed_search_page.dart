@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -21,6 +23,7 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
   DateTime? _endDate;
   bool movingFlag = false;
   bool _isExactMatch = false;
+  String? _imageUrl;
 
   final List<String> categories = [
     '動物',
@@ -42,6 +45,7 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
       _userIdController.text = widget.initialUserId!;
     }
     _loadSearchFilters();
+    _getImageUrl();
   }
 
   Future<void> _loadSearchFilters() async {
@@ -105,6 +109,7 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
   }
 
   void _applySearchFilters() async {
+    await _clearSearchFilters();
     await _saveSearchFilters();
     Navigator.pop(context, {
       'query': _searchController.text,
@@ -132,11 +137,38 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
     });
   }
 
+  Future<void> _getImageUrl() async {
+    // FirestoreからURLを取得
+    DocumentSnapshot<Map<String, dynamic>> doc = await FirebaseFirestore
+        .instance
+        .collection('setting')
+        .doc('AppBarIMG')
+        .get();
+    String? imageUrl = doc.data()?['DetailedSearchPage'];
+    if (imageUrl != null) {
+      // Firebase StorageからダウンロードURLを取得
+      final ref = FirebaseStorage.instance.refFromURL(imageUrl);
+      String downloadUrl = await ref.getDownloadURL();
+      setState(() {
+        _imageUrl = downloadUrl;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('詳しい検索条件'),
+        title: _imageUrl == null
+            ? const Text('詳しい検索条件', style: TextStyle(color: Colors.black))
+            : Image.network(
+                _imageUrl!,
+                fit: BoxFit.cover,
+                height: kToolbarHeight,
+              ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.black),
         actions: [
           TextButton.icon(
             label: Padding(
@@ -163,24 +195,51 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('カテゴリー',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              Column(
-                children: categories.map((category) {
-                  return RadioListTile<String>(
-                    title: Text(category),
-                    value: category,
-                    groupValue: _selectedCategory,
-                    onChanged: (value) {
+                  style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.bold,
+                      color: Color.fromARGB(255, 28, 22, 209))),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2, // 2列に設定
+                  childAspectRatio: 3, // アスペクト比を設定して高さを調整
+                ),
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final category = categories[index];
+                  final isSelected = _selectedCategory == category;
+                  return GestureDetector(
+                    onTap: () {
                       setState(() {
-                        _selectedCategory = value;
+                        _selectedCategory = category;
                       });
                     },
-                    contentPadding: const EdgeInsets.symmetric(
-                        vertical: 0.0, horizontal: 16.0), // パディングを調整
+                    child: Container(
+                      margin: const EdgeInsets.all(4.0),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Colors.lightBlueAccent.withValues()
+                            : Colors.white,
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      child: Center(
+                        child: Text(
+                          category,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
                   );
-                }).toList(),
+                },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextField(
                 controller: _searchController,
                 decoration: const InputDecoration(
@@ -220,37 +279,55 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('フォローユーザー', style: TextStyle(fontSize: 16)),
+                  const Text('フォローユーザー',
+                      style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(255, 28, 22, 209))),
                   Switch(
                     value: _isFollowing,
                     onChanged: (value) {
                       setState(() {
                         _isFollowing = value;
+                        // if (value) {
+                        //   _star = false;
+                        // }
                       });
                     },
                   ),
                 ],
               ),
-              // const SizedBox(height: 8),
-              // Row(
-              //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              //   children: [
-              //     const Text('スター', style: TextStyle(fontSize: 16)),
-              //     Switch(
-              //       value: _star,
-              //       onChanged: (value) {
-              //         setState(() {
-              //           _star = value;
-              //         });
-              //       },
-              //     ),
-              //   ],
-              // ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('スター',
+                      style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(255, 28, 22, 209))),
+                  Switch(
+                    value: _star,
+                    onChanged: (value) {
+                      setState(() {
+                        _star = value;
+                        // if (value) {
+                        //   _isFollowing = false;
+                        // }
+                      });
+                    },
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('開始日', style: TextStyle(fontSize: 16)),
+                  const Text('開始日',
+                      style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(255, 28, 22, 209))),
                   TextButton(
                     onPressed: () => _selectDate(context, true),
                     child: Text(_startDate == null
@@ -262,7 +339,11 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('終了日', style: TextStyle(fontSize: 16)),
+                  const Text('終了日',
+                      style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(255, 28, 22, 209))),
                   TextButton(
                     onPressed: () => _selectDate(context, false),
                     child: Text(_endDate == null
