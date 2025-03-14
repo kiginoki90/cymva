@@ -146,12 +146,12 @@ class _MessesPageState extends State<MessesPage> {
       }
 
       // 自分のアカウントのフォロワーに相手を追加
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUserId)
-          .collection('followers')
-          .doc(requestUserId)
-          .set({'timestamp': FieldValue.serverTimestamp()});
+      // await FirebaseFirestore.instance
+      //     .collection('users')
+      //     .doc(currentUserId)
+      //     .collection('followers')
+      //     .doc(requestUserId)
+      //     .set({'timestamp': FieldValue.serverTimestamp()});
 
       // 相手のアカウントのフォローに自分を追加
       await FirebaseFirestore.instance
@@ -159,7 +159,7 @@ class _MessesPageState extends State<MessesPage> {
           .doc(requestUserId)
           .collection('follow')
           .doc(currentUserId)
-          .set({'timestamp': FieldValue.serverTimestamp()});
+          .set({'followed_at': Timestamp.now(), 'user_id': currentUserId});
 
       // 相手のユーザーのmessagesサブコレクションにメッセージを追加
       await FirebaseFirestore.instance
@@ -596,6 +596,39 @@ class _MessesPageState extends State<MessesPage> {
                                 notification['count'] == 1
                                     ? '投稿に返信が来ています'
                                     : '投稿に${notification['count']}件の返信が来ています',
+                                style: TextStyle(),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (notification['message_type'] == 6)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AccountPage(
+                              postUserId: notification['request_user']),
+                        ),
+                      );
+                    },
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                user != null
+                                    ? '@${user.userId}さんにリクエストを送りました。'
+                                    : '表示できません',
                                 style: TextStyle(),
                                 overflow: TextOverflow.ellipsis,
                               ),

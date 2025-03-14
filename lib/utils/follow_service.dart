@@ -1,12 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/firestore/users.dart';
 
 class FollowService {
+  final FirebaseFirestore firestore;
   final FlutterSecureStorage storage = FlutterSecureStorage();
   String? userId;
+
+  FollowService(this.firestore);
 
   Future<void> initialize() async {
     userId = await storage.read(key: 'account_id') ??
@@ -37,27 +41,13 @@ class FollowService {
             .collection('follow')
             .doc(postUserId)
             .delete();
-        await UserFirestore.users
-            .doc(postUserId)
-            .collection('followers')
-            .doc(userId)
-            .delete();
       } else {
         // Follow
         await UserFirestore.users
             .doc(userId)
             .collection('follow')
             .doc(postUserId)
-            .set({'followed_at': Timestamp.now()});
-        await UserFirestore.users
-            .doc(postUserId)
-            .collection('followers')
-            .doc(userId)
-            .set({'followed_at': Timestamp.now()});
-
-        // 24時間以内に同じメッセージがあるか確認
-        // final userDoc = await UserFirestore.users.doc(postUserId).get();
-        // final userData = userDoc.data() as Map<String, dynamic>;
+            .set({'followed_at': Timestamp.now(), 'user_id': postUserId});
 
         final cutoffTime =
             Timestamp.now().toDate().subtract(Duration(hours: 24));
@@ -102,6 +92,8 @@ class FollowService {
   }
 
   Future<void> handleUnfollow(String postUserId) async {
+    if (userId == null) return;
+
     await UserFirestore.users
         .doc(userId)
         .collection('follow')
@@ -109,21 +101,63 @@ class FollowService {
         .delete();
   }
 
-  Future<void> handleFollowRequest(String postUserId, Account myAccount) async {
+  Future<void> handleFollowRequest(
+      BuildContext context, String postUserId, Account myAccount) async {
     final CollectionReference messageCollection = FirebaseFirestore.instance
         .collection('users')
         .doc(postUserId)
         .collection('message');
 
     final Timestamp currentTime = Timestamp.now();
+    final cutoffTime = currentTime.toDate().subtract(Duration(hours: 24));
 
-    // Add follow request message
-    await messageCollection.add({
-      'timestamp': currentTime,
-      'message_type': 1,
-      'request_user': myAccount.id,
-      'request_userId': myAccount.userId,
-      'isRead': false,
-    });
+    try {
+      sendMessageToUser(postUserId);
+
+      // 過去24時間以内のメッセージを取得
+      final recentMessagesQuery = await messageCollection
+          .where('request_user', isEqualTo: myAccount.id)
+          .where('message_type', isEqualTo: 1)
+          .where('timestamp',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(cutoffTime))
+          .get();
+
+      // 条件に合致するメッセージが存在しない場合のみメッセージを送信
+      if (recentMessagesQuery.docs.isEmpty) {
+        await messageCollection.add({
+          'timestamp': currentTime,
+          'message_type': 1,
+          'request_user': myAccount.id,
+          'request_userId': myAccount.userId,
+          'isRead': false,
+        });
+      }
+    } catch (e) {
+      print('フォローリクエストの送信に失敗しました: $e');
+    }
+  }
+
+  Future<void> sendMessageToUser(String postUserId) async {
+    final CollectionReference messageCollection =
+        firestore.collection('users').doc(userId).collection('message');
+
+    final Timestamp currentTime = Timestamp.now();
+
+    try {
+      // postUserIdに基づいてuser_idを取得
+      final userDoc = await firestore.collection('users').doc(postUserId).get();
+      final requestUserId = userDoc['user_id'];
+
+      // メッセージを送信
+      await messageCollection.add({
+        'timestamp': currentTime,
+        'message_type': 6,
+        'request_user': postUserId,
+        'request_userId': requestUserId,
+        'isRead': false,
+      });
+    } catch (e) {
+      print('メッセージの送信に失敗しました: $e');
+    }
   }
 }

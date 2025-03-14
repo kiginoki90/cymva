@@ -81,6 +81,7 @@ class _FavoriteListState extends ConsumerState<FavoriteList> {
       _accountCache[accountId] = account;
       return account;
     }
+    print(userDoc);
     return null;
   }
 
@@ -134,7 +135,7 @@ class _FavoriteListState extends ConsumerState<FavoriteList> {
                   future: _fetchAccount(post.postAccountId),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
-                      return const Center(child: Text("アカウント情報が取得できませんでした"));
+                      return const Center(child: Text(""));
                     }
 
                     final postAccount = snapshot.data!;

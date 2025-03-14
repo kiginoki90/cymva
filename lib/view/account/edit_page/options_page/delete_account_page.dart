@@ -197,9 +197,6 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     // followサブコレクションから削除
     await deleteSubcollection(userDocRef, 'follow');
 
-    // followersサブコレクションから削除
-    await deleteSubcollection(userDocRef, 'followers');
-
     // blockUsersサブコレクションから削除
     await deleteSubcollection(userDocRef, 'blockUsers');
 

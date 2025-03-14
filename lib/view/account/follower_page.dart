@@ -13,9 +13,8 @@ class FollowerPage extends StatelessWidget {
       appBar: AppBar(title: const Text('フォロワー')),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(userId)
-            .collection('followers')
+            .collectionGroup('follow')
+            .where('user_id', isEqualTo: userId)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -24,13 +23,13 @@ class FollowerPage extends StatelessWidget {
           if (snapshot.hasError) {
             return const Center(child: Text('エラー'));
           }
-          final followerDocs = snapshot.data?.docs ?? [];
+          final followDocs = snapshot.data?.docs ?? [];
 
           return ListView.builder(
-            itemCount: followerDocs.length,
+            itemCount: followDocs.length,
             itemBuilder: (context, index) {
-              final followerDoc = followerDocs[index];
-              final followerId = followerDoc.id;
+              final followDoc = followDocs[index];
+              final followerId = followDoc.reference.parent.parent!.id;
 
               // フォロワーのユーザーデータを取得
               return FutureBuilder<DocumentSnapshot>(

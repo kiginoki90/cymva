@@ -38,7 +38,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
   double previousScrollOffset = 0.0;
   List<Account> siblingAccounts = [];
   Account? postAccount;
-  final FollowService followService = FollowService();
+  final FollowService followService = FollowService(FirebaseFirestore.instance);
   bool isFollowed = false;
   String? backgroundImageUrl;
 
@@ -145,9 +145,9 @@ class _AccountTopPageState extends State<AccountTopPage> {
       // followersサブコレクション内にpostAccountIdがあるかをチェック
       final doc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.userId)
-          .collection('followers')
           .doc(widget.postAccountId)
+          .collection('follow')
+          .doc(widget.userId)
           .get();
 
       // ドキュメントが存在する場合のみフォローされていますと表示
@@ -169,10 +169,11 @@ class _AccountTopPageState extends State<AccountTopPage> {
   }
 
   Future<int> _getFollowerCount() async {
-    final followersCollection =
-        UserFirestore.users.doc(widget.postAccountId).collection('followers');
-    final followerDocs = await followersCollection.get();
-    return followerDocs.size;
+    final querySnapshot = await FirebaseFirestore.instance
+        .collectionGroup('follow')
+        .where('user_id', isEqualTo: widget.postAccountId)
+        .get();
+    return querySnapshot.size;
   }
 
   @override
@@ -791,7 +792,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
               onPressed: () async {
                 Navigator.of(context).pop();
                 await followService.handleFollowRequest(
-                    widget.postAccountId, myAccount!);
+                    context, widget.postAccountId, myAccount!);
               },
               child: Text('送信'),
             ),

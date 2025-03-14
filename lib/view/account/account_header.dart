@@ -30,7 +30,7 @@ class _AccountHeaderState extends State<AccountHeader> {
   Account? postAccount;
   int currentPage = 0;
   bool isFollowing = false;
-  final FollowService followService = FollowService();
+  final FollowService followService = FollowService(FirebaseFirestore.instance);
 
   @override
   void initState() {
@@ -309,7 +309,7 @@ class _AccountHeaderState extends State<AccountHeader> {
               onPressed: () async {
                 Navigator.of(context).pop();
                 await followService.handleFollowRequest(
-                    widget.postUserId, myAccount!);
+                    context, widget.postUserId, myAccount!);
               },
               child: Text('送信'),
             ),
