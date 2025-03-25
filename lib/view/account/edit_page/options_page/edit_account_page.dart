@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:cymva/view/account/account_page.dart';
+import 'package:cymva/utils/navigation_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
@@ -20,7 +20,6 @@ class _EditAccountPageState extends State<EditAccountPage> {
   bool isPrivate = false;
   bool followPrivate = true;
   bool replyMessage = true;
-
   int _nameCharCount = 0;
   int _introCharCount = 0;
 
@@ -244,13 +243,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
                 Authentication.myAccount = updateAccount;
                 var result = await UserFirestore.updataUser(updateAccount);
                 if (result == true) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          AccountPage(postUserId: myAccount!.id),
-                    ),
-                  );
+                  navigateToPage(context, myAccount!.id, '1', false, false);
                 }
               },
               style: ElevatedButton.styleFrom(

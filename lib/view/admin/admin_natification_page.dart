@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:flutter/material.dart';
 
 class AdminNotificationPage extends StatefulWidget {
@@ -23,9 +24,7 @@ class _AdminNotificationPageState extends State<AdminNotificationPage> {
     final timestamp = Timestamp.now();
 
     if (title.isEmpty || content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('題名と内容を入力してください')),
-      );
+      showTopSnackBar(context, '題名と内容を入力してください', backgroundColor: Colors.red);
       return;
     }
 
@@ -47,16 +46,13 @@ class _AdminNotificationPageState extends State<AdminNotificationPage> {
         });
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('お知らせを送信しました')),
-      );
+      showTopSnackBar(context, 'お知らせを送信しました', backgroundColor: Colors.green);
 
       _titleController.clear();
       _contentController.clear();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('お知らせの送信に失敗しました: $e')),
-      );
+      showTopSnackBar(context, 'お知らせの送信に失敗しました: $e',
+          backgroundColor: Colors.red);
     }
   }
 

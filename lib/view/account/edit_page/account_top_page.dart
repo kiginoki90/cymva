@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/utils/follow_service.dart';
+import 'package:cymva/utils/navigation_utils.dart';
+import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/account/edit_page/account_options_page.dart';
 import 'package:cymva/view/account/follow_page.dart';
 import 'package:cymva/view/account/follower_page.dart';
@@ -12,7 +14,6 @@ import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/model/account.dart';
-import 'package:cymva/view/account/account_page.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -99,8 +100,9 @@ class _AccountTopPageState extends State<AccountTopPage> {
   Future<void> _getAccount() async {
     final Account? account = await UserFirestore.getUser(widget.userId);
     if (account == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('ユーザー情報が取得できませんでした')));
+      showTopSnackBar(context, 'ユーザー情報が取得できませんでした',
+          backgroundColor: Colors.red);
+
       Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -197,12 +199,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
           if (scrollInfo is ScrollUpdateNotification) {
             if (scrollInfo.metrics.pixels > previousScrollOffset) {
               // スクロールが下方向に進んだ場合
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        AccountPage(postUserId: widget.userId)),
-              );
+              navigateToPage(context, widget.userId, '1', true, true);
             }
             previousScrollOffset = scrollInfo.metrics.pixels; // スクロール位置を更新
           }
@@ -480,7 +477,8 @@ class _AccountTopPageState extends State<AccountTopPage> {
                           var result = await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (context) => AccountOptionsPage()));
+                                  builder: (context) => AccountOptionsPage(
+                                      loginUserId: widget.userId)));
                           // if (result == true) {
                           //   setState(() {
                           //     myAccount = Authentication.myAccount!;
@@ -511,6 +509,18 @@ class _AccountTopPageState extends State<AccountTopPage> {
         ),
       ],
     );
+  }
+
+  String _formatText(String text, int chunkSize) {
+    final buffer = StringBuffer();
+    for (int i = 0; i < text.length; i += chunkSize) {
+      if (i + chunkSize < text.length) {
+        buffer.writeln(text.substring(i, i + chunkSize));
+      } else {
+        buffer.write(text.substring(i));
+      }
+    }
+    return buffer.toString();
   }
 
   Future<void> _logoutOtherUsers(String accountId) async {
@@ -705,15 +715,17 @@ class _AccountTopPageState extends State<AccountTopPage> {
                   ),
                 ),
               SelectableText(
-                postAccount!.name,
+                _formatText(postAccount!.name, 20),
                 style:
                     const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
           SelectableText(
-            '@${postAccount!.userId}',
-            style: const TextStyle(color: Colors.grey),
+            _formatText('@${postAccount!.userId}', 20),
+            style: const TextStyle(fontSize: 15, color: Colors.grey),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -849,12 +861,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
       print('アカウントが切り替えられました: ${newAccount.name}');
 
       // 必要に応じて新しいアカウントページに遷移
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AccountPage(postUserId: newAccount.id),
-        ),
-      );
+      navigateToPage(context, newAccount.id, '1', false, true);
     } catch (e) {
       print('アカウント切り替えに失敗しました: $e');
     }

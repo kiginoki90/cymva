@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/view/account/edit_page/options_page/add_account_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/blocked_users_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/bookmark.dart';
 import 'package:cymva/view/account/edit_page/options_page/delete_account_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/support_page.dart';
+import 'package:cymva/view/time_line/time_line_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
@@ -13,9 +16,47 @@ import 'package:cymva/view/account/edit_page/options_page/edit_account_page.dart
 import 'package:cymva/view/start_up/login_page.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-class AccountOptionsPage extends StatelessWidget {
+class AccountOptionsPage extends StatefulWidget {
+  final String loginUserId;
+
+  AccountOptionsPage({Key? key, required this.loginUserId}) : super(key: key);
+  @override
+  _AccountOptionsPageState createState() => _AccountOptionsPageState();
+}
+
+class _AccountOptionsPageState extends State<AccountOptionsPage> {
   final Account myAccount = Authentication.myAccount!;
   final storage = const FlutterSecureStorage();
+  String? userId;
+  String? loginUserId;
+  int? loginCount;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginUserId();
+  }
+
+  Future<void> _checkLoginUserId() async {
+    userId = FirebaseAuth.instance.currentUser?.uid;
+
+    loginUserId = await storage.read(key: 'account_id');
+
+    if (userId != null) {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(loginUserId)
+          .get();
+
+      if (userDoc.exists) {
+        final String? parentsId = userDoc.data()?['parents_id'];
+
+        if (parentsId != userId) {
+          navigateToPage(context, userId!, '0', true, true);
+        }
+      }
+    }
+  }
 
   Future<String?> _getImageUrl() async {
     try {

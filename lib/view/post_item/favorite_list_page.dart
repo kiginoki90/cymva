@@ -1,3 +1,4 @@
+import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -66,13 +67,8 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
                     children: [
                       InkWell(
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  AccountPage(postUserId: userData['id']),
-                            ),
-                          );
+                          navigateToPage(
+                              context, userData['id'], '1', true, false);
                         },
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8.0),
@@ -98,13 +94,8 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
                       Expanded(
                         child: InkWell(
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    AccountPage(postUserId: userData['id']),
-                              ),
-                            );
+                            navigateToPage(
+                                context, userData['id'], '1', false, false);
                           },
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

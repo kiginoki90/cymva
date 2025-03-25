@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/account.dart';
+import 'package:cymva/utils/snackbar_utils.dart';
+import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/time_line/timeline_body.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -86,13 +88,10 @@ class _LoginPageState extends State<LoginPage> {
         await updatePasswordChangeToken(user.uid);
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('パスワードリセットのメールを送信しました')),
-      );
+      showTopSnackBar(context, 'パスワードリセットのメールを送信しました',
+          backgroundColor: Colors.green);
     } catch (e) {
-      setState(() {
-        errorMessage = 'メールの送信に失敗しました: $e';
-      });
+      showTopSnackBar(context, 'メールの送信に失敗しました', backgroundColor: Colors.red);
     }
   }
 
@@ -269,11 +268,9 @@ class _LoginPageState extends State<LoginPage> {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => TimeLineBody(
-                                  userId: result.user!.uid,
-                                  fromLogin: true,
-                                ),
-                              ),
+                                  builder: (context) => NavigationBarPage(
+                                      userId: result.user!.uid,
+                                      showChatIcon: true)),
                             );
                           } else {
                             setState(() {

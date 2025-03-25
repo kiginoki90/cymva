@@ -1,3 +1,4 @@
+import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -97,14 +98,13 @@ class _ShowAccountReportDialogState extends State<ShowAccountReportDialog> {
 
                   // ページを閉じ、スナックバーで通知
                   Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('アカウントを報告しました')),
-                  );
+
+                  showTopSnackBar(context, 'アカウントを報告しました',
+                      backgroundColor: Colors.green);
                 } catch (e) {
                   // エラーハンドリング
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('エラーが発生しました: $e')),
-                  );
+                  showTopSnackBar(context, 'エラーが発生しました',
+                      backgroundColor: Colors.red);
                 }
               },
               child: Text('報告する'),

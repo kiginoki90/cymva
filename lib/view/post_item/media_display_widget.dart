@@ -170,7 +170,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
   // 漫画の場合の表示
   Widget _buildMangaMedia(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
-    double maxHeight = screenWidth * 1.3;
+    double maxHeight = screenWidth * 1.1;
 
     return GestureDetector(
       onTap: () {
@@ -180,6 +180,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
             page: FullScreenImagePage(
               imageUrls: widget.mediaUrl!,
               initialIndex: 0,
+              unberBar: true,
             ),
             isSwipeUp: true,
           ),
@@ -191,8 +192,8 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
             tag: widget.mediaUrl![0], // ユニークなタグを設定
             child: Image.network(
               widget.mediaUrl![0],
-              width: screenWidth, // 横幅を画面幅に合わせる
-              height: maxHeight, // 縦の最大値を1.5倍に設定
+              width: screenWidth,
+              height: maxHeight,
               fit: BoxFit.cover,
             ),
           ),
@@ -204,7 +205,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withValues(),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -250,11 +251,14 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                   ),
                 );
               },
-              child: Image.network(
-                mediaUrl,
-                width: screenWidth,
-                height: screenWidth / aspectRatio, // 横長の場合はアスペクト比に基づいて高さを計算
-                fit: BoxFit.cover,
+              child: Hero(
+                tag: mediaUrl, // ユニークなタグを設定
+                child: Image.network(
+                  mediaUrl,
+                  width: screenWidth,
+                  height: screenWidth / aspectRatio, // 横長の場合はアスペクト比に基づいて高さを計算
+                  fit: BoxFit.cover,
+                ),
               ),
             );
           }
@@ -275,11 +279,14 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                   ),
                 );
               },
-              child: Image.network(
-                mediaUrl,
-                width: screenWidth,
-                height: maxHeight, // 縦長の場合は幅と同じ高さ
-                fit: BoxFit.cover,
+              child: Hero(
+                tag: mediaUrl, // ユニークなタグを設定
+                child: Image.network(
+                  mediaUrl,
+                  width: screenWidth,
+                  height: maxHeight, // 縦長の場合は幅と同じ高さ
+                  fit: BoxFit.cover,
+                ),
               ),
             );
           }

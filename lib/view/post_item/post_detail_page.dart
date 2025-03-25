@@ -1,11 +1,17 @@
+import 'package:collection/collection.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/book_mark.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/utils/firestore/users.dart';
+import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/post_item_utils.dart';
+import 'package:cymva/utils/snackbar_utils.dart';
+import 'package:cymva/view/account/group_deatail_page.dart';
 import 'package:cymva/view/post_item/Icons_action.dart';
-import 'package:cymva/view/navigation_bar.dart';
+import 'package:cymva/view/post_item/delete_group_dialog.dart';
 import 'package:cymva/view/post_item/favorite_list_page.dart';
+import 'package:cymva/view/post_item/group_list_dialog.dart';
+import 'package:cymva/view/post_item/group_name_dialog.dart';
 import 'package:cymva/view/post_item/link_text.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
@@ -16,7 +22,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/model/post.dart';
-import 'package:cymva/view/account/account_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PostDetailPage extends StatefulWidget {
@@ -26,18 +31,16 @@ class PostDetailPage extends StatefulWidget {
   final String userId;
   final ValueNotifier<int> bookmarkUsersNotifier;
   final ValueNotifier<bool> isBookmarkedNotifier;
-  final VoidCallback onBookMsrkToggle;
 
-  const PostDetailPage(
-      {Key? key,
-      required this.post,
-      required this.postAccount,
-      required this.replyFlag,
-      required this.userId,
-      required this.bookmarkUsersNotifier,
-      required this.isBookmarkedNotifier,
-      required this.onBookMsrkToggle})
-      : super(key: key);
+  const PostDetailPage({
+    Key? key,
+    required this.post,
+    required this.postAccount,
+    required this.replyFlag,
+    required this.userId,
+    required this.bookmarkUsersNotifier,
+    required this.isBookmarkedNotifier,
+  }) : super(key: key);
 
   @override
   _PostDetailPageState createState() => _PostDetailPageState();
@@ -59,22 +62,49 @@ class _PostDetailPageState extends State<PostDetailPage> {
   final ValueNotifier<bool> isBookmarkedNotifier = ValueNotifier<bool>(false);
   bool isHidden = true;
   String? _imageUrl;
+  String? groupId;
 
   @override
   void initState() {
     super.initState();
     _fetchFavoriteData();
     _replyPostsFuture = getRePosts(widget.post.id);
-    // _favoritePost.getFavoritePosts();
-    // _bookmarkPost.getBookmarkPosts();
     _checkAdminLevel();
     _getImageUrl();
+    _checkPostInGroups();
 
     if (widget.post.reply != null && widget.post.reply!.isNotEmpty) {
       _replyToPostFuture = getPostById(widget.post.reply!);
     }
     _fetchRepostDetails();
     _fetchReplyCount();
+  }
+
+  Future<void> _checkPostInGroups() async {
+    final groupCollectionRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .collection('group');
+
+    final groupSnapshot = await groupCollectionRef.get();
+
+    // すべてのグループのpostsコレクションをチェック
+    for (var groupDoc in groupSnapshot.docs) {
+      final postsCollectionRef = groupDoc.reference.collection('posts');
+      final postsSnapshot = await postsCollectionRef.get();
+
+      // postIdが既に存在するか確認
+      final existingPost = postsSnapshot.docs.firstWhereOrNull(
+        (doc) => doc.data()['postId'] == widget.post.id,
+      );
+
+      if (existingPost != null) {
+        setState(() {
+          groupId = groupDoc.id;
+        });
+        break;
+      }
+    }
   }
 
   void _fetchReplyCount() {
@@ -112,26 +142,26 @@ class _PostDetailPageState extends State<PostDetailPage> {
     isFavoriteNotifier.value = isFavoriteSnapshot.exists;
   }
 
-  Future<void> _toggleFavorite() async {
-    final postRef = FirebaseFirestore.instance
-        .collection('posts')
-        .doc(widget.post.id)
-        .collection('favorite_users')
-        .doc(widget.userId);
+  // Future<void> _toggleFavorite() async {
+  //   final postRef = FirebaseFirestore.instance
+  //       .collection('posts')
+  //       .doc(widget.post.id)
+  //       .collection('favorite_users')
+  //       .doc(widget.userId);
 
-    if (isFavoriteNotifier.value) {
-      // すでにお気に入りに登録されている場合、解除する
-      await postRef.delete();
-      favoriteUsersNotifier.value--;
-    } else {
-      // お気に入りに追加する
-      await postRef.set({});
-      favoriteUsersNotifier.value++;
-    }
+  //   if (isFavoriteNotifier.value) {
+  //     // すでにお気に入りに登録されている場合、解除する
+  //     await postRef.delete();
+  //     favoriteUsersNotifier.value--;
+  //   } else {
+  //     // お気に入りに追加する
+  //     await postRef.set({});
+  //     favoriteUsersNotifier.value++;
+  //   }
 
-    // お気に入り状態を反転
-    isFavoriteNotifier.value = !isFavoriteNotifier.value;
-  }
+  //   // お気に入り状態を反転
+  //   isFavoriteNotifier.value = !isFavoriteNotifier.value;
+  // }
 
   Future<void> _fetchRepostDetails() async {
     try {
@@ -158,17 +188,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
       print('Repost details fetch failed: $e');
     }
   }
-
-  // void _initializeVideoPlayer() {
-  //   if (widget.post.mediaUrl != null && widget.post.mediaUrl!.isNotEmpty) {
-  //     _videoController =
-  //         VideoPlayerController.networkUrl(Uri.parse(widget.post.mediaUrl![0]))
-  //           ..initialize().then((_) {
-  //             setState(() {});
-  //             _videoController!.play();
-  //           });
-  //   }
-  // }
 
   static final _firestoreInstance = FirebaseFirestore.instance;
 
@@ -217,6 +236,37 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
   }
 
+  Future<void> _showGroupNameDialog(postId) async {
+    await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return GroupNameDialog(postId: postId, userId: widget.userId);
+      },
+    );
+  }
+
+  Future<void> _showGroupListDialog() async {
+    await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return GroupListDialog(
+          userId: widget.userId,
+          postId: widget.post.id,
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteGroupDialog(postId, groupId) async {
+    await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return DeleteGroupDialog(
+            postId: postId, userId: widget.userId, groupId: groupId);
+      },
+    );
+  }
+
   Future<void> _deletePost(BuildContext context) async {
     try {
       final postDocRef =
@@ -242,6 +292,15 @@ class _PostDetailPageState extends State<PostDetailPage> {
             .delete();
       }
 
+      if (widget.post.repost != null && widget.post.repost!.isNotEmpty) {
+        await _firestoreInstance
+            .collection('posts')
+            .doc(widget.post.repost)
+            .collection('repost')
+            .doc(widget.post.id)
+            .delete();
+      }
+
       // サブコレクションを削除 (サブコレクション名が固定されている場合)
       await deleteSubcollection('favorite_users');
       await deleteSubcollection('repost');
@@ -263,14 +322,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
       // メインの投稿ドキュメントを削除
       await postDocRef.delete();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('投稿を削除しました')),
-      );
+      showTopSnackBar(context, '投稿を削除しました', backgroundColor: Colors.green);
+
       Navigator.of(context).pop(true); // true を渡して前のページに戻る
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('投稿の削除に失敗しました: $e')),
-      );
+      showTopSnackBar(context, '投稿の削除に失敗しました: $e', backgroundColor: Colors.red);
     }
   }
 
@@ -288,13 +344,16 @@ class _PostDetailPageState extends State<PostDetailPage> {
       // closeCommentの値を反転
       await postRef.update({'closeComment': !currentCloseComment});
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(currentCloseComment ? 'コメントを開きました' : 'コメントを閉じました')),
+      showTopSnackBar(
+        context,
+        currentCloseComment ? 'コメントを開きました' : 'コメントを閉じました',
+        backgroundColor: Colors.green, // 必要に応じて背景色を指定
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('コメントの状態を変更するのに失敗しました: $e')),
+      showTopSnackBar(
+        context,
+        'コメントの状態を変更に失敗しました',
+        backgroundColor: Colors.red, // 必要に応じて背景色を指定
       );
     }
   }
@@ -413,7 +472,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
         .doc('AppBarIMG')
         .get();
     String? imageUrl = doc.data()?['PostDetailPage'];
-    if (imageUrl != null) {
+    if (imageUrl != null && imageUrl.isNotEmpty) {
       // Firebase StorageからダウンロードURLを取得
       final ref = FirebaseStorage.instance.refFromURL(imageUrl);
       String downloadUrl = await ref.getDownloadURL();
@@ -659,57 +718,69 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     }
                   },
                 ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 10),
               Row(
                 key: _userRowKey,
                 children: [
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AccountPage(
-                              postUserId: widget.post.postAccountId),
-                        ),
-                      );
-                    },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8.0),
-                      child: Image.network(
-                        widget.postAccount.imagePath ??
-                            'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                        width: 44,
-                        height: 44,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          // 画像の取得に失敗した場合のエラービルダー
-                          return Image.network(
-                            'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.postAccount.name.length > 15
-                            ? '${widget.postAccount.name.substring(0, 15)}...'
-                            : widget.postAccount.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              navigateToPage(context, widget.post.postAccountId,
+                                  '1', true, false);
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child: Image.network(
+                                widget.postAccount.imagePath ??
+                                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  // 画像の取得に失敗した場合のエラービルダー
+                                  return Image.network(
+                                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.postAccount.name.length > 15
+                                    ? '${widget.postAccount.name.substring(0, 15)}...'
+                                    : widget.postAccount.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                              Text(
+                                '@${widget.postAccount.userId.length > 20 ? '${widget.postAccount.userId.substring(0, 20)}...' : widget.postAccount.userId}',
+                                style: const TextStyle(color: Colors.grey),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 10),
                       Text(
-                        '@${widget.postAccount.userId.length > 20 ? '${widget.postAccount.userId.substring(0, 20)}...' : widget.postAccount.userId}',
+                        DateFormat('yyyy/M/d HH:mm:ss')
+                            .format(widget.post.createdTime!.toDate()),
                         style: const TextStyle(color: Colors.grey),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
                       ),
                     ],
                   ),
@@ -717,6 +788,46 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
+                      if (groupId != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 7),
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => GroupDetailPage(
+                                    groupId: groupId!,
+                                    postAccount: widget.postAccount,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.lightBlue, // 背景色を水色に設定
+                                border: Border.all(
+                                  color: Colors.lightBlue,
+                                  width: 0.7,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                groupId!.length > 5
+                                    ? '${groupId!.substring(0, 5)}'
+                                    : groupId!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color:
+                                      const Color.fromARGB(255, 255, 255, 255),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (groupId != null) const SizedBox(height: 5),
                       if (widget.post.category != null &&
                           widget.post.category!.isNotEmpty)
                         Padding(
@@ -742,7 +853,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         ),
                       if (widget.post.postAccountId == widget.userId)
                         PopupMenuButton<String>(
-                          icon: Icon(Icons.add),
+                          icon: const Icon(
+                            Icons.add,
+                            size: 30.0,
+                          ),
                           onSelected: (String value) async {
                             if (value == 'Option 1') {
                               _confirmDeletePost(context); // 投稿の削除
@@ -761,26 +875,32 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               );
                             } else if (value == 'Option 5') {
                               _toggleCloseComment();
+                            } else if (value == 'Option 6') {
+                              await _showGroupNameDialog(widget.post.id);
+                            } else if (value == 'Option 7') {
+                              await _showGroupListDialog();
+                            } else if (value == 'Option 8') {
+                              _deleteGroupDialog(widget.post.id, groupId);
                             }
                           },
                           itemBuilder: (BuildContext context) {
                             return [
-                              PopupMenuItem<String>(
+                              const PopupMenuItem<String>(
                                 value: 'Option 1',
                                 child: Text(
                                   '投稿の削除',
                                   style: TextStyle(color: Colors.red),
                                 ),
                               ),
-                              PopupMenuItem<String>(
+                              const PopupMenuItem<String>(
                                 value: 'Option 2',
                                 child: Text('トップに固定'),
                               ),
-                              PopupMenuItem<String>(
+                              const PopupMenuItem<String>(
                                 value: 'Option 3',
                                 child: Text('固定を解除'),
                               ),
-                              PopupMenuItem<String>(
+                              const PopupMenuItem<String>(
                                 value: 'Option 4',
                                 child: Text('スターを見る'),
                               ),
@@ -790,6 +910,21 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                     ? 'コメントを開く'
                                     : 'コメントを閉じる'),
                               ),
+                              if (groupId == null)
+                                const PopupMenuItem<String>(
+                                  value: 'Option 6',
+                                  child: Text('グループを作る'),
+                                ),
+                              if (groupId == null)
+                                const PopupMenuItem<String>(
+                                  value: 'Option 7',
+                                  child: Text('既存のグループに入れる'),
+                                ),
+                              if (groupId != null)
+                                const PopupMenuItem<String>(
+                                  value: 'Option 8',
+                                  child: Text('グループから削除'),
+                                ),
                             ];
                           },
                         )
@@ -811,32 +946,19 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           },
                           itemBuilder: (BuildContext context) {
                             return [
-                              PopupMenuItem<String>(
+                              const PopupMenuItem<String>(
                                 value: '投稿の報告',
                                 child: Text(
                                   '投稿の報告',
                                   style: TextStyle(color: Colors.blue),
                                 ),
                               ),
-                              // PopupMenuItem<String>(
-                              //   value: 'Option 2',
-                              //   child: Text('Option 2'),
-                              // ),
-                              // PopupMenuItem<String>(
-                              //   value: 'Option 3',
-                              //   child: Text('Option 3'),
-                              // ),
                             ];
                           },
                         ),
                     ],
                   ),
                 ],
-              ),
-              Text(
-                DateFormat('yyyy/M/d HH:mm:ss')
-                    .format(widget.post.createdTime!.toDate()),
-                style: const TextStyle(color: Colors.grey),
               ),
               const SizedBox(height: 10),
 
@@ -918,12 +1040,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   isBookmarkedNotifier: widget.isBookmarkedNotifier,
                   isFavoriteNotifier: isFavoriteNotifier,
                   replyCountNotifier: _replyCountNotifier,
-                  // onFavoriteToggle: () => _favoritePost.toggleFavorite(
-                  //   widget.post.id,
-                  //   _favoritePost.favoritePostsNotifier.value
-                  //       .contains(widget.post.id),
-                  // ),
-                  // onBookMsrkToggle: widget.onBookMsrkToggle,
                 ),
 
               GestureDetector(
@@ -1080,7 +1196,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
           ),
         ),
       ),
-      bottomNavigationBar: NavigationBarPage(selectedIndex: 0),
+      // bottomNavigationBar: NavigationBarPage(selectedIndex: 0),
     );
   }
 }

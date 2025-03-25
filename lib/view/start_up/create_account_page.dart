@@ -75,7 +75,9 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                   child: TextField(
                     controller: userIdController,
                     decoration: InputDecoration(
-                      hintText: 'ユーザーID',
+                      labelText: 'ユーザーID',
+                      helperText: '2字以上30字未満、設定後変更できません',
+                      helperStyle: TextStyle(fontSize: 12, color: Colors.grey),
                       errorText: userIdErrorMessage,
                     ),
                     maxLength: 30,
@@ -83,8 +85,6 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                       setState(() {
                         if (value.length < 2) {
                           userIdErrorMessage = 'ユーザーIDは最低2文字必要です';
-                        } else if (!isValidUserId(value)) {
-                          userIdErrorMessage = 'ユーザーIDは英数字と記号のみ使用できます';
                         } else {
                           userIdErrorMessage = null;
                         }
@@ -100,7 +100,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                   width: 300,
                   child: TextField(
                     controller: emailController,
-                    decoration: InputDecoration(hintText: 'メールアドレス'),
+                    decoration: InputDecoration(labelText: 'メールアドレス'),
                     inputFormatters: [
                       LengthLimitingTextInputFormatter(80),
                     ],
@@ -111,8 +111,11 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                 width: 300,
                 child: TextField(
                   controller: passController,
-                  decoration:
-                      InputDecoration(hintText: 'パスワード（6文字以上24文字以内の英数字）'),
+                  decoration: InputDecoration(
+                    labelText: 'パスワード',
+                    helperText: '6文字以上24文字以内の英数字',
+                    helperStyle: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                   inputFormatters: [
                     LengthLimitingTextInputFormatter(24),
                   ],
@@ -224,7 +227,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
             controller: nameController,
             maxLines: null, // 自動改行を有効にするためにmaxLinesをnullに
             decoration: InputDecoration(
-              hintText: '名前',
+              labelText: '名前',
               counterText: '', // デフォルトの文字カウンタを非表示に
             ),
             maxLength: 35,
@@ -252,7 +255,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
             controller: selfIntroductionController,
             maxLines: null, // 自動改行を有効にするためにmaxLinesをnullに
             decoration: InputDecoration(
-              hintText: '自己紹介',
+              labelText: '自己紹介',
               counterText: '', // デフォルトの文字カウンタを非表示に
             ),
             maxLength: 400, // 文字数制限300文字

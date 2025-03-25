@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:math';
-import 'package:cymva/view/account/account_page.dart';
+import 'package:cymva/utils/snackbar_utils.dart';
+import 'package:cymva/view/navigation_bar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -18,9 +19,7 @@ class FunctionUtils {
     if (pickedFiles.isNotEmpty) {
       return pickedFiles.map((file) => File(file.path)).toList();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('画像が選択されていません')),
-      );
+      showTopSnackBar(context, '画像が選択されていません', backgroundColor: Colors.red);
       return null;
     }
   }
@@ -38,16 +37,16 @@ class FunctionUtils {
       final int maxSize = 5 * 1024 * 1024; // 5MBの上限を設定
       if (fileSize > maxSize) {
         // ファイルサイズが大きすぎる場合はエラーを表示
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('ファイルサイズが大きすぎます。5MB以下のファイルを選択してください。')),
-        );
+        showTopSnackBar(context, 'ファイルサイズが大きすぎます。5MB以下のファイルを選択してください。',
+            backgroundColor: Colors.red);
 
         //OK
         final String userId = FirebaseAuth.instance.currentUser!.uid;
 
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => AccountPage(postUserId: userId),
+            builder: (context) =>
+                NavigationBarPage(userId: userId, firstIndex: 1),
           ),
         );
       }
@@ -89,9 +88,8 @@ class FunctionUtils {
 
       // contextが有効な時のみエラーメッセージを表示
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('画像のアップロード中にエラーが発生しました')),
-        );
+        showTopSnackBar(context, '画像のアップロード中にエラーが発生しました',
+            backgroundColor: Colors.red);
       }
 
       return null; // エラー時はnullを返す
@@ -123,9 +121,8 @@ class FunctionUtils {
       return downloadUrl; // 正常にアップロードされた場合はURLを返す
     } catch (e) {
       print('動画のアップロード中にエラーが発生しました: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('動画のアップロード中にエラーが発生しました')),
-      );
+      showTopSnackBar(context, '動画のアップロード中にエラーが発生しました',
+          backgroundColor: Colors.red);
       return null; // エラー時はnullを返す
     }
   }
@@ -153,16 +150,13 @@ class FunctionUtils {
 
     if (category == '漫画') {
       if (pickedFiles != null && pickedFiles.length > 50) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('画像の選択は最大50枚までです')),
-        );
+        showTopSnackBar(context, '画像の選択は最大50枚までです',
+            backgroundColor: Colors.red);
         return pickedFiles.take(50).toList();
       }
     } else {
       if (pickedFiles != null && pickedFiles.length > 4) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('画像の選択は最大4枚までです')),
-        );
+        showTopSnackBar(context, '画像の選択は最大4枚までです', backgroundColor: Colors.red);
         return pickedFiles.take(4).toList(); // 最大4枚を返す
       }
     }
@@ -185,9 +179,8 @@ class FunctionUtils {
         if (fileSizeInBytes <= 512 * 1024 * 1024) {
           pickedFile = file; // サイズが適切であれば設定
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('動画のサイズが512MBを超えています。')),
-          );
+          showTopSnackBar(context, '動画のサイズが512MBを超えています。',
+              backgroundColor: Colors.red);
           return null;
         }
       }

@@ -1,7 +1,8 @@
 import 'package:cymva/utils/firestore/users.dart';
+import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/account/favorite_list.dart';
+import 'package:cymva/view/account/group_posts_page.dart';
 import 'package:cymva/view/account/image_post_list.dart';
-import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -13,8 +14,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AccountPage extends StatefulWidget {
   final String postUserId;
+  final Account? postAccount;
 
-  const AccountPage({Key? key, required this.postUserId}) : super(key: key);
+  AccountPage({required this.postUserId, this.postAccount});
 
   @override
   _AccountPageState createState() => _AccountPageState();
@@ -31,8 +33,27 @@ class _AccountPageState extends State<AccountPage> {
   void initState() {
     super.initState();
     _pageController = PageController();
-    _getAccount();
     _getUserId();
+    postAccount = widget.postAccount;
+    if (postAccount == null) {
+      _getAccount();
+    }
+  }
+
+  @override
+  void didUpdateWidget(AccountPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.postUserId != widget.postUserId) {
+      _resetState();
+      _getAccount();
+    }
+  }
+
+  void _resetState() {
+    setState(() {
+      postAccount = null;
+      isPosting = false;
+    });
   }
 
   Future<void> _getUserId() async {
@@ -45,9 +66,9 @@ class _AccountPageState extends State<AccountPage> {
     final Account? account = await UserFirestore.getUser(widget.postUserId);
 
     if (account == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ユーザー情報が取得できませんでした')),
-      );
+      showTopSnackBar(context, 'ユーザー情報が取得できませんでした',
+          backgroundColor: Colors.red);
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -159,7 +180,7 @@ class _AccountPageState extends State<AccountPage> {
                     ],
                   ),
                 ),
-                bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
+                // bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
               );
             }
 
@@ -196,7 +217,7 @@ class _AccountPageState extends State<AccountPage> {
                         ],
                       ),
                     ),
-                    bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
+                    // bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
                   );
                 }
 
@@ -229,13 +250,16 @@ class _AccountPageState extends State<AccountPage> {
                               ImagePostList(myAccount: postAccount!),
                               FavoriteList(
                                   myAccount: postAccount!, userId: userId),
+                              GroupPostsPage(
+                                  // postAccount: postAccount!,
+                                  postAccount: postAccount!),
                             ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                  bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
+                  // bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
                 );
               },
             );

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/post_item_utils.dart';
 import 'package:cymva/view/post_item/Icons_action.dart';
 import 'package:cymva/view/post_item/link_text.dart';
@@ -9,7 +10,6 @@ import 'package:cymva/model/post.dart';
 import 'package:cymva/model/account.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/view/post_item/post_detail_page.dart';
-import 'package:cymva/view/account/account_page.dart';
 import 'dart:async';
 
 class PostItemWidget extends StatefulWidget {
@@ -194,7 +194,6 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                 userId: widget.userId,
                 bookmarkUsersNotifier: widget.bookmarkUsersNotifier,
                 isBookmarkedNotifier: widget.isBookmarkedNotifier,
-                onBookMsrkToggle: widget.onBookMsrkToggle,
               ),
             ),
           );
@@ -249,7 +248,6 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                 userId: widget.userId,
                 bookmarkUsersNotifier: widget.bookmarkUsersNotifier,
                 isBookmarkedNotifier: widget.isBookmarkedNotifier,
-                onBookMsrkToggle: widget.onBookMsrkToggle,
               ),
             ),
           );
@@ -281,13 +279,8 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                     children: [
                       GestureDetector(
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AccountPage(
-                                  postUserId: widget.post.postAccountId),
-                            ),
-                          );
+                          navigateToPage(context, widget.post.postAccountId,
+                              '1', true, false);
                         },
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8.0),
@@ -475,8 +468,6 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                     widget.isBookmarkedNotifier,
                                 isFavoriteNotifier: widget.isFavoriteNotifier,
                                 replyCountNotifier: _replyCountNotifier,
-                                // onFavoriteToggle: widget.onFavoriteToggle,
-                                // onBookMsrkToggle: widget.onBookMsrkToggle,
                               ),
                           ],
                         ),

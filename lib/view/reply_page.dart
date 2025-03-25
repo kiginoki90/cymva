@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:cymva/model/account.dart';
+import 'package:cymva/utils/navigation_utils.dart';
+import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -36,6 +38,8 @@ class _ReplyPageState extends State<ReplyPage> {
       GlobalKey<ScaffoldMessengerState>();
   final ValueNotifier<int> _currentTextLength = ValueNotifier<int>(0);
   String? _imageUrl;
+  String? userProfileImageUrl;
+  String? postUserId;
 
   @override
   void initState() {
@@ -43,6 +47,25 @@ class _ReplyPageState extends State<ReplyPage> {
     _fetchPostAccountInfo();
     _replyController.addListener(_updateTextLength);
     _getImageUrl();
+    fetchUserProfileImage();
+  }
+
+  Future<void> fetchUserProfileImage() async {
+    try {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .get();
+
+      if (userDoc.exists) {
+        setState(() {
+          userProfileImageUrl = userDoc['image_path'];
+          postUserId = userDoc['user_id'];
+        });
+      }
+    } catch (e) {
+      print('プロフィール画像の取得中にエラーが発生しました: $e');
+    }
   }
 
   void _updateTextLength() {
@@ -81,19 +104,17 @@ class _ReplyPageState extends State<ReplyPage> {
   Future<void> _sendReply() async {
     if (_replyController.text.isNotEmpty || _mediaFiles.isNotEmpty) {
       if (_mediaFiles.length > 4) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('画像は最大4枚まで選択できます。')),
-        );
+        showTopSnackBar(context, '画像は最大4枚まで選択できます。');
         return;
       }
 
-      if (_mediaFiles.any((file) => file.path.endsWith('.mp4')) &&
-          _mediaFiles.length > 1) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('動画は最大1つまで選択できます。')),
-        );
-        return;
-      }
+      // if (_mediaFiles.any((file) => file.path.endsWith('.mp4')) &&
+      //     _mediaFiles.length > 1) {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     const SnackBar(content: Text('動画は最大1つまで選択できます。')),
+      //   );
+      //   return;
+      // }
 
       List<String>? mediaUrls;
 
@@ -139,15 +160,11 @@ class _ReplyPageState extends State<ReplyPage> {
         }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('返信が完了しました')),
-          );
+          showTopSnackBar(context, '返信が完了しました', backgroundColor: Colors.green);
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('返信に失敗しました')),
-          );
+          showTopSnackBar(context, '返信に失敗しました', backgroundColor: Colors.red);
         }
       }
     }
@@ -199,12 +216,15 @@ class _ReplyPageState extends State<ReplyPage> {
         .get();
     String? imageUrl = doc.data()?['ReplyPage'];
     if (imageUrl != null) {
-      // Firebase StorageからダウンロードURLを取得
-      final ref = FirebaseStorage.instance.refFromURL(imageUrl);
-      String downloadUrl = await ref.getDownloadURL();
-      setState(() {
-        _imageUrl = downloadUrl;
-      });
+      // URLが正しい形式であることを確認
+      if (imageUrl.startsWith('gs://') || imageUrl.startsWith('https://')) {
+        // Firebase StorageからダウンロードURLを取得
+        final ref = FirebaseStorage.instance.refFromURL(imageUrl);
+        String downloadUrl = await ref.getDownloadURL();
+        setState(() {
+          _imageUrl = downloadUrl;
+        });
+      }
     }
   }
 
@@ -225,6 +245,34 @@ class _ReplyPageState extends State<ReplyPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.black),
+        actions: [
+          if (userProfileImageUrl != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 35.0),
+              child: GestureDetector(
+                onTap: () {
+                  navigateToPage(context, widget.userId, '1', false, false);
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8.0),
+                  child: Image.network(
+                    userProfileImageUrl!,
+                    width: 44,
+                    height: 44,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Image.network(
+                        'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: Stack(
         children: [

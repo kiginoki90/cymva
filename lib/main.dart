@@ -1,3 +1,4 @@
+import 'package:cymva/view/navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -94,7 +95,7 @@ class _InitialScreenState extends State<InitialScreen> {
             .get();
 
         if (userDoc.exists) {
-          return TimeLineBody(userId: userId);
+          return NavigationBarPage(userId: userId, showChatIcon: true);
         }
       }
     }

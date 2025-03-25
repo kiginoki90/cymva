@@ -194,7 +194,6 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                 userId: widget.userId,
                 bookmarkUsersNotifier: widget.bookmarkUsersNotifier,
                 isBookmarkedNotifier: widget.isBookmarkedNotifier,
-                onBookMsrkToggle: widget.onBookMsrkToggle,
               ),
             ),
           );
@@ -221,7 +220,6 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                 userId: widget.userId,
                 bookmarkUsersNotifier: widget.bookmarkUsersNotifier,
                 isBookmarkedNotifier: widget.isBookmarkedNotifier,
-                onBookMsrkToggle: widget.onBookMsrkToggle,
               ),
             ),
           );

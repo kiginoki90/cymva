@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/utils/favorite_post.dart';
+import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cymva/view/repost_page.dart';
@@ -118,12 +119,9 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
                         widget.post.id, docSnapshot.exists);
 
                     // スナックバーを表示
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(snackBarMessage),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
+                    showTopSnackBar(context, snackBarMessage,
+                        backgroundColor:
+                            const Color.fromARGB(255, 255, 183, 59));
 
                     // タップした感覚を提供
                     HapticFeedback.lightImpact();
@@ -293,12 +291,10 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
                         docSnapshot.exists ? '栞を外しました' : '栞を挟みました';
 
                     // スナックバーを表示
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(snackBarMessage),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
+                    showTopSnackBar(context, snackBarMessage,
+                        backgroundColor:
+                            const Color.fromARGB(255, 59, 144, 255));
+
                     HapticFeedback.lightImpact();
 
                     setState(() {

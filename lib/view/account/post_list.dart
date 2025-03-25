@@ -30,8 +30,6 @@ class _PostListState extends ConsumerState<PostList> {
     super.initState();
     _loadPosts();
     _scrollController.addListener(_scrollListener);
-    // _favoritePost.getFavoritePosts();
-    // _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
   }
 
   @override

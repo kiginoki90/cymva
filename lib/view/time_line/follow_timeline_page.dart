@@ -83,111 +83,123 @@ class _FollowTimelinePageState extends ConsumerState<FollowTimelinePage> {
     final model = ref.watch(viewModelProvider);
 
     return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 500),
-          child: RefreshIndicator(
-            onRefresh: _refreshPosts,
-            child: model.followedPostList.isEmpty
-                ? const Center(child: Text("まだ投稿がありません"))
-                : ListView.builder(
-                    controller: _scrollController,
-                    itemCount: model.followedPostList.length +
-                        (model.followedPostList.length ~/ 10) +
-                        1,
-                    itemBuilder: (context, int index) {
-                      if (index ==
-                          model.followedPostList.length +
-                              (model.followedPostList.length ~/ 10)) {
-                        return _isLoadingMore
-                            ? const Center(child: Text(" Loading..."))
-                            : const Center(child: Text("結果は以上です"));
-                      }
+      body: Stack(
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 500),
+              child: RefreshIndicator(
+                onRefresh: _refreshPosts,
+                child: model.followedPostList.isEmpty
+                    ? const Center(child: Text("まだ投稿がありません"))
+                    : ListView.builder(
+                        controller: _scrollController,
+                        itemCount: model.followedPostList.length +
+                            (model.followedPostList.length ~/ 10) +
+                            1,
+                        itemBuilder: (context, int index) {
+                          if (index ==
+                              model.followedPostList.length +
+                                  (model.followedPostList.length ~/ 10)) {
+                            return _isLoadingMore
+                                ? const Center(child: Text(" Loading..."))
+                                : const Center(child: Text("結果は以上です"));
+                          }
 
-                      if (index % 11 == 10) {
-                        return BannerAdWidget(); // 広告ウィジェットを表示
-                      }
+                          if (index % 11 == 10) {
+                            return BannerAdWidget(); // 広告ウィジェットを表示
+                          }
 
-                      final postIndex = index - (index ~/ 11);
-                      if (postIndex >= model.followedPostList.length) {
-                        return Container(); // インデックスが範囲外の場合は空のコンテナを返す
-                      }
+                          final postIndex = index - (index ~/ 11);
+                          if (postIndex >= model.followedPostList.length) {
+                            return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+                          }
 
-                      final postDoc = model.followedPostList[postIndex];
-                      final post = Post.fromDocument(postDoc);
-                      final postAccount = model.postUserMap[post.postAccountId];
+                          final postDoc = model.followedPostList[postIndex];
+                          final post = Post.fromDocument(postDoc);
+                          final postAccount =
+                              model.postUserMap[post.postAccountId];
 
-                      _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      _favoritePost.updateFavoriteUsersCount(post.id);
+                          _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                              ValueNotifier<int>(0);
+                          _favoritePost.updateFavoriteUsersCount(post.id);
 
-                      _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      _bookmarkPost.updateBookmarkUsersCount(post.id);
+                          _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+                              ValueNotifier<int>(0);
+                          _bookmarkPost.updateBookmarkUsersCount(post.id);
 
-                      return PostItemWidget(
-                        key: PageStorageKey(post.id),
-                        post: post,
-                        postAccount: postAccount!,
-                        favoriteUsersNotifier:
-                            _favoritePost.favoriteUsersNotifiers[post.id]!,
-                        isFavoriteNotifier: ValueNotifier<bool>(
-                          _favoritePost.favoritePostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        onFavoriteToggle: () => _favoritePost.toggleFavorite(
-                          post.id,
-                          _favoritePost.favoritePostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        replyFlag: ValueNotifier<bool>(false),
-                        bookmarkUsersNotifier:
-                            _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
-                        isBookmarkedNotifier: ValueNotifier<bool>(
-                          _bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
-                          post.id,
-                          _bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        userId: widget.userId,
-                      );
-                    },
-                  ),
+                          return PostItemWidget(
+                            key: PageStorageKey(post.id),
+                            post: post,
+                            postAccount: postAccount!,
+                            favoriteUsersNotifier:
+                                _favoritePost.favoriteUsersNotifiers[post.id]!,
+                            isFavoriteNotifier: ValueNotifier<bool>(
+                              _favoritePost.favoritePostsNotifier.value
+                                  .contains(post.id),
+                            ),
+                            onFavoriteToggle: () =>
+                                _favoritePost.toggleFavorite(
+                              post.id,
+                              _favoritePost.favoritePostsNotifier.value
+                                  .contains(post.id),
+                            ),
+                            replyFlag: ValueNotifier<bool>(false),
+                            bookmarkUsersNotifier:
+                                _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+                            isBookmarkedNotifier: ValueNotifier<bool>(
+                              _bookmarkPost.bookmarkPostsNotifier.value
+                                  .contains(post.id),
+                            ),
+                            onBookMsrkToggle: () =>
+                                _bookmarkPost.toggleBookmark(
+                              post.id,
+                              _bookmarkPost.bookmarkPostsNotifier.value
+                                  .contains(post.id),
+                            ),
+                            userId: widget.userId,
+                          );
+                        },
+                      ),
+              ),
+            ),
           ),
-        ),
-      ),
-      floatingActionButton: ValueListenableBuilder<bool>(
-        valueListenable: _showScrollToTopButton,
-        builder: (context, value, child) {
-          return value
-              ? GestureDetector(
-                  onDoubleTap: () {
-                    _scrollController.animateTo(
-                      0,
-                      duration: Duration(milliseconds: 500),
-                      curve: Curves.easeInOut,
-                    );
-                  },
-                  child: Container(
-                    width: 56.0,
-                    height: 56.0,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.lightBlue, width: 2.0),
-                      color: Colors.transparent, // 内側を透明にする場合
-                    ),
-                    child: Icon(
-                      Icons.keyboard_double_arrow_up,
-                      color: Colors.lightBlue,
-                      size: 40.0,
-                    ),
-                  ),
-                )
-              : Container();
-        },
+          Positioned(
+            bottom: 80.0, // ここで位置を調整
+            right: 16.0,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _showScrollToTopButton,
+              builder: (context, value, child) {
+                return value
+                    ? GestureDetector(
+                        onDoubleTap: () {
+                          _scrollController.animateTo(
+                            0,
+                            duration: Duration(milliseconds: 500),
+                            curve: Curves.easeInOut,
+                          );
+                        },
+                        child: Container(
+                          width: 56.0,
+                          height: 56.0,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border:
+                                Border.all(color: Colors.lightBlue, width: 2.0),
+                            color: Colors.transparent, // 内側を透明にする場合
+                          ),
+                          child: Icon(
+                            Icons.keyboard_double_arrow_up,
+                            color: Colors.lightBlue,
+                            size: 40.0,
+                          ),
+                        ),
+                      )
+                    : Container();
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

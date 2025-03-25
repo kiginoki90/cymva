@@ -91,7 +91,7 @@ class _AddAccountPageState extends State<AddAccountPage> {
                   child: image == null ? Icon(Icons.add) : null,
                 ),
               ),
-              _buildTextField(nameController, '名前'),
+              _buildTextField(nameController, '名前', maxLength: 35),
               SizedBox(height: 20),
               _buildTextField(userIdController, 'ユーザーID', maxLength: 30),
               SizedBox(height: 20),
@@ -154,13 +154,13 @@ class _AddAccountPageState extends State<AddAccountPage> {
               hintText: '自己紹介',
               counterText: '', // デフォルトの文字カウンタを非表示に
             ),
-            maxLength: 300, // 文字数制限300文字
+            maxLength: 400, // 文字数制限300文字
           ),
         ),
         Padding(
           padding: const EdgeInsets.only(right: 20.0),
           child: Text(
-            '$selfIntroCharCount/300', // 現在の文字数と最大文字数を表示
+            '$selfIntroCharCount/400', // 現在の文字数と最大文字数を表示
             style: TextStyle(color: Colors.grey),
           ),
         ),

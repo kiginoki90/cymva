@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/start_up/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -27,16 +28,15 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     if (currentPassword.isEmpty ||
         newPassword.isEmpty ||
         confirmPassword.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('すべてのフィールドを入力してください')),
-      );
+      showTopSnackBar(context, 'すべてのフィールドを入力してください',
+          backgroundColor: Colors.red);
       return;
     }
 
     if (newPassword != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('新しいパスワードと確認用パスワードが一致しません')),
-      );
+      showTopSnackBar(context, '新しいパスワードと確認用パスワードが一致しません',
+          backgroundColor: Colors.red);
+
       return;
     }
 
@@ -45,9 +45,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       if (user != null) {
         // ユーザーを再認証
         AuthCredential credential = EmailAuthProvider.credential(
-          email: user.email!,
-          password: currentPassword,
-        );
+            email: user.email!, password: currentPassword);
 
         await user.reauthenticateWithCredential(credential);
 
@@ -57,9 +55,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         // パスワード変更トークンを更新
         await updatePasswordChangeToken(user.uid);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('パスワードが変更されました')),
-        );
+        showTopSnackBar(context, 'パスワードが変更されました',
+            backgroundColor: Colors.green);
 
         // ログイン画面に遷移
         Navigator.pushReplacement(
@@ -69,10 +66,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         );
       }
     } catch (e) {
-      print('パスワード変更に失敗しました: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('パスワード変更に失敗しました')),
-      );
+      showTopSnackBar(context, 'パスワード変更に失敗しました', backgroundColor: Colors.red);
     }
   }
 

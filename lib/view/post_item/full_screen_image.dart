@@ -5,8 +5,13 @@ import 'package:photo_view/photo_view_gallery.dart';
 class FullScreenImagePage extends StatefulWidget {
   final List<String> imageUrls;
   final int initialIndex;
+  final bool unberBar;
 
-  FullScreenImagePage({required this.imageUrls, required this.initialIndex});
+  FullScreenImagePage({
+    required this.imageUrls,
+    required this.initialIndex,
+    this.unberBar = false, // デフォルト値をfalseに設定
+  });
 
   @override
   _FullScreenImagePageState createState() => _FullScreenImagePageState();
@@ -14,11 +19,33 @@ class FullScreenImagePage extends StatefulWidget {
 
 class _FullScreenImagePageState extends State<FullScreenImagePage> {
   late int _currentIndex;
+  bool _showOverlay = true;
+  bool _showArrow = false;
+  double _arrowOpacity = 1.0;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    if (widget.unberBar) {
+      _showArrow = true;
+      Future.delayed(Duration(seconds: 1), () {
+        setState(() {
+          _arrowOpacity = 0.0;
+        });
+      });
+      Future.delayed(Duration(seconds: 2), () {
+        setState(() {
+          _showArrow = false;
+        });
+      });
+    }
+  }
+
+  void _toggleOverlay() {
+    setState(() {
+      _showOverlay = !_showOverlay;
+    });
   }
 
   @override
@@ -26,6 +53,7 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
+        onTap: _toggleOverlay,
         onVerticalDragUpdate: (details) {
           if (details.primaryDelta! > 10) {
             Navigator.pop(context);
@@ -46,6 +74,8 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                   imageProvider: NetworkImage(imageUrl),
                   minScale: PhotoViewComputedScale.contained,
                   maxScale: PhotoViewComputedScale.covered * 2, // 最大拡大率を設定
+                  heroAttributes:
+                      PhotoViewHeroAttributes(tag: imageUrl), // Heroアニメーションを追加
                 );
               },
               scrollPhysics: BouncingScrollPhysics(),
@@ -53,31 +83,60 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                 color: Colors.black,
               ),
               pageController: PageController(
-                  initialPage: widget.initialIndex), // PageControllerをここに移動
-            ),
-            SafeArea(
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.close, color: Colors.white),
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                      ),
-                      SizedBox(width: 20),
-                      if (widget.imageUrls.length > 1)
-                        Text(
-                          '${_currentIndex + 1}/${widget.imageUrls.length}',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      Spacer(),
-                    ],
-                  ),
-                ],
+                initialPage: widget.initialIndex,
               ),
+              reverse: widget.unberBar, // unberBarがtrueの時だけスワイプ方向を逆に設定
             ),
+            if (_showOverlay)
+              SafeArea(
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.close, color: Colors.white),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                        ),
+                        SizedBox(width: 20),
+                        if (widget.imageUrls.length > 1)
+                          Text(
+                            '${_currentIndex + 1}/${widget.imageUrls.length}',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        Spacer(),
+                      ],
+                    ),
+                    Spacer(),
+                    if (widget.imageUrls.length > 1 && widget.unberBar)
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        child: LinearProgressIndicator(
+                          value: 1 -
+                              (_currentIndex + 1) /
+                                  widget.imageUrls.length, // 反対方向に設定
+                          backgroundColor: Colors.white,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.grey),
+                        ),
+                      ),
+                    SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            if (_showArrow)
+              Center(
+                child: AnimatedOpacity(
+                  opacity: _arrowOpacity,
+                  duration: Duration(milliseconds: 500),
+                  child: const Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                    size: 50,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

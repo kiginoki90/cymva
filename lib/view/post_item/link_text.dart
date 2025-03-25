@@ -1,7 +1,8 @@
-import 'package:cymva/view/account/account_page.dart';
+import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/view/search/search_page.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -10,6 +11,7 @@ class LinkText extends StatelessWidget {
   final String userId;
   final int textSize;
   final bool tapable;
+  final FlutterSecureStorage storage = FlutterSecureStorage();
 
   LinkText(
       {required this.text,
@@ -109,16 +111,9 @@ class LinkText extends StatelessWidget {
             color: Colors.blue,
           ),
           recognizer: TapGestureRecognizer()
-            ..onTap = () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SearchPage(
-                    userId: userId,
-                    initialHashtag: matchedText,
-                  ),
-                ),
-              );
+            ..onTap = () async {
+              await storage.write(key: 'query', value: matchedText);
+              navigateToSearchPage(context, userId, '2', true);
             },
         ));
       } else if (matchedText.startsWith('@')) {
@@ -138,14 +133,7 @@ class LinkText extends StatelessWidget {
                   .get();
               if (userDoc.docs.isNotEmpty) {
                 final postAccountId = userDoc.docs.first.id;
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AccountPage(
-                      postUserId: postAccountId,
-                    ),
-                  ),
-                );
+                navigateToPage(context, postAccountId, '1', true, false);
               }
             },
         ));

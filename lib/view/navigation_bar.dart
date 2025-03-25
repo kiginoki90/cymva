@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/view/message/messes_page.dart';
 import 'package:cymva/view/post_page/post_page.dart';
 import 'package:cymva/view/search/search_page.dart';
@@ -11,11 +12,21 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:async';
 
 class NavigationBarPage extends StatefulWidget {
-  final int selectedIndex;
+  final String userId;
+  final bool showChatIcon;
+  final int firstIndex;
+  final bool rebuildNavigation;
+  final bool myAccount;
+  final bool? notDleteStotage;
 
   const NavigationBarPage({
     super.key,
-    required this.selectedIndex,
+    required this.userId,
+    this.showChatIcon = false,
+    this.firstIndex = 0,
+    this.rebuildNavigation = false,
+    this.myAccount = false,
+    this.notDleteStotage = false,
   });
 
   @override
@@ -23,19 +34,50 @@ class NavigationBarPage extends StatefulWidget {
 }
 
 class _NavigationBarPageState extends State<NavigationBarPage> {
-  List<Widget>? pageList;
   String? userId;
   List<Map<String, dynamic>> notifications = [];
   final FlutterSecureStorage storage = FlutterSecureStorage();
   bool showChatIcon = true;
   late StreamSubscription<DocumentSnapshot> _tokenSubscription;
   Timestamp? lastPasswordChangeToken;
+  int selectedIndex = 0;
+  List<Widget> pageList = [];
 
   @override
   void initState() {
     super.initState();
-    _loadUserIdAndAdminStatus();
-    _loadNotifications();
+    showChatIcon = widget.showChatIcon;
+    selectedIndex = widget.firstIndex;
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    await _loadUserIdAndAdminStatus();
+    await _loadNotifications();
+    if (userId != null) {
+      _initializePageList(widget.myAccount);
+    }
+  }
+
+  void _initializePageList(bool myAccount) {
+    setState(() {
+      if (myAccount)
+        pageList = [
+          TimeLineBody(userId: userId!),
+          AccountPage(postUserId: userId!),
+          SearchPage(userId: userId!, notdDleteStotage: widget.notDleteStotage),
+          MessesPage(userId: userId!),
+          if (showChatIcon) PostPage(userId: userId!),
+        ];
+      else
+        pageList = [
+          TimeLineBody(userId: userId!),
+          AccountPage(postUserId: widget.userId),
+          SearchPage(userId: userId!, notdDleteStotage: widget.notDleteStotage),
+          MessesPage(userId: userId!),
+          if (showChatIcon) PostPage(userId: userId!),
+        ];
+    });
   }
 
   Future<void> _loadUserIdAndAdminStatus() async {
@@ -59,13 +101,6 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
             MaterialPageRoute(builder: (context) => LoginPage()),
           );
         }
-        pageList = [
-          TimeLineBody(userId: userId!),
-          AccountPage(postUserId: userId!),
-          SearchPage(userId: userId!),
-          MessesPage(userId: userId!),
-          if (showChatIcon) PostPage(userId: userId!),
-        ];
       });
 
       // パスワード変更トークンを監視する
@@ -170,106 +205,80 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
     }
   }
 
-  Future<void> _markNotificationsAsRead() async {
-    final firestore = FirebaseFirestore.instance;
-
-    if (userId != null) {
-      QuerySnapshot messageSnapshot = await firestore
-          .collection('users')
-          .doc(userId)
-          .collection('message')
-          .get();
-
-      for (var doc in messageSnapshot.docs) {
-        await firestore
-            .collection('users')
-            .doc(userId)
-            .collection('message')
-            .doc(doc.id)
-            .update({'isRead': true});
-      }
-
-      notifications = List.generate(
-          messageSnapshot.docs.length, (index) => {'isRead': true});
-
-      setState(() {});
-    }
-  }
-
-  void _handleItemTapped(int index) async {
-    if (index == 3) {
-      await _markNotificationsAsRead();
-    }
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation1, animation2) => pageList![index],
-        transitionDuration: Duration.zero,
-        reverseTransitionDuration: Duration.zero,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (pageList == null) {
-      return Center(child: CircularProgressIndicator());
-    }
+    // rebuildNavigationがtrueの場合、ページリストを再初期化
+    // if (widget.rebuildNavigation && userId != null) {
+    //   _initializePageList(widget.myAccount);
+    // }
 
-    return BottomNavigationBar(
-      items: [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          label: '',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.perm_identity_outlined),
-          label: '',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.search),
-          label: '',
-        ),
-        BottomNavigationBarItem(
-          icon: Stack(
-            children: [
-              Icon(Icons.notifications_outlined),
-              if (_hasUnreadNotifications())
-                Positioned(
-                  right: 0,
-                  child: Container(
-                    padding: EdgeInsets.all(1),
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 231, 160, 121),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    constraints: BoxConstraints(
-                      minWidth: 12,
-                      minHeight: 12,
-                    ),
-                    child: Text(
-                      '',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 8,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+    return Scaffold(
+      body: Stack(
+        children: [
+          pageList.isNotEmpty
+              ? pageList[selectedIndex]
+              : Center(child: CircularProgressIndicator()),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: BottomNavigationBar(
+              items: [
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.home_outlined), label: 'ホーム'),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.perm_identity_outlined), label: 'アカウント'),
+                BottomNavigationBarItem(icon: Icon(Icons.search), label: '検索'),
+                BottomNavigationBarItem(
+                  icon: Stack(
+                    children: [
+                      const Icon(Icons.notifications),
+                      if (_hasUnreadNotifications())
+                        Positioned(
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(1),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 12,
+                              minHeight: 12,
+                            ),
+                            child: const Text(
+                              '',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 8,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
+                  label: 'メッセージ',
                 ),
-            ],
+                if (showChatIcon)
+                  BottomNavigationBarItem(
+                      icon: Icon(Icons.chat_bubble_outline), label: '投稿'),
+              ],
+              currentIndex: selectedIndex,
+              selectedItemColor: Colors.blue, // 選択されたアイテムの色
+              unselectedItemColor: Colors.grey, // 選択されていないアイテムの色
+              onTap: (index) {
+                setState(() {
+                  if (index == 1) {
+                    navigateToPage(context, userId!, '1', false, true);
+                  } else {
+                    selectedIndex = index;
+                  }
+                  _loadNotifications();
+                });
+              },
+            ),
           ),
-          label: '',
-        ),
-        if (showChatIcon)
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
-            label: '',
-          ),
-      ],
-      currentIndex: widget.selectedIndex,
-      type: BottomNavigationBarType.fixed,
-      onTap: _handleItemTapped,
+        ],
+      ),
     );
   }
 

@@ -3,8 +3,8 @@ import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/utils/book_mark.dart';
 import 'package:cymva/utils/firestore/users.dart';
-import 'package:cymva/view/account/account_page.dart';
-import 'package:cymva/view/navigation_bar.dart';
+import 'package:cymva/utils/navigation_utils.dart';
+import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/post_item/post_detail_page.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +24,11 @@ class _MessesPageState extends State<MessesPage> {
   final FlutterSecureStorage storage = FlutterSecureStorage();
   final BookmarkPost _bookmarkPost = BookmarkPost();
   String? _imageUrl;
+  DocumentSnapshot? _lastDocument;
+  bool _isLoading = false;
+  bool _hasMore = true;
+  final int _limit = 15;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -31,7 +36,45 @@ class _MessesPageState extends State<MessesPage> {
     _deleteOldMessages(); // 古いメッセージを削除
     _fetchNotifications();
     _getImageUrl();
-    // _bookmarkPost.getBookmarkPosts();
+    _markNotificationsAsRead();
+    _scrollController.addListener(_scrollListener);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollListener() async {
+    if (_scrollController.position.pixels ==
+            _scrollController.position.maxScrollExtent &&
+        !_isLoading) {
+      await _fetchNotifications();
+    }
+  }
+
+//通知を既読にする
+  Future<void> _markNotificationsAsRead() async {
+    final firestore = FirebaseFirestore.instance;
+
+    if (widget.userId != null) {
+      QuerySnapshot messageSnapshot = await firestore
+          .collection('users')
+          .doc(widget.userId)
+          .collection('message')
+          .get();
+
+      for (var doc in messageSnapshot.docs) {
+        await firestore
+            .collection('users')
+            .doc(widget.userId)
+            .collection('message')
+            .doc(doc.id)
+            .update({'isRead': true});
+      }
+    }
   }
 
   Future<void> _deleteOldMessages() async {
@@ -65,61 +108,91 @@ class _MessesPageState extends State<MessesPage> {
   }
 
   Future<void> _fetchNotifications() async {
-    final firestore = FirebaseFirestore.instance;
+    if (_isLoading || !_hasMore) return;
+
+    setState(() {
+      _isLoading = true;
+    });
 
     // 現在のユーザーのIDを取得
-    final snapshot = await firestore
+    Query query = FirebaseFirestore.instance
         .collection('users')
         .doc(widget.userId)
         .collection('message')
-        .get();
+        .orderBy('timestamp', descending: true)
+        .limit(_limit);
 
-    // 取得したデータをリストに格納
-    final List<Map<String, dynamic>> tempNotifications =
-        snapshot.docs.map((doc) {
-      return {
-        'id': doc.id,
-        'request_user':
-            doc.data().containsKey('request_user') ? doc['request_user'] : null,
-        'message_type': doc['message_type'],
-        'request_userId': doc.data().containsKey('request_userId')
-            ? doc['request_userId']
-            : null,
-        'title': doc.data().containsKey('title') ? doc['title'] : null,
-        'content': doc.data().containsKey('content') ? doc['content'] : null,
-        'message_read':
-            doc.data().containsKey('message_read') ? doc['message_read'] : null,
-        'timestamp':
-            doc.data().containsKey('timestamp') ? doc['timestamp'] : null,
-        'postID': doc.data().containsKey('postID') ? doc['postID'] : null,
-        'count': doc.data().containsKey('count') ? doc['count'] : 1,
-      };
-    }).toList();
-
-    // 非同期でユーザー情報を取得
-    for (var notification in tempNotifications) {
-      final userId = notification['request_user'];
-      try {
-        final user = await UserFirestore.getUser(userId); // 非同期でユーザー情報を取得
-        notification['user'] = user; // ユーザー情報を通知に追加
-      } catch (e) {
-        notification['user'] = null; // エラーが発生した場合はnullを使用
-      }
+    if (_lastDocument != null) {
+      query = query.startAfterDocument(_lastDocument!);
     }
 
-    // ソート処理
-    tempNotifications.sort((a, b) {
-      if (a['message_type'] == 4 && b['message_type'] != 4) {
-        return -1; // a を b の前に
-      } else if (a['message_type'] != 4 && b['message_type'] == 4) {
-        return 1; // b を a の前に
-      } else {
-        return b['timestamp'].compareTo(a['timestamp']); // timestamp の新しい順
+    QuerySnapshot querySnapshot = await query.get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      // 取得したデータをリストに格納
+      final List<Map<String, dynamic>> tempNotifications =
+          querySnapshot.docs.map((doc) {
+        final data = doc.data()
+            as Map<String, dynamic>?; // doc.data()を変数に格納し、nullチェックを行う
+        return {
+          'id': doc.id,
+          'request_user': data?.containsKey('request_user') == true
+              ? data!['request_user']
+              : null,
+          'message_type': data?['message_type'],
+          'request_userId': data?.containsKey('request_userId') == true
+              ? data!['request_userId']
+              : null,
+          'title': data?.containsKey('title') == true ? data!['title'] : null,
+          'content':
+              data?.containsKey('content') == true ? data!['content'] : null,
+          'message_read': data?.containsKey('message_read') == true
+              ? data!['message_read']
+              : null,
+          'timestamp': data?.containsKey('timestamp') == true
+              ? data!['timestamp']
+              : null,
+          'postID':
+              data?.containsKey('postID') == true ? data!['postID'] : null,
+          'count': data?.containsKey('count') == true ? data!['count'] : 1,
+        };
+      }).toList();
+
+      // 非同期でユーザー情報を取得
+      for (var notification in tempNotifications) {
+        final userId = notification['request_user'];
+        try {
+          final user = await UserFirestore.getUser(userId); // 非同期でユーザー情報を取得
+          notification['user'] = user; // ユーザー情報を通知に追加
+        } catch (e) {
+          notification['user'] = null; // エラーが発生した場合はnullを使用
+        }
       }
-    });
+
+      // ソート処理
+      tempNotifications.sort((a, b) {
+        if (a['message_type'] == 4 && b['message_type'] != 4) {
+          return -1; // a を b の前に
+        } else if (a['message_type'] != 4 && b['message_type'] == 4) {
+          return 1; // b を a の前に
+        } else {
+          return b['timestamp'].compareTo(a['timestamp']); // timestamp の新しい順
+        }
+      });
+
+      setState(() {
+        _lastDocument = querySnapshot.docs.last;
+        notifications.addAll(tempNotifications);
+        _hasMore = querySnapshot.docs.length == _limit;
+      });
+    } else {
+      setState(() {
+        _hasMore = false;
+      });
+    }
 
     setState(() {
-      notifications = tempNotifications;
+      _isLoading = false;
     });
 
     // デバッグログを追加
@@ -175,14 +248,14 @@ class _MessesPageState extends State<MessesPage> {
 
       await _updateFollowRequests();
 
+      navigateToPage(context, widget.userId, '3', false, false);
+
       // 成功メッセージを表示
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('フォロリクエストを許可しました')),
-      );
+      showTopSnackBar(context, 'フォロークエストを許可しました',
+          backgroundColor: Colors.green);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('フォロリクエストの許可に失敗しました')),
-      );
+      showTopSnackBar(context, 'フォローリクエストの許可に失敗しました',
+          backgroundColor: Colors.red);
       print(e);
     }
   }
@@ -223,11 +296,12 @@ class _MessesPageState extends State<MessesPage> {
                 Navigator.of(context).pop();
 
                 // 削除成功メッセージ
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('メッセージが削除されました')),
-                );
+                showTopSnackBar(context, 'メッセージが削除されました',
+                    backgroundColor: Colors.green);
 
                 await _updateFollowRequests();
+
+                navigateToPage(context, widget.userId, '3', false, false);
 
                 // 通知リストの更新
                 setState(() {
@@ -299,7 +373,7 @@ class _MessesPageState extends State<MessesPage> {
           .get();
 
       if (!postSnapshot.exists) {
-        throw Exception('投稿が見つかりませんでした');
+        showTopSnackBar(context, '投稿が見つかりませんでした', backgroundColor: Colors.red);
       }
 
       // usersコレクションからユーザーの情報を取得
@@ -310,7 +384,8 @@ class _MessesPageState extends State<MessesPage> {
       final userData = userSnapshot.data();
 
       if (userData == null) {
-        throw Exception('ユーザーが見つかりませんでした');
+        showTopSnackBar(context, 'ユーザーが見つかりませんでした',
+            backgroundColor: Colors.red);
       }
 
       final post = Post.fromDocument(postSnapshot);
@@ -333,17 +408,11 @@ class _MessesPageState extends State<MessesPage> {
             isBookmarkedNotifier: ValueNotifier<bool>(
               _bookmarkPost.bookmarkPostsNotifier.value.contains(post.id),
             ),
-            onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
-              post.id,
-              _bookmarkPost.bookmarkPostsNotifier.value.contains(post.id),
-            ),
           ),
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('投稿が見つかりませんでした')),
-      );
+      showTopSnackBar(context, '投稿が見つかりませんでした', backgroundColor: Colors.red);
     }
   }
 
@@ -391,263 +460,283 @@ class _MessesPageState extends State<MessesPage> {
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.black),
       ),
-      body: ListView.builder(
-        itemCount: notifications.length,
-        itemBuilder: (context, index) {
-          final notification = notifications[index];
-          final requestUser = notification['request_user'];
-          final user = notification['user'];
-          final requestUserId = notification['request_userId'];
-          final messageId = notification['id'];
-          final title = notification['title'];
-          final content = notification['content'];
-          final messageRead = notification['message_read'];
-          final postID = notification['postID'];
-          final count = notification['count'];
+      body: RefreshIndicator(
+        onRefresh: () async {
+          setState(() {
+            notifications.clear();
+            _lastDocument = null;
+            _hasMore = true;
+          });
+          await _fetchNotifications();
+        },
+        child: ListView.builder(
+          controller: _scrollController,
+          itemCount: notifications.length + 1,
+          itemBuilder: (context, index) {
+            if (index == notifications.length) {
+              if (_isLoading) {
+                return const Column(
+                  children: [
+                    SizedBox(height: 10),
+                    Center(child: Text('読み込み中...')),
+                    SizedBox(height: 80),
+                  ],
+                );
+              } else if (!_hasMore) {
+                return const Column(
+                  children: [
+                    SizedBox(height: 10),
+                    Center(child: Text('結果は以上です')),
+                    SizedBox(height: 80),
+                  ],
+                );
+              } else {
+                return const SizedBox(height: 150);
+              }
+            }
 
-          return Column(
-            children: [
-              if (notification['message_type'] == 1)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10.0, vertical: 5.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    AccountPage(postUserId: requestUser),
-                              ),
-                            );
-                          },
-                          child: Text(
-                            '@${requestUserId}さんからフォロー依頼が届いています',
-                            maxLines: 3, // 最大3行
-                            overflow: TextOverflow.ellipsis, // 3行を超えたら省略表示
+            final notification = notifications[index];
+            final requestUser = notification['request_user'];
+            final user = notification['user'];
+            final requestUserId = notification['request_userId'];
+            final messageId = notification['id'];
+            final title = notification['title'];
+            final content = notification['content'];
+            final messageRead = notification['message_read'];
+
+            return Column(
+              children: [
+                if (notification['message_type'] == 1)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10.0, vertical: 5.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              navigateToPage(
+                                  context, requestUser, '1', false, false);
+                            },
+                            child: Text(
+                              '@${requestUserId}さんからフォロー依頼が届いています',
+                              maxLines: 3, // 最大3行
+                              overflow: TextOverflow.ellipsis, // 3行を超えたら省略表示
+                            ),
                           ),
                         ),
-                      ),
-                      Row(
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.red),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: TextButton(
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.symmetric(
-                                    vertical: 8.0, horizontal: 8.0),
-                                minimumSize: Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        Row(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.red),
+                                borderRadius: BorderRadius.circular(4),
                               ),
-                              onPressed: () {
-                                _showDeleteConfirmationDialog(
-                                    requestUser, notification['id']);
-                              },
-                              child: Text(
-                                '削除',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.red,
+                              child: TextButton(
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                      vertical: 8.0, horizontal: 8.0),
+                                  minimumSize: Size(0, 0),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                onPressed: () {
+                                  _showDeleteConfirmationDialog(
+                                      requestUser, notification['id']);
+                                },
+                                child: Text(
+                                  '削除',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.red,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          SizedBox(width: 8), // ボタン間のスペースを追加
+                            SizedBox(width: 8), // ボタン間のスペースを追加
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.blue),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: TextButton(
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                      vertical: 8.0, horizontal: 8.0),
+                                  minimumSize: Size(0, 0),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                onPressed: () =>
+                                    _acceptFollowRequest(requestUser),
+                                child: Text(
+                                  '許可',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                if (notification['message_type'] == 2)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
+                    child: GestureDetector(
+                      onTap: user != null
+                          ? () {
+                              navigateToPage(
+                                  context,
+                                  notification['request_user'],
+                                  '1',
+                                  false,
+                                  false);
+                            }
+                          : null,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          user != null
+                              ? '@${user.userId}さんへのフォローリクエストが許可されました。'
+                              : '表示できません',
+                        ),
+                      ),
+                    ),
+                  ),
+                if (notification['message_type'] == 3)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
+                    child: GestureDetector(
+                      onTap: user != null
+                          ? () {
+                              navigateToPage(
+                                  context,
+                                  notification['request_user'],
+                                  '1',
+                                  false,
+                                  false);
+                            }
+                          : null,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          user != null
+                              ? '@${user.userId}さんからフォローされました。'
+                              : '表示できません',
+                        ),
+                      ),
+                    ),
+                  ),
+                if (notification['message_type'] == 4)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: GestureDetector(
+                      onTap: () {
+                        _showAdminMessageDialog(title, content, messageId,
+                            notification['timestamp'], messageRead);
+                      },
+                      child: Row(
+                        children: [
                           Container(
+                            padding: EdgeInsets.symmetric(
+                                vertical: 4.0, horizontal: 8.0),
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.blue),
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: TextButton(
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.symmetric(
-                                    vertical: 8.0, horizontal: 8.0),
-                                minimumSize: Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            child: Text(
+                              '運営より',
+                              style: TextStyle(
+                                color: Colors.blue,
+                                fontWeight: FontWeight.bold,
                               ),
-                              onPressed: () =>
-                                  _acceptFollowRequest(requestUser),
-                              child: Text(
-                                '許可',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.blue,
-                                ),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              if (notification['message_type'] == 2)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 8.0),
-                  child: GestureDetector(
-                    onTap: user != null
-                        ? () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AccountPage(
-                                    postUserId: notification['request_user']),
+                if (notification['message_type'] == 5)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
+                    child: GestureDetector(
+                      onTap: () {
+                        _navigateToPostDetailPage(notification['postID']);
+                      },
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  notification['count'] == 1
+                                      ? '投稿に返信が来ています'
+                                      : '投稿に${notification['count']}件の返信が来ています',
+                                  style: TextStyle(),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            );
-                          }
-                        : null,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        user != null
-                            ? '@${user.userId}さんへのフォローリクエストが許可されました。'
-                            : '表示できません',
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ),
-              if (notification['message_type'] == 3)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 8.0),
-                  child: GestureDetector(
-                    onTap: user != null
-                        ? () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AccountPage(
-                                    postUserId: notification['request_user']),
+                if (notification['message_type'] == 6)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
+                    child: GestureDetector(
+                      onTap: () {
+                        navigateToPage(context, notification['request_user'],
+                            '1', false, false);
+                      },
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  user != null
+                                      ? '@${user.userId}さんにリクエストを送りました。'
+                                      : '表示できません',
+                                  style: TextStyle(),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            );
-                          }
-                        : null,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        user != null
-                            ? '@${user.userId}さんからフォローされました。'
-                            : '表示できません',
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
+                Divider(
+                  color: Colors.grey,
+                  thickness: 0.5,
                 ),
-              if (notification['message_type'] == 4)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: GestureDetector(
-                    onTap: () {
-                      _showAdminMessageDialog(title, content, messageId,
-                          notification['timestamp'], messageRead);
-                    },
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                              vertical: 4.0, horizontal: 8.0),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.blue),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '運営より',
-                            style: TextStyle(
-                              color: Colors.blue,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              if (notification['message_type'] == 5)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 8.0),
-                  child: GestureDetector(
-                    onTap: () {
-                      _navigateToPostDetailPage(notification['postID']);
-                    },
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                notification['count'] == 1
-                                    ? '投稿に返信が来ています'
-                                    : '投稿に${notification['count']}件の返信が来ています',
-                                style: TextStyle(),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              if (notification['message_type'] == 6)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 8.0),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AccountPage(
-                              postUserId: notification['request_user']),
-                        ),
-                      );
-                    },
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                user != null
-                                    ? '@${user.userId}さんにリクエストを送りました。'
-                                    : '表示できません',
-                                style: TextStyle(),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              Divider(
-                color: Colors.grey,
-                thickness: 0.5,
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
-      bottomNavigationBar: NavigationBarPage(selectedIndex: 3),
     );
   }
 }

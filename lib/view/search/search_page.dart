@@ -1,8 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/ad_widget.dart';
 import 'package:cymva/utils/book_mark.dart';
-import 'package:cymva/view/account/account_page.dart';
-import 'package:cymva/view/navigation_bar.dart';
+import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/view/search/detailed_search_page.dart';
 import 'package:cymva/view/search/search_item.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -17,7 +16,12 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class SearchPage extends StatefulWidget {
   final String userId;
   final String? initialHashtag;
-  const SearchPage({super.key, required this.userId, this.initialHashtag});
+  final bool? notdDleteStotage;
+  const SearchPage(
+      {super.key,
+      required this.userId,
+      this.initialHashtag,
+      this.notdDleteStotage = false});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -52,9 +56,13 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void initState() {
     super.initState();
-    _clearAllFilters().then((_) {
+    if (widget.notdDleteStotage!) {
       _loadSearchFilters();
-    });
+    } else {
+      _clearAllFilters().then((_) {
+        _loadSearchFilters();
+      });
+    }
   }
 
   Future<void> _clearAllFilters() async {
@@ -254,7 +262,7 @@ class _SearchPageState extends State<SearchPage> {
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBarPage(selectedIndex: 2),
+      // bottomNavigationBar: NavigationBarPage(selectedIndex: 2),
     );
   }
 
@@ -437,14 +445,7 @@ class _SearchPageState extends State<SearchPage> {
                 children: [
                   InkWell(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AccountPage(
-                            postUserId: account.id,
-                          ),
-                        ),
-                      );
+                      navigateToPage(context, account.id, '1', false, false);
                     },
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8.0),
@@ -470,14 +471,7 @@ class _SearchPageState extends State<SearchPage> {
                   Expanded(
                     child: InkWell(
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => AccountPage(
-                              postUserId: account.id,
-                            ),
-                          ),
-                        );
+                        navigateToPage(context, account.id, '1', false, false);
                       },
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

@@ -83,123 +83,137 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
     final model = ref.watch(viewModelProvider);
 
     return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 500),
-          // リフレッシュ機能
-          child: RefreshIndicator(
-            onRefresh: () => model.getPosts(widget.userId),
-            child: model.stackedPostList.isEmpty
-                ? const Center(child: Text("まだ投稿がありません"))
-                : ListView.builder(
-                    //リストのスクロール位置を制御するためにScrollControllerを指定
-                    controller: _scrollController,
-                    itemCount: model.stackedPostList.length +
-                        (model.stackedPostList.length ~/ 10) +
-                        1,
-                    itemBuilder: (context, int index) {
-                      if (index ==
-                          model.stackedPostList.length +
-                              (model.stackedPostList.length ~/ 10)) {
-                        return _isLoadingMore
-                            ? const Center(child: Text(" Loading..."))
-                            : const Center(child: Text("結果は以上です"));
-                      }
+      body: Stack(
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 500),
+              // リフレッシュ機能
+              child: RefreshIndicator(
+                onRefresh: () => model.getPosts(widget.userId),
+                child: model.stackedPostList.isEmpty
+                    ? const Center(child: Text("まだ投稿がありません"))
+                    : ListView.builder(
+                        //リストのスクロール位置を制御するためにScrollControllerを指定
+                        controller: _scrollController,
+                        itemCount: model.stackedPostList.length +
+                            (model.stackedPostList.length ~/ 10) +
+                            1,
+                        itemBuilder: (context, int index) {
+                          if (index ==
+                              model.stackedPostList.length +
+                                  (model.stackedPostList.length ~/ 10)) {
+                            return _isLoadingMore
+                                ? const Center(child: Text(" Loading..."))
+                                : const Center(child: Text("結果は以上です"));
+                          }
 
-                      if (index % 11 == 10) {
-                        return BannerAdWidget(); // 広告ウィジェットを表示
-                      }
+                          if (index % 11 == 10) {
+                            return BannerAdWidget(); // 広告ウィジェットを表示
+                          }
 
-                      final postIndex = index - (index ~/ 11);
-                      if (postIndex >= model.stackedPostList.length) {
-                        return Container(); // インデックスが範囲外の場合は空のコンテナを返す
-                      }
+                          final postIndex = index - (index ~/ 11);
+                          if (postIndex >= model.stackedPostList.length) {
+                            return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+                          }
 
-                      final postDoc = model.stackedPostList[postIndex];
-                      final post = Post.fromDocument(postDoc);
-                      final postAccount = model.postUserMap[post.postAccountId];
+                          final postDoc = model.stackedPostList[postIndex];
+                          final post = Post.fromDocument(postDoc);
+                          final postAccount =
+                              model.postUserMap[post.postAccountId];
 
-                      // blockedUserIds に postAccount.id が含まれている場合は表示をスキップ
-                      if (postAccount == null ||
-                          postAccount.lockAccount ||
-                          model.blockedAccounts.contains(postAccount.id)) {
-                        return Container();
-                      }
+                          // blockedUserIds に postAccount.id が含まれている場合は表示をスキップ
+                          if (postAccount == null ||
+                              postAccount.lockAccount ||
+                              model.blockedAccounts.contains(postAccount.id)) {
+                            return Container();
+                          }
 
-                      // ValueNotifierを再利用する
-                      _favoriteUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      _favoritePost.updateFavoriteUsersCount(post.id);
+                          // ValueNotifierを再利用する
+                          _favoriteUsersNotifiers[post.id] ??=
+                              ValueNotifier<int>(0);
+                          _favoritePost.updateFavoriteUsersCount(post.id);
 
-                      _bookmarkUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      _bookmarkPost.updateBookmarkUsersCount(post.id);
+                          _bookmarkUsersNotifiers[post.id] ??=
+                              ValueNotifier<int>(0);
+                          _bookmarkPost.updateBookmarkUsersCount(post.id);
 
-                      _isFavoriteNotifiers[post.id] ??= ValueNotifier<bool>(
-                        _favoritePost.favoritePostsNotifier.value
-                            .contains(post.id),
-                      );
+                          _isFavoriteNotifiers[post.id] ??= ValueNotifier<bool>(
+                            _favoritePost.favoritePostsNotifier.value
+                                .contains(post.id),
+                          );
 
-                      _isBookmarkedNotifiers[post.id] ??= ValueNotifier<bool>(
-                        _bookmarkPost.bookmarkPostsNotifier.value
-                            .contains(post.id),
-                      );
+                          _isBookmarkedNotifiers[post.id] ??=
+                              ValueNotifier<bool>(
+                            _bookmarkPost.bookmarkPostsNotifier.value
+                                .contains(post.id),
+                          );
 
-                      return PostItemWidget(
-                        key: PageStorageKey(post.id),
-                        post: post,
-                        postAccount: postAccount,
-                        favoriteUsersNotifier:
-                            _favoriteUsersNotifiers[post.id]!,
-                        isFavoriteNotifier: _isFavoriteNotifiers[post.id]!,
-                        onFavoriteToggle: () => _favoritePost.toggleFavorite(
-                          post.id,
-                          _isFavoriteNotifiers[post.id]!.value,
-                        ),
-                        replyFlag: ValueNotifier<bool>(false),
-                        bookmarkUsersNotifier:
-                            _bookmarkUsersNotifiers[post.id]!,
-                        isBookmarkedNotifier: _isBookmarkedNotifiers[post.id]!,
-                        onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
-                          post.id,
-                          _isBookmarkedNotifiers[post.id]!.value,
-                        ),
-                        userId: widget.userId,
-                      );
-                    },
-                  ),
+                          return PostItemWidget(
+                            key: PageStorageKey(post.id),
+                            post: post,
+                            postAccount: postAccount,
+                            favoriteUsersNotifier:
+                                _favoriteUsersNotifiers[post.id]!,
+                            isFavoriteNotifier: _isFavoriteNotifiers[post.id]!,
+                            onFavoriteToggle: () =>
+                                _favoritePost.toggleFavorite(
+                              post.id,
+                              _isFavoriteNotifiers[post.id]!.value,
+                            ),
+                            replyFlag: ValueNotifier<bool>(false),
+                            bookmarkUsersNotifier:
+                                _bookmarkUsersNotifiers[post.id]!,
+                            isBookmarkedNotifier:
+                                _isBookmarkedNotifiers[post.id]!,
+                            onBookMsrkToggle: () =>
+                                _bookmarkPost.toggleBookmark(
+                              post.id,
+                              _isBookmarkedNotifiers[post.id]!.value,
+                            ),
+                            userId: widget.userId,
+                          );
+                        },
+                      ),
+              ),
+            ),
           ),
-        ),
-      ),
-      floatingActionButton: ValueListenableBuilder<bool>(
-        valueListenable: _showScrollToTopButton,
-        builder: (context, value, child) {
-          return value
-              ? GestureDetector(
-                  onDoubleTap: () {
-                    _scrollController.animateTo(
-                      0,
-                      duration: Duration(milliseconds: 500),
-                      curve: Curves.easeInOut,
-                    );
-                  },
-                  child: Container(
-                    width: 56.0,
-                    height: 56.0,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.lightBlue, width: 2.0),
-                      color: Colors.transparent, // 内側を透明にする場合
-                    ),
-                    child: const Icon(
-                      Icons.keyboard_double_arrow_up,
-                      color: Colors.lightBlue,
-                      size: 40.0,
-                    ),
-                  ),
-                )
-              : Container();
-        },
+          Positioned(
+            bottom: 80.0, // ここで位置を調整
+            right: 16.0,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _showScrollToTopButton,
+              builder: (context, value, child) {
+                return value
+                    ? GestureDetector(
+                        onDoubleTap: () {
+                          _scrollController.animateTo(
+                            0,
+                            duration: Duration(milliseconds: 500),
+                            curve: Curves.easeInOut,
+                          );
+                        },
+                        child: Container(
+                          width: 56.0,
+                          height: 56.0,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border:
+                                Border.all(color: Colors.lightBlue, width: 2.0),
+                            color: Colors.transparent, // 内側を透明にする場合
+                          ),
+                          child: const Icon(
+                            Icons.keyboard_double_arrow_up,
+                            color: Colors.lightBlue,
+                            size: 40.0,
+                          ),
+                        ),
+                      )
+                    : Container();
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

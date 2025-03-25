@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/utils/book_mark.dart';
+import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/view/account/account_page.dart';
+import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:cymva/view/post_item/post_detail_page.dart';
 import 'package:flutter/material.dart';
@@ -107,6 +109,10 @@ class _RepostListPageState extends State<RepostListPage> {
                         );
                       }
 
+                      _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+                          ValueNotifier<int>(0);
+                      _bookmarkPost.updateBookmarkUsersCount(post.id);
+
                       final postAccount =
                           Account.fromDocument(userSnapshot.data!);
                       // 投稿とユーザー情報を表示、タップで詳細ページに遷移
@@ -129,12 +135,6 @@ class _RepostListPageState extends State<RepostListPage> {
                                       _bookmarkPost.bookmarkPostsNotifier.value
                                           .contains(post.id),
                                     ),
-                                    onBookMsrkToggle: () =>
-                                        _bookmarkPost.toggleBookmark(
-                                      post.id,
-                                      _bookmarkPost.bookmarkPostsNotifier.value
-                                          .contains(post.id),
-                                    ),
                                   ),
                                 ),
                               );
@@ -151,14 +151,8 @@ class _RepostListPageState extends State<RepostListPage> {
                                       // プロフィール画像をタップでアカウントページに遷移
                                       GestureDetector(
                                         onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => AccountPage(
-                                                  postUserId:
-                                                      userData['user_id']),
-                                            ),
-                                          );
+                                          navigateToPage(context, postAccountId,
+                                              '1', true, false);
                                         },
                                         child: ClipRRect(
                                           borderRadius:

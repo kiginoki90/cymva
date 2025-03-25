@@ -145,7 +145,8 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
         .doc('AppBarIMG')
         .get();
     String? imageUrl = doc.data()?['DetailedSearchPage'];
-    if (imageUrl != null) {
+    if (imageUrl != null &&
+        (imageUrl.startsWith('gs://') || imageUrl.startsWith('https://'))) {
       // Firebase StorageからダウンロードURLを取得
       final ref = FirebaseStorage.instance.refFromURL(imageUrl);
       String downloadUrl = await ref.getDownloadURL();

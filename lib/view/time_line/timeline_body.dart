@@ -1,6 +1,5 @@
 import 'package:cymva/model/account.dart';
 import 'package:cymva/view/account/edit_page/options_page/support_page/terms_of_service_page.dart';
-import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/post_item/full_screen_image.dart';
 import 'package:cymva/view/slide_direction_page_route.dart';
 import 'package:cymva/view/time_line/follow_timeline_page.dart';
@@ -8,7 +7,6 @@ import 'package:cymva/view/time_line/ranking_page.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:cymva/view/time_line/timeline_header.dart';
 import 'package:flutter/material.dart';
-import 'package:cymva/utils/favorite_post.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -27,11 +25,8 @@ class TimeLineBody extends StatefulWidget {
 }
 
 class _TimeLineBodyState extends State<TimeLineBody> {
-  late Future<List<String>>? _favoritePostsFuture;
-  final FavoritePost _favoritePost = FavoritePost();
   late PageController _pageController;
   int _currentPageIndex = 0;
-  Account? myAccount;
   bool _hasShownPopups = false; // ポップアップ表示制御フラグ
   final FlutterSecureStorage storage = FlutterSecureStorage();
 
@@ -40,8 +35,6 @@ class _TimeLineBodyState extends State<TimeLineBody> {
     super.initState();
     _initializePageController();
     _pageController = PageController();
-    // _favoritePostsFuture = _favoritePost.getFavoritePosts();
-    _loadAccount();
   }
 
   Future<void> _initializePageController() async {
@@ -389,11 +382,6 @@ class _TimeLineBodyState extends State<TimeLineBody> {
     );
   }
 
-  Future<void> _loadAccount() async {
-    myAccount = await getAccount(widget.userId);
-    setState(() {});
-  }
-
   Future<Account?> getAccount(String userId) async {
     try {
       DocumentSnapshot doc = await FirebaseFirestore.instance
@@ -413,13 +401,6 @@ class _TimeLineBodyState extends State<TimeLineBody> {
 
   @override
   Widget build(BuildContext context) {
-    if (myAccount == null) {
-      return Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -441,7 +422,6 @@ class _TimeLineBodyState extends State<TimeLineBody> {
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBarPage(selectedIndex: 0),
     );
   }
 }

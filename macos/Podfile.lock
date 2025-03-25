@@ -967,6 +967,8 @@ PODS:
     - Firebase/Firestore (~> 10.25.0)
     - firebase_core
     - FlutterMacOS
+  - device_info_plus (0.0.1):
+    - FlutterMacOS
   - file_selector_macos (0.0.1):
     - FlutterMacOS
   - Firebase/AppCheck (10.25.0):
@@ -1201,6 +1203,7 @@ PODS:
 
 DEPENDENCIES:
   - cloud_firestore (from `Flutter/ephemeral/.symlinks/plugins/cloud_firestore/macos`)
+  - device_info_plus (from `Flutter/ephemeral/.symlinks/plugins/device_info_plus/macos`)
   - file_selector_macos (from `Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos`)
   - firebase_app_check (from `Flutter/ephemeral/.symlinks/plugins/firebase_app_check/macos`)
   - firebase_auth (from `Flutter/ephemeral/.symlinks/plugins/firebase_auth/macos`)
@@ -1246,6 +1249,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   cloud_firestore:
     :path: Flutter/ephemeral/.symlinks/plugins/cloud_firestore/macos
+  device_info_plus:
+    :path: Flutter/ephemeral/.symlinks/plugins/device_info_plus/macos
   file_selector_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos
   firebase_app_check:
@@ -1279,6 +1284,7 @@ SPEC CHECKSUMS:
   AppCheckCore: 9feb4300caa596a36416cde10674dc5bec1e022e
   BoringSSL-GRPC: 1e2348957acdbcad360b80a264a90799984b2ba6
   cloud_firestore: c037b5acdf0be76bc426c05d978be2090f094219
+  device_info_plus: ce1b7762849d3ec103d0e0517299f2db7ad60720
   file_selector_macos: 54fdab7caa3ac3fc43c9fac4d7d8d231277f8cf2
   Firebase: 0312a2352584f782ea56f66d91606891d4607f06
   firebase_app_check: 30ac1b19607637b7f65fbc492259184ef3e93f2f
@@ -1316,4 +1322,4 @@ SPEC CHECKSUMS:
 
 PODFILE CHECKSUM: 9ebaf0ce3d369aaa26a9ea0e159195ed94724cf3
 
-COCOAPODS: 1.15.2
+COCOAPODS: 1.16.2

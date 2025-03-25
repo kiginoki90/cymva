@@ -209,7 +209,10 @@ class _AccountHeaderState extends State<AccountHeader> {
           onPressed: () async {
             var result = await Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => AccountOptionsPage()),
+              MaterialPageRoute(
+                  builder: (context) => AccountOptionsPage(
+                        loginUserId: myAccount!.id,
+                      )),
             );
             if (result == true) {
               setState(() {
@@ -270,6 +273,7 @@ class _AccountHeaderState extends State<AccountHeader> {
         _buildIcon(Icons.home, 0),
         _buildIcon(Icons.camera, 1),
         _buildIcon(Icons.star, 2),
+        _buildIcon(Icons.layers, 3),
       ],
     );
   }

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/account.dart';
+import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:flutter/material.dart';
 
@@ -66,13 +67,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                 return ListTile(
                   leading: InkWell(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              AccountPage(postUserId: account.id),
-                        ),
-                      );
+                      navigateToPage(context, account.id, '1', true, false);
                     },
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8.0),

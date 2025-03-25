@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cymva/view/account/account_page.dart';
-import 'package:cymva/view/navigation_bar.dart';
+import 'package:cymva/utils/navigation_utils.dart';
+import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
@@ -224,13 +224,7 @@ class _PostPageState extends State<PostPage> {
               padding: const EdgeInsets.only(right: 35.0),
               child: GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          AccountPage(postUserId: widget.userId),
-                    ),
-                  );
+                  navigateToPage(context, widget.userId, '1', false, false);
                 },
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8.0),
@@ -264,60 +258,85 @@ class _PostPageState extends State<PostPage> {
                   // カテゴリー選択欄
                   Align(
                     alignment: Alignment.centerRight,
-                    child: SizedBox(
-                      width: 120,
-                      child: DropdownButtonFormField<String>(
-                        value: selectedCategory,
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                            borderSide: BorderSide(
-                              color: Colors.blueAccent,
-                              width: 2.0,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 120,
+                          child: DropdownButtonFormField<String>(
+                            value: selectedCategory,
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8.0),
+                                borderSide: BorderSide(
+                                  color: Colors.blueAccent,
+                                  width: 2.0,
+                                ),
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 4),
                             ),
+                            items: (accountData == null ||
+                                    accountData!['admin'] == 3 ||
+                                    accountData!['admin'] == 4)
+                                ? categories.map((category) {
+                                    return DropdownMenuItem(
+                                      value: category,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 0),
+                                        child: Text(category,
+                                            style: TextStyle(fontSize: 12)),
+                                      ),
+                                    );
+                                  }).toList()
+                                : adminCategories.map((category) {
+                                    return DropdownMenuItem(
+                                      value: category,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 0),
+                                        child: Text(category,
+                                            style: TextStyle(fontSize: 12)),
+                                      ),
+                                    );
+                                  }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                selectedCategory = value;
+                              });
+                            },
+                            hint: const Text(
+                              'カテゴリー',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            dropdownColor: Colors.white,
+                            icon: Icon(Icons.arrow_drop_down,
+                                color: Colors.blueAccent),
+                            style: TextStyle(color: Colors.black, fontSize: 12),
                           ),
-                          contentPadding:
-                              EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                         ),
-                        items: (accountData == null ||
-                                accountData!['admin'] == 3 ||
-                                accountData!['admin'] == 4)
-                            ? categories.map((category) {
-                                return DropdownMenuItem(
-                                  value: category,
-                                  child: Padding(
-                                    padding:
-                                        const EdgeInsets.symmetric(vertical: 0),
-                                    child: Text(category,
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                );
-                              }).toList()
-                            : adminCategories.map((category) {
-                                return DropdownMenuItem(
-                                  value: category,
-                                  child: Padding(
-                                    padding:
-                                        const EdgeInsets.symmetric(vertical: 0),
-                                    child: Text(category,
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                );
-                              }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedCategory = value;
-                          });
-                        },
-                        hint: const Text(
-                          'カテゴリー',
-                          style: TextStyle(fontSize: 12),
+                        SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              selectedCategory = null;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueAccent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                          ),
+                          child: Text(
+                            'クリア',
+                            style: TextStyle(fontSize: 12, color: Colors.white),
+                          ),
                         ),
-                        dropdownColor: Colors.white,
-                        icon: Icon(Icons.arrow_drop_down,
-                            color: Colors.blueAccent),
-                        style: TextStyle(color: Colors.black, fontSize: 12),
-                      ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -410,9 +429,8 @@ class _PostPageState extends State<PostPage> {
                                   .update({'draft': draftText});
 
                               // メッセージを表示
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('テキストを保存しました')),
-                              );
+                              showTopSnackBar(context, 'テキストを保存しました',
+                                  backgroundColor: Colors.green);
                             },
                             style: ElevatedButton.styleFrom(
                               shape: RoundedRectangleBorder(
@@ -469,12 +487,8 @@ class _PostPageState extends State<PostPage> {
                                   });
 
                                   // タイムラインページへ遷移してから投稿処理を実行
-                                  await Navigator.of(context).pushReplacement(
-                                    MaterialPageRoute(
-                                      builder: (context) => AccountPage(
-                                          postUserId: widget.userId),
-                                    ),
-                                  );
+                                  navigateToPage(context, widget.userId, '1',
+                                      false, false);
 
                                   // 投稿処理を非同期で実行
                                   WidgetsBinding.instance
@@ -531,20 +545,11 @@ class _PostPageState extends State<PostPage> {
 
                                     // 投稿完了後の処理
                                     if (result != null) {
-                                      await FirebaseFirestore.instance
-                                          .collection('users')
-                                          .doc(widget.userId)
-                                          .update({'draft': null});
-
-                                      scaffoldMessengerKey.currentState
-                                          ?.showSnackBar(
-                                        SnackBar(content: Text('投稿が完了しました')),
-                                      );
+                                      showTopSnackBar(context, '投稿が完了しました',
+                                          backgroundColor: Colors.green);
                                     } else {
-                                      scaffoldMessengerKey.currentState
-                                          ?.showSnackBar(
-                                        SnackBar(content: Text('投稿に失敗しました')),
-                                      );
+                                      showTopSnackBar(context, '投稿に失敗しました',
+                                          backgroundColor: Colors.red);
                                     }
 
                                     // 投稿が完了した後に投稿中フラグをリセット
@@ -570,7 +575,7 @@ class _PostPageState extends State<PostPage> {
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBarPage(selectedIndex: 4),
+      // bottomNavigationBar: NavigationBarPage(selectedIndex: 4),
     );
   }
 }

@@ -111,11 +111,6 @@ class _PostVisibilityWidgetState extends State<PostVisibilityWidget> {
                           _bookmarkPost.bookmarkPostsNotifier.value
                               .contains(widget.repostPost.id),
                         ),
-                        onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
-                          widget.repostPost.id,
-                          _bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(widget.repostPost.id),
-                        ),
                       ),
                     ),
                   );
