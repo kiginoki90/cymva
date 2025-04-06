@@ -164,7 +164,7 @@ class _RankingPageState extends ConsumerState<RankingPage> {
             ),
           ),
           Positioned(
-            bottom: 80.0, // ここで位置を調整
+            bottom: 30.0, // ここで位置を調整
             right: 16.0,
             child: ValueListenableBuilder<bool>(
               valueListenable: _showScrollToTopButton,

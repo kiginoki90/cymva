@@ -4,7 +4,7 @@ import 'package:video_player/video_player.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   final String videoUrl;
-  final VideoPlayerController controller; // コントローラを受け取る
+  final VideoPlayerController controller;
 
   const VideoPlayerScreen({
     Key? key,
@@ -33,6 +33,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void dispose() {
     _hideTimer?.cancel();
+    _controller.dispose(); // コントローラのリソースを解放
     super.dispose();
   }
 
@@ -74,9 +75,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // 背景色を黒に設定
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black, // AppBarも黒に設定
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SafeArea(
         child: GestureDetector(
@@ -88,52 +90,61 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 aspectRatio: _controller.value.aspectRatio,
                 child: VideoPlayer(_controller),
               ),
-              // 中央に再生・停止ボタンを配置
+              // 中央の再生・停止ボタン
               AnimatedOpacity(
                 opacity: _controlsVisible ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 500),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      iconSize: 64,
-                      icon: Icon(
-                        _controller.value.isPlaying
-                            ? Icons.pause
-                            : Icons.play_arrow,
-                        color: Colors.white,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          if (_controller.value.isPlaying) {
-                            _controller.pause();
-                          } else {
-                            _controller.play();
-                          }
-                          _startHideTimer();
-                        });
-                      },
-                    ),
-                  ],
+                child: IconButton(
+                  iconSize: 64,
+                  icon: Icon(
+                    _controller.value.isPlaying
+                        ? Icons.pause
+                        : Icons.play_arrow,
+                    color: Colors.white,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      if (_controller.value.isPlaying) {
+                        _controller.pause();
+                      } else {
+                        _controller.play();
+                      }
+                      _startHideTimer();
+                    });
+                  },
                 ),
               ),
-              // 右下に音量ボタンを配置
+              // 右下の音量ボタンと戻るボタン
               Positioned(
                 bottom: 50,
                 right: 10,
                 child: AnimatedOpacity(
                   opacity: _controlsVisible ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 500),
-                  child: IconButton(
-                    icon: Icon(
-                      _isMuted ? Icons.volume_off : Icons.volume_up,
-                      color: Colors.white,
-                    ),
-                    onPressed: _toggleVolume,
+                  child: Row(
+                    children: [
+                      // 音量ボタン
+                      _buildControlButton(
+                        icon: _isMuted ? Icons.volume_off : Icons.volume_up,
+                        onPressed: _toggleVolume,
+                      ),
+                      const SizedBox(width: 10),
+                      // 戻るボタン
+                      _buildControlButton(
+                        icon: Icons.replay,
+                        onPressed: () {
+                          setState(() {
+                            _controller.seekTo(Duration.zero);
+                            _controller.play();
+                            _startHideTimer();
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
-              // 最下部に時間のバーを配置
+              // 最下部の時間バー
               Positioned(
                 bottom: 0,
                 left: 0,
@@ -142,7 +153,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   opacity: _controlsVisible ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 500),
                   child: Container(
-                    color: Colors.black, // バーの背景色を黒に設定
+                    color: Colors.black,
                     child: Column(
                       children: [
                         VideoProgressIndicator(
@@ -173,6 +184,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildControlButton(
+      {required IconData icon, required VoidCallback onPressed}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.all(8.0),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white),
+        onPressed: onPressed,
       ),
     );
   }

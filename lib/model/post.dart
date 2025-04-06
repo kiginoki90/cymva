@@ -59,7 +59,11 @@ class Post {
 
   // FirestoreドキュメントからPostを作成
   factory Post.fromDocument(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>?;
+
+    if (data == null) {
+      throw StateError('データが存在しません');
+    }
 
     return Post(
       id: doc.id,

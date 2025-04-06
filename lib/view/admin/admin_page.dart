@@ -1,14 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/admin/admin_natification_page.dart';
 import 'package:cymva/view/admin/hidden_post_page.dart';
+import 'package:cymva/view/admin/reported_users_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
-import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cymva/utils/firestore/users.dart';
-import 'package:flutter/widgets.dart';
 
 class AdminPage extends StatefulWidget {
   @override
@@ -29,26 +27,49 @@ class _AdminPageState extends State<AdminPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('管理者ページ'), actions: [
-        IconButton(
-          icon: Icon(Icons.visibility_off),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => HiddenPostsPage()),
-            );
-          },
-        ),
-        IconButton(
-          icon: Icon(Icons.mail),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => AdminNotificationPage()),
-            );
-          },
-        ),
-      ]),
+      appBar: AppBar(
+        title: Text('管理者ページ'),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (String value) {
+              if (value == 'hiddenPosts') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => HiddenPostsPage()),
+                );
+              } else if (value == 'notifications') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => AdminNotificationPage()),
+                );
+              } else if (value == 'reportedUsers') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ReportedUsersPage()),
+                );
+              }
+            },
+            itemBuilder: (BuildContext context) {
+              return [
+                PopupMenuItem<String>(
+                  value: 'hiddenPosts',
+                  child: Text('非表示の投稿'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'notifications',
+                  child: Text('通知'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'reportedUsers',
+                  child: Text('通報のユーザー'),
+                ),
+              ];
+            },
+            icon: Icon(Icons.more_vert),
+          ),
+        ],
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('reports').snapshots(),
         builder: (context, reportSnapshot) {
@@ -66,15 +87,15 @@ class _AdminPageState extends State<AdminPage> {
               String reportContent = doc['report_reason'] ?? 'Unknown';
 
               // カウントを増やす
-              reportCounts[postId] = (reportCounts[postId] ?? 1);
+              reportCounts[postId] = (reportCounts[postId] ?? 0) + 1;
               reportTypes[postId] = reportContent;
             }
 
             if (reportedPostIds.isNotEmpty) {
               return StreamBuilder<QuerySnapshot>(
-                stream: PostFirestore.posts
+                stream: FirebaseFirestore.instance
+                    .collection('posts')
                     .where(FieldPath.documentId, whereIn: reportedPostIds)
-                    .orderBy('created_time', descending: false)
                     .snapshots(),
                 builder: (context, postSnapshot) {
                   if (postSnapshot.hasData) {
@@ -238,10 +259,6 @@ class _AdminPageState extends State<AdminPage> {
       for (var reportDoc in reportsQuery.docs) {
         await reportDoc.reference.delete();
       }
-
-      showTopSnackBar(context, '解除しました', backgroundColor: Colors.green);
-    } catch (e) {
-      showTopSnackBar(context, '解除できませんでした', backgroundColor: Colors.red);
-    }
+    } catch (e) {}
   }
 }

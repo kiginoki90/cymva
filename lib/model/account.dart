@@ -66,4 +66,16 @@ class Account {
       'replyMessage': replyMessage,
     };
   }
+
+  /// `==`演算子のオーバーライド（インスタンスの比較を可能にする）
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! Account) return false;
+    return id == other.id;
+  }
+
+  /// `hashCode`のオーバーライド（`==`と一貫性を保つため）
+  @override
+  int get hashCode => id.hashCode;
 }

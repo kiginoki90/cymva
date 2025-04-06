@@ -1,3 +1,15 @@
+buildscript {
+    ext.kotlin_version = '1.9.10' // Kotlinの最新安定版を指定
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.android.tools.build:gradle:8.1.0'
+    }
+}
+
 allprojects {
     repositories {
         google()

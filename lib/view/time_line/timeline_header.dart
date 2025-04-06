@@ -30,18 +30,14 @@ class _TimelineHeaderState extends State<TimelineHeader> {
     widget.pageController.jumpToPage(initialPageIndex);
   }
 
-  void _pageListener() async {
+  void _pageListener() {
     if (mounted) {
       final pageIndex = widget.pageController.page?.round() ?? 0;
-      await storage.write(
-        key: 'TimeLine',
-        value: pageIndex.toString(),
-      );
-      final pageIndexString = await storage.read(key: 'TimeLine') ?? '0';
-      final initialPageIndex = int.tryParse(pageIndexString) ?? 0;
-      setState(() {
-        currentPage = initialPageIndex;
-      });
+      if (currentPage != pageIndex) {
+        setState(() {
+          currentPage = pageIndex;
+        });
+      }
     }
   }
 
@@ -75,7 +71,15 @@ class _TimelineHeaderState extends State<TimelineHeader> {
       icon: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label),
+          Text(
+            label,
+            style: TextStyle(
+              color: currentPage == pageIndex ? Colors.blue : Colors.grey,
+              fontWeight: currentPage == pageIndex
+                  ? FontWeight.bold
+                  : FontWeight.normal,
+            ),
+          ),
           Container(
             margin: const EdgeInsets.only(top: 2),
             height: 2,
@@ -84,17 +88,8 @@ class _TimelineHeaderState extends State<TimelineHeader> {
           ),
         ],
       ),
-      onPressed: () async {
+      onPressed: () {
         widget.pageController.jumpToPage(pageIndex);
-        await storage.write(
-          key: 'TimeLine',
-          value: pageIndex.toString(),
-        );
-        final pageIndexString = await storage.read(key: 'TimeLine') ?? '0';
-        final initialPageIndex = int.tryParse(pageIndexString) ?? 0;
-        setState(() {
-          currentPage = initialPageIndex;
-        });
       },
     );
   }

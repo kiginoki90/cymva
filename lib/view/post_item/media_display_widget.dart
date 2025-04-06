@@ -7,16 +7,19 @@ import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'full_screen_image.dart';
 import 'dart:async';
+import 'dart:math';
 
 class MediaDisplayWidget extends StatefulWidget {
   final List<String>? mediaUrl;
   final String category;
   final bool atStart;
+  final bool? fullVideo;
 
   const MediaDisplayWidget({
     Key? key,
     required this.mediaUrl,
     required this.category,
+    this.fullVideo = false,
     this.atStart = false,
   }) : super(key: key);
 
@@ -170,7 +173,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
   // 漫画の場合の表示
   Widget _buildMangaMedia(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
-    double maxHeight = screenWidth * 1.1;
+    double maxHeight = min(screenWidth * 1.1, 500);
 
     return GestureDetector(
       onTap: () {
@@ -190,11 +193,19 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
         children: [
           Hero(
             tag: widget.mediaUrl![0], // ユニークなタグを設定
-            child: Image.network(
-              widget.mediaUrl![0],
-              width: screenWidth,
-              height: maxHeight,
-              fit: BoxFit.cover,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Colors.grey.shade300, // 薄いグレーのライン
+                  width: 1.0, // ラインの太さ
+                ),
+              ),
+              child: Image.network(
+                widget.mediaUrl![0],
+                width: screenWidth,
+                height: maxHeight,
+                fit: BoxFit.cover,
+              ),
             ),
           ),
           if (widget.mediaUrl!.length > 1)
@@ -253,11 +264,19 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
               },
               child: Hero(
                 tag: mediaUrl, // ユニークなタグを設定
-                child: Image.network(
-                  mediaUrl,
-                  width: screenWidth,
-                  height: screenWidth / aspectRatio, // 横長の場合はアスペクト比に基づいて高さを計算
-                  fit: BoxFit.cover,
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Colors.grey.shade300, // 薄いグレーのライン
+                      width: 1.0, // ラインの太さ
+                    ),
+                  ),
+                  child: Image.network(
+                    mediaUrl,
+                    width: screenWidth,
+                    height: screenWidth / aspectRatio, // 横長の場合はアスペクト比に基づいて高さを計算
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             );
@@ -281,11 +300,19 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
               },
               child: Hero(
                 tag: mediaUrl, // ユニークなタグを設定
-                child: Image.network(
-                  mediaUrl,
-                  width: screenWidth,
-                  height: maxHeight, // 縦長の場合は幅と同じ高さ
-                  fit: BoxFit.cover,
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Colors.grey.shade300, // 薄いグレーのライン
+                      width: 1.0, // ラインの太さ
+                    ),
+                  ),
+                  child: Image.network(
+                    mediaUrl,
+                    width: screenWidth,
+                    height: maxHeight, // 縦長の場合は幅と同じ高さ
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             );
@@ -303,7 +330,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
     double screenWidth = MediaQuery.of(context).size.width;
     return Container(
       width: screenWidth,
-      height: screenWidth,
+      height: min(screenWidth, 500),
       color: Colors.grey[300],
     );
   }
@@ -326,6 +353,26 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
       return _buildPlaceholder(context);
     }
 
+    double originalHeight = controller.value.size.height;
+    double heightFactor = 1.0; // デフォルトは等倍表示
+
+    // 高さに応じて縮小率を調整
+    if (widget.fullVideo == false && originalHeight > 700) {
+      if (originalHeight <= 777) {
+        heightFactor = 0.9;
+      } else if (originalHeight <= 880) {
+        heightFactor = 0.8;
+      } else if (originalHeight <= 1000) {
+        heightFactor = 0.7;
+      } else if (originalHeight <= 1180) {
+        heightFactor = 0.6;
+      } else if (originalHeight <= 1400) {
+        heightFactor = 0.5;
+      } else {
+        heightFactor = 0.4;
+      }
+    }
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -342,19 +389,19 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
         key: Key(mediaUrl),
         onVisibilityChanged: (info) {
           if (widget.atStart == false) {
-            if (info.visibleFraction > 0.7) {
+            if (info.visibleFraction > 0.8) {
               if (_currentlyPlayingController == null ||
                   !_currentlyPlayingController!.value.isPlaying) {
                 if (!controller.value.isPlaying) {
-                  // 動画が70%以上表示された場合、自動再生
                   controller.play();
                   _currentlyPlayingController = controller;
                 }
               }
             } else {
-              // 70%未満表示の場合、再生中なら一時停止
               if (controller.value.isPlaying) {
-                controller.pause();
+                if (controller.value.isInitialized) {
+                  // controller.pause();
+                }
                 if (_currentlyPlayingController == controller) {
                   _currentlyPlayingController = null;
                 }
@@ -367,12 +414,17 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
           children: [
             ClipRect(
               child: Align(
-                alignment: Alignment.center,
+                alignment: Alignment.center, // 上下の位置を調整
+                heightFactor: heightFactor,
                 child: AspectRatio(
-                  aspectRatio: controller.value.aspectRatio, // 動画のアスペクト比に合わせる
+                  aspectRatio: controller.value.aspectRatio,
                   child: Container(
-                    width: double.infinity,
-                    height: MediaQuery.of(context).size.width * 0.75, // 高さを調整
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                        width: 1.0,
+                      ),
+                    ),
                     child: FittedBox(
                       fit: BoxFit.cover,
                       child: SizedBox(
@@ -402,7 +454,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
     );
   }
 
-  // メディアが複数枚ある場合の表示
+// メディアが複数枚ある場合の表示
   Widget _buildMultipleMedia(BuildContext context) {
     return GridView.builder(
       physics: const NeverScrollableScrollPhysics(),
@@ -448,6 +500,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                   ),
                 );
               } else {
+                // 画像の場合
                 return GestureDetector(
                   onTap: () {
                     Navigator.push(
@@ -463,9 +516,17 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                   },
                   child: Hero(
                     tag: mediaUrl, // ユニークなタグを設定
-                    child: Image.network(
-                      mediaUrl,
-                      fit: BoxFit.cover,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Colors.grey.shade300, // 薄いグレーのライン
+                          width: 1.0, // ラインの太さ
+                        ),
+                      ),
+                      child: Image.network(
+                        mediaUrl,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                 );

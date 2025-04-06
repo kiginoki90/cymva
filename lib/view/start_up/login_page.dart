@@ -270,7 +270,8 @@ class _LoginPageState extends State<LoginPage> {
                               MaterialPageRoute(
                                   builder: (context) => NavigationBarPage(
                                       userId: result.user!.uid,
-                                      showChatIcon: true)),
+                                      showChatIcon: true,
+                                      fromLogin: true)),
                             );
                           } else {
                             setState(() {

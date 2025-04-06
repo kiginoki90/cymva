@@ -31,6 +31,7 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
     '漫画',
     'イラスト',
     '写真',
+    'グルメ',
     '俳句・短歌',
     '改修要望/バグ',
     '憲章宣誓',

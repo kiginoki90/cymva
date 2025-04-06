@@ -161,7 +161,7 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
         actions: _isOwner
             ? [
                 IconButton(
-                  icon: Icon(Icons.save),
+                  icon: Icon(Icons.adjust),
                   onPressed: _saveOrder,
                 ),
                 IconButton(
@@ -218,7 +218,7 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
                                 .doc(postId)
                                 .get(),
                             builder: (context, snapshot) {
-                              if (!snapshot.hasData) {
+                              if (!snapshot.hasData || snapshot.data == null) {
                                 return Center(
                                     child: CircularProgressIndicator());
                               }

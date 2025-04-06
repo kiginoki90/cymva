@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/view/message/messes_page.dart';
 import 'package:cymva/view/post_page/post_page.dart';
 import 'package:cymva/view/search/search_page.dart';
@@ -18,6 +17,8 @@ class NavigationBarPage extends StatefulWidget {
   final bool rebuildNavigation;
   final bool myAccount;
   final bool? notDleteStotage;
+  final bool? fromLogin;
+  final bool? withDelay;
 
   const NavigationBarPage({
     super.key,
@@ -27,6 +28,8 @@ class NavigationBarPage extends StatefulWidget {
     this.rebuildNavigation = false,
     this.myAccount = false,
     this.notDleteStotage = false,
+    this.fromLogin = false,
+    this.withDelay = false,
   });
 
   @override
@@ -63,16 +66,16 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
     setState(() {
       if (myAccount)
         pageList = [
-          TimeLineBody(userId: userId!),
-          AccountPage(postUserId: userId!),
+          TimeLineBody(userId: userId!, fromLogin: widget.fromLogin),
+          AccountPage(postUserId: userId!, withDelay: widget.withDelay),
           SearchPage(userId: userId!, notdDleteStotage: widget.notDleteStotage),
           MessesPage(userId: userId!),
           if (showChatIcon) PostPage(userId: userId!),
         ];
       else
         pageList = [
-          TimeLineBody(userId: userId!),
-          AccountPage(postUserId: widget.userId),
+          TimeLineBody(userId: userId!, fromLogin: widget.fromLogin),
+          AccountPage(postUserId: widget.userId, withDelay: widget.withDelay),
           SearchPage(userId: userId!, notdDleteStotage: widget.notDleteStotage),
           MessesPage(userId: userId!),
           if (showChatIcon) PostPage(userId: userId!),
@@ -207,77 +210,92 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
 
   @override
   Widget build(BuildContext context) {
-    // rebuildNavigationがtrueの場合、ページリストを再初期化
-    // if (widget.rebuildNavigation && userId != null) {
-    //   _initializePageList(widget.myAccount);
-    // }
-
     return Scaffold(
-      body: Stack(
-        children: [
-          pageList.isNotEmpty
-              ? pageList[selectedIndex]
-              : Center(child: CircularProgressIndicator()),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: BottomNavigationBar(
-              items: [
-                BottomNavigationBarItem(
-                    icon: Icon(Icons.home_outlined), label: 'ホーム'),
-                BottomNavigationBarItem(
-                    icon: Icon(Icons.perm_identity_outlined), label: 'アカウント'),
-                BottomNavigationBarItem(icon: Icon(Icons.search), label: '検索'),
-                BottomNavigationBarItem(
-                  icon: Stack(
-                    children: [
-                      const Icon(Icons.notifications),
-                      if (_hasUnreadNotifications())
-                        Positioned(
-                          right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(1),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 12,
-                              minHeight: 12,
-                            ),
-                            child: const Text(
-                              '',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 8,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
+      body: pageList.isNotEmpty
+          ? pageList[selectedIndex]
+          : const Center(child: CircularProgressIndicator()),
+      bottomNavigationBar: BottomNavigationBar(
+        items: [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined), label: 'ホーム'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.perm_identity_outlined), label: 'アカウント'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: '検索'),
+          BottomNavigationBarItem(
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications),
+                if (_hasUnreadNotifications())
+                  Positioned(
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(1),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 12,
+                        minHeight: 12,
+                      ),
+                      child: const Text(
+                        '',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
                         ),
-                    ],
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   ),
-                  label: 'メッセージ',
-                ),
-                if (showChatIcon)
-                  BottomNavigationBarItem(
-                      icon: Icon(Icons.chat_bubble_outline), label: '投稿'),
               ],
-              currentIndex: selectedIndex,
-              selectedItemColor: Colors.blue, // 選択されたアイテムの色
-              unselectedItemColor: Colors.grey, // 選択されていないアイテムの色
-              onTap: (index) {
-                setState(() {
-                  if (index == 1) {
-                    navigateToPage(context, userId!, '1', false, true);
-                  } else {
-                    selectedIndex = index;
-                  }
-                  _loadNotifications();
-                });
-              },
             ),
+            label: 'メッセージ',
           ),
+          if (showChatIcon)
+            BottomNavigationBarItem(
+                icon: Icon(Icons.chat_bubble_outline), label: '投稿'),
         ],
+        currentIndex: selectedIndex,
+        selectedItemColor: Colors.blue, // 選択されたアイテムの色
+        unselectedItemColor: Colors.grey, // 選択されていないアイテムの色
+        onTap: (index) async {
+          if (index == 1) {
+            // 非同期処理でアカウントIDを取得
+            String? myUserId = await storage.read(key: 'account_id') ??
+                FirebaseAuth.instance.currentUser?.uid;
+
+            if (myUserId != null) {
+              // navigateToPageを置き換え処理に変更
+              Navigator.pushReplacement(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      NavigationBarPage(
+                    userId: myUserId,
+                    showChatIcon: true,
+                    firstIndex: 1,
+                    withDelay: true,
+                  ),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
+                    // アニメーションを無効化
+                    return child;
+                  },
+                ),
+              );
+            } else {
+              // 必要に応じてエラーメッセージを表示
+              print('アカウントIDが取得できませんでした');
+            }
+          } else {
+            setState(() {
+              selectedIndex = index;
+            });
+            // 通知をロード
+            _loadNotifications();
+          }
+        },
       ),
     );
   }

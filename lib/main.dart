@@ -1,6 +1,5 @@
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,9 +8,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io' show Platform;
-
 import 'maintenance_page.dart';
-import 'view/time_line/timeline_body.dart';
 import 'view/start_up/login_page.dart';
 
 void main() async {
@@ -22,7 +19,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  static const String currentVersion = '1.1.8'; // 現在のバージョンを直接記述
+  static const String currentVersion = '1.2.0'; // 現在のバージョンを直接記述
 
   @override
   Widget build(BuildContext context) {

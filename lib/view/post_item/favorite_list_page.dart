@@ -1,5 +1,4 @@
 import 'package:cymva/utils/navigation_utils.dart';
-import 'package:cymva/view/account/account_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -13,30 +12,76 @@ class FavoriteListPage extends StatefulWidget {
 }
 
 class _FavoriteListPageState extends State<FavoriteListPage> {
-  Future<List<Map<String, dynamic>>> _fetchFavoriteUsers() async {
-    final favoriteUsersSnapshot = await FirebaseFirestore.instance
+  List<Map<String, dynamic>> favoriteUsers = [];
+  DocumentSnapshot? lastDocument; // 最後に取得したドキュメント
+  bool isLoading = false; // データ取得中かどうか
+  bool hasMore = true; // さらにデータがあるかどうか
+  final int limit = 15; // 1回の取得件数
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchFavoriteUsers(); // 初回データ取得
+    _scrollController.addListener(_onScroll); // スクロールリスナーを追加
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose(); // スクロールコントローラーを破棄
+    super.dispose();
+  }
+
+  Future<void> _fetchFavoriteUsers() async {
+    if (isLoading || !hasMore) return; // データ取得中またはデータがない場合は処理をスキップ
+
+    setState(() {
+      isLoading = true;
+    });
+
+    Query query = FirebaseFirestore.instance
         .collection('posts')
         .doc(widget.postId)
         .collection('favorite_users')
-        .get();
+        .limit(limit);
 
-    List<Map<String, dynamic>> favoriteUsers = [];
+    if (lastDocument != null) {
+      query = query.startAfterDocument(lastDocument!); // 前回の最後のドキュメントから取得
+    }
 
-    for (var doc in favoriteUsersSnapshot.docs) {
-      final userId = doc.id;
-      final userSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
+    final favoriteUsersSnapshot = await query.get();
 
-      if (userSnapshot.exists) {
-        final userData = userSnapshot.data()!;
-        userData['id'] = userId; // userIdをuserDataに追加
-        favoriteUsers.add(userData);
+    if (favoriteUsersSnapshot.docs.isNotEmpty) {
+      lastDocument = favoriteUsersSnapshot.docs.last; // 最後のドキュメントを更新
+
+      for (var doc in favoriteUsersSnapshot.docs) {
+        final userId = doc.id;
+        final userSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .get();
+
+        if (userSnapshot.exists) {
+          final userData = userSnapshot.data()!;
+          userData['id'] = userId; // userIdをuserDataに追加
+          favoriteUsers.add(userData);
+        }
       }
     }
 
-    return favoriteUsers;
+    setState(() {
+      isLoading = false;
+      hasMore = favoriteUsersSnapshot.docs.length == limit; // データがlimit未満なら終了
+    });
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !isLoading &&
+        hasMore) {
+      _fetchFavoriteUsers(); // スクロール位置が下部に到達したら次のデータを取得
+    }
   }
 
   @override
@@ -45,20 +90,17 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
       appBar: AppBar(
         title: Text('お気に入りユーザー'),
       ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _fetchFavoriteUsers(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('エラーが発生しました'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(child: Text('お気に入りユーザーがいません'));
-          } else {
-            final favoriteUsers = snapshot.data!;
-            return ListView.builder(
-              itemCount: favoriteUsers.length,
+      body: favoriteUsers.isEmpty && isLoading
+          ? Center(child: CircularProgressIndicator()) // 初回ローディング
+          : ListView.builder(
+              controller: _scrollController, // スクロールコントローラーを設定
+              itemCount:
+                  favoriteUsers.length + (hasMore ? 1 : 0), // ローディングインジケータ用に+1
               itemBuilder: (context, index) {
+                if (index == favoriteUsers.length) {
+                  return Center(child: Text('読み込み中...'));
+                }
+
                 final userData = favoriteUsers[index];
                 return Padding(
                   padding: const EdgeInsets.symmetric(
@@ -79,7 +121,6 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
                             height: 40,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
-                              // 画像の取得に失敗した場合のエラービルダー
                               return Image.network(
                                 'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
                                 width: 40,
@@ -141,10 +182,7 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
                   ),
                 );
               },
-            );
-          }
-        },
-      ),
+            ),
     );
   }
 }

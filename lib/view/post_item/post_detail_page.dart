@@ -23,6 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:io';
 
 class PostDetailPage extends StatefulWidget {
   final Post post;
@@ -72,7 +73,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
     _checkAdminLevel();
     _getImageUrl();
     _checkPostInGroups();
-
     if (widget.post.reply != null && widget.post.reply!.isNotEmpty) {
       _replyToPostFuture = getPostById(widget.post.reply!);
     }
@@ -141,27 +141,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
     isFavoriteNotifier.value = isFavoriteSnapshot.exists;
   }
-
-  // Future<void> _toggleFavorite() async {
-  //   final postRef = FirebaseFirestore.instance
-  //       .collection('posts')
-  //       .doc(widget.post.id)
-  //       .collection('favorite_users')
-  //       .doc(widget.userId);
-
-  //   if (isFavoriteNotifier.value) {
-  //     // すでにお気に入りに登録されている場合、解除する
-  //     await postRef.delete();
-  //     favoriteUsersNotifier.value--;
-  //   } else {
-  //     // お気に入りに追加する
-  //     await postRef.set({});
-  //     favoriteUsersNotifier.value++;
-  //   }
-
-  //   // お気に入り状態を反転
-  //   isFavoriteNotifier.value = !isFavoriteNotifier.value;
-  // }
 
   Future<void> _fetchRepostDetails() async {
     try {
@@ -268,64 +247,94 @@ class _PostDetailPageState extends State<PostDetailPage> {
   }
 
   Future<void> _deletePost(BuildContext context) async {
+    List<String> deletedMediaUrls = []; // 削除した画像のURLを記録
     try {
-      final postDocRef =
-          _firestoreInstance.collection('posts').doc(widget.post.id);
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final postDocRef =
+            _firestoreInstance.collection('posts').doc(widget.post.id);
 
-      // サブコレクション内のすべてのドキュメントを削除する関数
-      Future<void> deleteSubcollection(String subcollectionName) async {
-        final subcollectionRef = postDocRef.collection(subcollectionName);
-        final snapshot = await subcollectionRef.get();
+        // サブコレクション内のすべてのドキュメントを削除する関数
+        Future<void> deleteSubcollection(String subcollectionName) async {
+          final subcollectionRef = postDocRef.collection(subcollectionName);
+          final snapshot = await subcollectionRef.get();
 
-        for (var doc in snapshot.docs) {
-          await doc.reference.delete();
+          for (var doc in snapshot.docs) {
+            transaction.delete(doc.reference); // トランザクション内で削除
+          }
         }
-      }
 
-      // 返信が存在する場合、返信先の`reply_post`を削除
-      if (widget.post.reply != null && widget.post.reply!.isNotEmpty) {
-        await _firestoreInstance
-            .collection('posts')
-            .doc(widget.post.reply)
-            .collection('reply_post')
-            .doc(widget.post.id)
-            .delete();
-      }
-
-      if (widget.post.repost != null && widget.post.repost!.isNotEmpty) {
-        await _firestoreInstance
-            .collection('posts')
-            .doc(widget.post.repost)
-            .collection('repost')
-            .doc(widget.post.id)
-            .delete();
-      }
-
-      // サブコレクションを削除 (サブコレクション名が固定されている場合)
-      await deleteSubcollection('favorite_users');
-      await deleteSubcollection('repost');
-      await deleteSubcollection('reply_post');
-
-      // メインの投稿ドキュメントを取得
-      final postSnapshot = await postDocRef.get();
-      final postData = postSnapshot.data() as Map<String, dynamic>;
-
-      // media_urlがnull以外の場合、画像を削除
-      if (postData['media_url'] != null) {
-        final List<dynamic> mediaUrls = postData['media_url'];
-        for (String mediaUrl in mediaUrls) {
-          final ref = FirebaseStorage.instance.refFromURL(mediaUrl);
-          await ref.delete();
+        // 返信が存在する場合、返信先の`reply_post`を削除
+        if (widget.post.reply != null && widget.post.reply!.isNotEmpty) {
+          final replyPostRef = _firestoreInstance
+              .collection('posts')
+              .doc(widget.post.reply)
+              .collection('reply_post')
+              .doc(widget.post.id);
+          transaction.delete(replyPostRef);
         }
-      }
 
-      // メインの投稿ドキュメントを削除
-      await postDocRef.delete();
+        if (widget.post.repost != null && widget.post.repost!.isNotEmpty) {
+          final repostRef = _firestoreInstance
+              .collection('posts')
+              .doc(widget.post.repost)
+              .collection('repost')
+              .doc(widget.post.id);
+          transaction.delete(repostRef);
+        }
 
+        // サブコレクションを削除 (サブコレクション名が固定されている場合)
+        await deleteSubcollection('favorite_users');
+        await deleteSubcollection('repost');
+        await deleteSubcollection('reply_post');
+
+        // メインの投稿ドキュメントを取得
+        final postSnapshot = await transaction.get(postDocRef);
+        final postData = postSnapshot.data() as Map<String, dynamic>;
+
+        // media_urlがnull以外の場合、画像を削除
+        if (postData['media_url'] != null) {
+          final List<dynamic> mediaUrls = postData['media_url'];
+          for (String mediaUrl in mediaUrls) {
+            final ref = FirebaseStorage.instance.refFromURL(mediaUrl);
+            await ref.delete(); // Firebase Storageの削除
+            deletedMediaUrls.add(mediaUrl); // 削除したURLを記録
+          }
+        }
+
+        // メインの投稿ドキュメントを削除
+        transaction.delete(postDocRef);
+
+        // グループ内の投稿を削除
+        final groupCollectionRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId)
+            .collection('group')
+            .doc(groupId)
+            .collection('posts');
+
+        final querySnapshot = await groupCollectionRef
+            .where('postId', isEqualTo: widget.post.id)
+            .get();
+
+        for (var doc in querySnapshot.docs) {
+          transaction.delete(doc.reference);
+        }
+      });
+
+      // 成功時の処理
       showTopSnackBar(context, '投稿を削除しました', backgroundColor: Colors.green);
-
-      Navigator.of(context).pop(true); // true を渡して前のページに戻る
+      Navigator.of(context).pop(true);
     } catch (e) {
+      // エラー発生時にロールバック処理を実行
+      for (String mediaUrl in deletedMediaUrls) {
+        try {
+          final ref = FirebaseStorage.instance.refFromURL(mediaUrl);
+          await ref.putFile(File(mediaUrl)); // 削除した画像を再アップロード
+        } catch (uploadError) {
+          print('画像の再アップロードに失敗しました: $uploadError');
+        }
+      }
+
       showTopSnackBar(context, '投稿の削除に失敗しました: $e', backgroundColor: Colors.red);
     }
   }
@@ -980,6 +989,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   MediaDisplayWidget(
                     mediaUrl: widget.post.mediaUrl,
                     category: widget.post.category ?? '',
+                    fullVideo: true,
                   ),
                 ],
               ),
@@ -1196,7 +1206,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
           ),
         ),
       ),
-      // bottomNavigationBar: NavigationBarPage(selectedIndex: 0),
     );
   }
 }

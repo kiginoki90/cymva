@@ -135,6 +135,7 @@ class _GroupListDialogState extends State<GroupListDialog> {
                   .collection('users')
                   .doc(widget.userId)
                   .collection('group')
+                  .orderBy('timestamp', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {

@@ -9,6 +9,7 @@ import 'package:cymva/utils/firestore/posts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cymva/utils/function_utils.dart';
 import 'package:video_player/video_player.dart';
+import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
 class PostPage extends StatefulWidget {
   final String userId;
@@ -38,6 +39,7 @@ class _PostPageState extends State<PostPage> {
     '漫画',
     'イラスト',
     '写真',
+    'グルメ',
     '俳句・短歌',
     '憲章宣誓',
     '改修要望/バグ'
@@ -49,6 +51,7 @@ class _PostPageState extends State<PostPage> {
     '漫画',
     'イラスト',
     '写真',
+    'グルメ',
     '俳句・短歌',
     '憲章宣誓',
     '改修要望/バグ',
@@ -261,6 +264,26 @@ class _PostPageState extends State<PostPage> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              selectedCategory = null;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueAccent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                          ),
+                          child: Text(
+                            'クリア',
+                            style: TextStyle(fontSize: 12, color: Colors.white),
+                          ),
+                        ),
+                        SizedBox(width: 8),
                         SizedBox(
                           width: 120,
                           child: DropdownButtonFormField<String>(
@@ -316,26 +339,6 @@ class _PostPageState extends State<PostPage> {
                             style: TextStyle(color: Colors.black, fontSize: 12),
                           ),
                         ),
-                        SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              selectedCategory = null;
-                            });
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blueAccent,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                          ),
-                          child: Text(
-                            'クリア',
-                            style: TextStyle(fontSize: 12, color: Colors.white),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -366,21 +369,105 @@ class _PostPageState extends State<PostPage> {
                   if (images.isNotEmpty)
                     SizedBox(
                       height: 150,
-                      child: GridView.builder(
+                      child: ReorderableGridView.builder(
                         itemCount: images.length,
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
                           crossAxisSpacing: 4,
                           mainAxisSpacing: 4,
                         ),
+                        onReorder: (oldIndex, newIndex) {
+                          setState(() {
+                            // 順番を入れ替える
+                            final item = images.removeAt(oldIndex);
+                            images.insert(newIndex, item);
+                          });
+                        },
                         itemBuilder: (BuildContext context, int index) {
                           XFile xFile = images[index];
                           File file = File(xFile.path);
-                          return Image.file(
-                            file,
-                            width: 150,
-                            height: 150,
-                            fit: BoxFit.cover,
+
+                          return Stack(
+                            key: ValueKey(xFile.path), // 必須: 各アイテムに一意のキーを設定
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  // 拡大表示
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return Dialog(
+                                        backgroundColor:
+                                            Colors.black.withOpacity(0.5),
+                                        child: GestureDetector(
+                                          onTap: () =>
+                                              Navigator.of(context).pop(),
+                                          child: Center(
+                                            child: Container(
+                                              width: MediaQuery.of(context)
+                                                      .size
+                                                      .width *
+                                                  0.8,
+                                              height: MediaQuery.of(context)
+                                                      .size
+                                                      .height *
+                                                  0.8,
+                                              decoration: BoxDecoration(
+                                                image: DecorationImage(
+                                                  image: FileImage(file),
+                                                  fit: BoxFit.contain,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                                child: Image.file(
+                                  file,
+                                  width: 150,
+                                  height: 150,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              // 削除ボタン
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      images.removeAt(index);
+                                    });
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.7),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    padding: const EdgeInsets.all(4),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                        dragWidgetBuilder: (index, child) {
+                          // ドラッグ中のアイテムの見た目をカスタマイズ
+                          return Transform.scale(
+                            scale: 1.1, // 少し拡大
+                            child: Opacity(
+                              opacity: 0.8, // 半透明にする
+                              child: child,
+                            ),
                           );
                         },
                       ),
@@ -402,6 +489,7 @@ class _PostPageState extends State<PostPage> {
               ),
             ),
           ),
+          const SizedBox(height: 60),
           // キーボードの上にボタンを配置する
           Positioned(
             bottom: keyboardHeight > 0 ? 10 : 10,
@@ -443,11 +531,10 @@ class _PostPageState extends State<PostPage> {
                         ),
                       ),
                       // キーボードを閉じるボタン
-                      if (keyboardHeight > 0)
-                        IconButton(
-                          icon: Icon(Icons.keyboard_arrow_down),
-                          onPressed: _dismissKeyboard,
-                        ),
+                      IconButton(
+                        icon: Icon(Icons.keyboard_arrow_down),
+                        onPressed: _dismissKeyboard,
+                      ),
                       Row(
                         children: [
                           IconButton(
@@ -573,6 +660,7 @@ class _PostPageState extends State<PostPage> {
               ),
             ),
           ),
+          const SizedBox(height: 15),
         ],
       ),
       // bottomNavigationBar: NavigationBarPage(selectedIndex: 4),

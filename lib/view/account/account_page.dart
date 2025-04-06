@@ -14,16 +14,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AccountPage extends StatefulWidget {
   final String postUserId;
-  final Account? postAccount;
+  final bool? withDelay;
 
-  AccountPage({required this.postUserId, this.postAccount});
+  AccountPage({required this.postUserId, this.withDelay = false});
 
   @override
   _AccountPageState createState() => _AccountPageState();
 }
 
 class _AccountPageState extends State<AccountPage> {
-  Account? postAccount;
+  Account? account;
   late PageController _pageController;
   String? userId;
   final FlutterSecureStorage storage = FlutterSecureStorage();
@@ -34,26 +34,7 @@ class _AccountPageState extends State<AccountPage> {
     super.initState();
     _pageController = PageController();
     _getUserId();
-    postAccount = widget.postAccount;
-    if (postAccount == null) {
-      _getAccount();
-    }
-  }
-
-  @override
-  void didUpdateWidget(AccountPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.postUserId != widget.postUserId) {
-      _resetState();
-      _getAccount();
-    }
-  }
-
-  void _resetState() {
-    setState(() {
-      postAccount = null;
-      isPosting = false;
-    });
+    _getAccount();
   }
 
   Future<void> _getUserId() async {
@@ -63,9 +44,10 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   Future<void> _getAccount() async {
-    final Account? account = await UserFirestore.getUser(widget.postUserId);
+    final Account? fetchedAccount =
+        await UserFirestore.getUser(widget.postUserId);
 
-    if (account == null) {
+    if (fetchedAccount == null) {
       showTopSnackBar(context, 'ユーザー情報が取得できませんでした',
           backgroundColor: Colors.red);
 
@@ -76,7 +58,7 @@ class _AccountPageState extends State<AccountPage> {
       );
     } else {
       setState(() {
-        postAccount = account;
+        account = fetchedAccount;
       });
     }
   }
@@ -126,7 +108,7 @@ class _AccountPageState extends State<AccountPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (postAccount == null) {
+    if (account == null) {
       return Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
@@ -154,7 +136,7 @@ class _AccountPageState extends State<AccountPage> {
 
         // ブロックされているかチェックするFutureBuilder
         return FutureBuilder<bool>(
-          future: _isBlocked(myAccount.id, postAccount!.id),
+          future: _isBlocked(myAccount.id, account!.id),
           builder: (context, blockSnapshot) {
             if (blockSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -186,7 +168,7 @@ class _AccountPageState extends State<AccountPage> {
 
             // follow状態をチェックするFutureBuilder
             return FutureBuilder<bool>(
-              future: _isFollowing(myAccount.id, postAccount!.id),
+              future: _isFollowing(myAccount.id, account!.id),
               builder: (context, followSnapshot) {
                 if (followSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -195,8 +177,8 @@ class _AccountPageState extends State<AccountPage> {
                 final isFollowing = followSnapshot.data ?? false;
 
                 // ページ遷移の条件をチェック
-                if (postAccount!.lockAccount &&
-                    postAccount!.id != myAccount.id &&
+                if (account!.lockAccount &&
+                    account!.id != myAccount.id &&
                     !isFollowing &&
                     myAccount.admin != 1) {
                   // 非公開アカウントの場合の表示
@@ -245,14 +227,15 @@ class _AccountPageState extends State<AccountPage> {
                             controller: _pageController,
                             children: [
                               PostList(
-                                  postAccount: postAccount!,
-                                  myAccount: myAccount),
-                              ImagePostList(myAccount: postAccount!),
-                              FavoriteList(
-                                  myAccount: postAccount!, userId: userId),
+                                postAccount: account!,
+                                myAccount: myAccount,
+                                withDelay: widget.withDelay,
+                              ),
+                              ImagePostList(myAccount: account!),
+                              FavoriteList(myAccount: account!, userId: userId),
                               GroupPostsPage(
                                   // postAccount: postAccount!,
-                                  postAccount: postAccount!),
+                                  postAccount: account!),
                             ],
                           ),
                         ),

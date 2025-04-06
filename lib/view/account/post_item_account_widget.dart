@@ -249,37 +249,6 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // GestureDetector(
-                      //   onTap: () {
-                      //     Navigator.push(
-                      //       context,
-                      //       MaterialPageRoute(
-                      //         builder: (context) => AccountPage(
-                      //             postUserId: widget.post.postAccountId),
-                      //       ),
-                      //     );
-                      //   },
-                      //   child: ClipRRect(
-                      //     borderRadius: BorderRadius.circular(8.0),
-                      //     child: Image.network(
-                      //       widget.postAccount.imagePath.isNotEmpty == true
-                      //           ? widget.postAccount.imagePath
-                      //           : 'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                      //       width: 40,
-                      //       height: 40,
-                      //       fit: BoxFit.cover,
-                      //       errorBuilder: (context, error, stackTrace) {
-                      //         // エラー発生時のデフォルト画像表示
-                      //         return Image.network(
-                      //           'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                      //           width: 40,
-                      //           height: 40,
-                      //           fit: BoxFit.cover,
-                      //         );
-                      //       },
-                      //     ),
-                      //   ),
-                      // ),
                       const SizedBox(width: 5),
                       Expanded(
                         child: Column(
@@ -288,41 +257,6 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                // Column(
-                                //   crossAxisAlignment: CrossAxisAlignment.start,
-                                //   children: [
-                                //     Row(
-                                //       children: [
-                                //         if (widget.postAccount.lockAccount)
-                                //           const Padding(
-                                //             padding: const EdgeInsets.only(
-                                //                 right: 4.0),
-                                //             child: const Icon(
-                                //               Icons.lock, // 南京錠のアイコン
-                                //               size: 16, // アイコンのサイズ
-                                //               color: Colors.grey, // アイコンの色
-                                //             ),
-                                //           ),
-                                //         Text(
-                                //           widget.postAccount.name.length > 13
-                                //               ? '${widget.postAccount.name.substring(0, 13)}...' // 15文字を超える場合は切り捨てて「...」を追加
-                                //               : widget.postAccount.name,
-                                //           style: const TextStyle(
-                                //               fontWeight: FontWeight.bold),
-                                //           overflow: TextOverflow.ellipsis,
-                                //           maxLines: 1,
-                                //         ),
-                                //       ],
-                                //     ),
-                                //     Text(
-                                //       '@${widget.postAccount.userId.length > 25 ? '${widget.postAccount.userId.substring(0, 25)}...' : widget.postAccount.userId}',
-                                //       style:
-                                //           const TextStyle(color: Colors.grey),
-                                //       overflow: TextOverflow.ellipsis,
-                                //       maxLines: 1,
-                                //     ),
-                                //   ],
-                                // ),
                                 Row(
                                   children: [
                                     if (widget.post.category != null &&
@@ -456,8 +390,6 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                                     widget.isBookmarkedNotifier,
                                 isFavoriteNotifier: widget.isFavoriteNotifier,
                                 replyCountNotifier: _replyCountNotifier,
-                                // onFavoriteToggle: widget.onFavoriteToggle,
-                                // onBookMsrkToggle: widget.onBookMsrkToggle,
                               ),
                           ],
                         ),

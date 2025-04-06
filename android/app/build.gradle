@@ -5,6 +5,12 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin" // Flutterプラグイン
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
@@ -13,24 +19,16 @@ if (localPropertiesFile.exists()) {
     }
 }
 
-def keystoreProperties = new Properties()
-def keystorePropertiesFile = rootProject.file("key.properties")
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-}
-
-// Flutterバージョンコードと名前のデフォルト値を設定
 def flutterVersionCode = localProperties.getProperty("flutter.versionCode", "1")
 def flutterVersionName = localProperties.getProperty("flutter.versionName", "1.0")
 
-// SDKバージョンを明示的に指定
-def flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion", "33") // 最新の安定版SDK
+def flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion", "33")
 def flutterTargetSdkVersion = localProperties.getProperty("flutter.targetSdkVersion", "33")
-def flutterMinSdkVersion = localProperties.getProperty("flutter.minSdkVersion", "21") // google_mobile_adsは19以上が必要
+def flutterMinSdkVersion = localProperties.getProperty("flutter.minSdkVersion", "21")
 
 android {
     namespace = "com.example.cymva"
-    compileSdk = flutterCompileSdkVersion.toInteger()
+    compileSdk 35  // 数値で設定
     ndkVersion = localProperties.getProperty("flutter.ndkVersion")
 
     compileOptions {
@@ -38,19 +36,20 @@ android {
         targetCompatibility = JavaVersion.VERSION_1_8
     }
 
-    defaultConfig {
-        applicationId = "com.example.cymva"
-        minSdk = flutterMinSdkVersion.toInteger()
-        targetSdk = flutterTargetSdkVersion.toInteger()
-        versionCode = flutterVersionCode.toInteger()
-        versionName = flutterVersionName
-    }
+defaultConfig {
+    applicationId "com.example.cymva"
+    minSdkVersion flutterMinSdkVersion.toInteger()
+    targetSdkVersion flutterTargetSdkVersion.toInteger()
+    versionCode flutterVersionCode.toInteger()
+    versionName flutterVersionName
+    multiDexEnabled true
+}
 
     signingConfigs {
         release {
             keyAlias keystoreProperties['keyAlias']
             keyPassword keystoreProperties['keyPassword']
-            storeFile file(keystoreProperties['storeFile'])
+            storeFile file(keystoreProperties['storeFile'])? file(keystoreProperties['storeFile']) : null
             storePassword keystoreProperties['storePassword']
         }
     }
@@ -58,17 +57,18 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.release
-            minifyEnabled false
-            shrinkResources false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
     dependencies {
         implementation 'com.google.android.gms:play-services-ads:22.1.0'
+        implementation 'androidx.multidex:multidex:2.0.1'
     }
 }
 
 flutter {
-    source = "../.."
+    source = "../.." // 必要なら
 }

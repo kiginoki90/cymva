@@ -12,7 +12,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class TimeLineBody extends StatefulWidget {
   final String userId;
-  final bool fromLogin;
+  final bool? fromLogin;
 
   const TimeLineBody({
     super.key,
@@ -25,25 +25,13 @@ class TimeLineBody extends StatefulWidget {
 }
 
 class _TimeLineBodyState extends State<TimeLineBody> {
-  late PageController _pageController;
-  int _currentPageIndex = 0;
+  final PageController _pageController = PageController();
   bool _hasShownPopups = false; // ポップアップ表示制御フラグ
   final FlutterSecureStorage storage = FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
-    _initializePageController();
-    _pageController = PageController();
-  }
-
-  Future<void> _initializePageController() async {
-    final pageIndexString = await storage.read(key: 'TimeLine') ?? '0';
-    final initialPageIndex = int.tryParse(pageIndexString) ?? 0;
-    setState(() {
-      _currentPageIndex = initialPageIndex;
-      _pageController = PageController(initialPage: _currentPageIndex);
-    });
   }
 
   Future<void> _saveLastPageIndex(int index) async {
@@ -57,7 +45,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // fromLoginがtrueで、まだポップアップを表示していない場合のみポップアップを表示
-    if (widget.fromLogin && !_hasShownPopups) {
+    if (widget.fromLogin == true && !_hasShownPopups) {
       // ビルド後にポップアップを表示するために、PostFrameCallbackを使用
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _checkFirstLoginAndShowPopups(context);
@@ -208,7 +196,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
               contentPadding: EdgeInsets.zero,
               content: Container(
                 width: 340,
-                height: 320,
+                height: 670,
                 child: Stack(
                   children: [
                     Column(
@@ -216,7 +204,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                       children: [
                         Container(
                           width: 280,
-                          height: 280,
+                          height: 620,
                           child: PageView(
                             onPageChanged: (int page) {
                               setState(() {
@@ -233,7 +221,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                                       SlideDirectionPageRoute(
                                         page: FullScreenImagePage(
                                           imageUrls: const [
-                                            'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export%204.jpg?alt=media&token=bfee4359-e283-470b-ba4b-beb500050513'
+                                            'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/IMG_0036%202.JPG?alt=media&token=30c2a267-2ed9-4b5a-9260-01560b98d0f5'
                                           ],
                                           initialIndex: 0,
                                         ),
@@ -242,7 +230,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                                     );
                                   },
                                   child: Image.network(
-                                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export%204.jpg?alt=media&token=bfee4359-e283-470b-ba4b-beb500050513',
+                                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/IMG_0036%202.JPG?alt=media&token=30c2a267-2ed9-4b5a-9260-01560b98d0f5',
                                     fit: BoxFit.cover,
                                   ),
                                 ),
@@ -256,7 +244,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                                       SlideDirectionPageRoute(
                                         page: FullScreenImagePage(
                                           imageUrls: [
-                                            'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export%203.jpg?alt=media&token=d06773e6-747d-4e2a-b05f-a37c3350ec0e'
+                                            'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/IMG_0037.JPG?alt=media&token=51d83dc5-5aeb-4534-9f60-c686aca6bd38'
                                           ],
                                           initialIndex: 0,
                                         ),
@@ -265,7 +253,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                                     );
                                   },
                                   child: Image.network(
-                                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export%203.jpg?alt=media&token=d06773e6-747d-4e2a-b05f-a37c3350ec0e',
+                                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/IMG_0037.JPG?alt=media&token=51d83dc5-5aeb-4534-9f60-c686aca6bd38',
                                     fit: BoxFit.cover,
                                   ),
                                 ),
@@ -279,7 +267,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                                       SlideDirectionPageRoute(
                                         page: FullScreenImagePage(
                                           imageUrls: [
-                                            'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export%202.jpg?alt=media&token=b1c21b1f-4959-49d6-b5eb-4cea4585eea1'
+                                            'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/IMG_0039.JPG?alt=media&token=748b8d99-15f3-49fa-87ea-ee2d564f29b1'
                                           ],
                                           initialIndex: 0,
                                         ),
@@ -288,52 +276,9 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                                     );
                                   },
                                   child: Image.network(
-                                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export%202.jpg?alt=media&token=b1c21b1f-4959-49d6-b5eb-4cea4585eea1',
+                                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/IMG_0039.JPG?alt=media&token=748b8d99-15f3-49fa-87ea-ee2d564f29b1',
                                     fit: BoxFit.cover,
                                   ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.only(top: 100.0),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Center(
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Checkbox(
-                                            value: _isChecked,
-                                            onChanged: (bool? value) {
-                                              setState(() {
-                                                _isChecked = value ?? false;
-                                              });
-                                            },
-                                          ),
-                                          Text("私はロボットです"),
-                                        ],
-                                      ),
-                                    ),
-                                    // OKボタンを中央に配置
-                                    if (_currentPage == 3)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 1, vertical: 1),
-                                        decoration: BoxDecoration(
-                                          border:
-                                              Border.all(color: Colors.blue),
-                                          borderRadius:
-                                              BorderRadius.circular(4),
-                                        ),
-                                        child: TextButton(
-                                          onPressed: () {
-                                            Navigator.pop(context);
-                                          },
-                                          child: Text("OK"),
-                                        ),
-                                      ),
-                                  ],
                                 ),
                               ),
                             ],
@@ -344,9 +289,9 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(4, (index) {
+                            children: List.generate(3, (index) {
                               return Container(
-                                margin: EdgeInsets.all(4),
+                                margin: EdgeInsets.all(3),
                                 width: 10,
                                 height: 10,
                                 decoration: BoxDecoration(
@@ -380,23 +325,6 @@ class _TimeLineBodyState extends State<TimeLineBody> {
         );
       },
     );
-  }
-
-  Future<Account?> getAccount(String userId) async {
-    try {
-      DocumentSnapshot doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
-      if (doc.exists) {
-        return Account.fromDocument(doc);
-      } else {
-        print('ユーザードキュメントが見つかりません');
-      }
-    } catch (e) {
-      print('アカウント情報の取得に失敗しました: $e');
-      return null;
-    }
   }
 
   @override

@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.1.8+2
+version: 1.2.0+2
 
 environment:
   sdk: '>=3.4.4 <4.0.0'
@@ -37,28 +37,32 @@ dependencies:
   cupertino_icons: ^1.0.8
   intl: any
   image_picker: ^1.1.2
-  firebase_core: ^2.32.0
-  firebase_auth: ^4.19.4
-  firebase_storage: ^11.7.5
-  cloud_firestore: ^4.17.3 
-  firebase_app_check: ^0.2.2+6
-  google_sign_in: ^6.2.1
+  firebase_core: ^3.12.1
+  firebase_auth: ^5.5.1
+  firebase_storage: ^12.4.4
+  cloud_firestore: ^5.6.5
+  firebase_app_check: ^0.3.2+4
+  google_sign_in: ^6.3.0
   flutter_signin_button: ^2.0.0
   video_player: ^2.9.1
-  path_provider: ^2.1.4
-  provider: ^6.1.2
-  flutter_secure_storage: ^9.2.2
-  url_launcher: ^6.3.0
+  path_provider: ^2.1.5
+  provider: ^6.1.4
+  flutter_secure_storage: ^9.2.4
+  url_launcher: ^6.3.1
   photo_view: ^0.15.0
   visibility_detector: ^0.4.0+2
   flutter_riverpod: ^2.6.1
-  mailer: ^6.3.0
+  mailer: ^6.4.1
   flutter_link_previewer: ^3.2.2
-  google_mobile_ads: ^5.2.0
-  shared_preferences: ^2.5.2
-  device_info_plus: ^10.1.2
+  google_mobile_ads: ^5.3.1
+  shared_preferences: ^2.5.3
+  device_info_plus: ^11.3.3
   collection: ^1.19.1
   animated_reorderable_list: ^1.2.0
+  webview_flutter: ^4.0.0
+  # webview_flutter_android: ^4.3.4
+  font_awesome_flutter: ^9.2.0
+  reorderable_grid_view: ^2.2.8
 
 dev_dependencies:
   flutter_test:
@@ -69,7 +73,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^3.0.0
+  flutter_lints: ^5.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

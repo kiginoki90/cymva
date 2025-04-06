@@ -32,16 +32,9 @@ class DeleteGroupDialog extends StatelessWidget {
 
       Navigator.of(context).pop(); // ダイアログを閉じる
       showTopSnackBar(context, 'グループから削除しました', backgroundColor: Colors.green);
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(content: Text('グループから削除しました')),
-      // );
     } catch (e) {
       Navigator.of(context).pop(); // ダイアログを閉じる
       showTopSnackBar(context, 'エラーが発生しました', backgroundColor: Colors.red);
-
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(content: Text('エラーが発生しました: $e')),
-      // );
     }
   }
 

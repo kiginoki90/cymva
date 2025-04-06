@@ -590,31 +590,34 @@ class _AccountTopPageState extends State<AccountTopPage> {
                     ),
                   ));
             },
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: postAccount!.admin >= 4
-                      ? Colors.grey
-                      : Colors.transparent,
-                  width: postAccount!.admin >= 4 ? 4.0 : 0.0,
+            child: Hero(
+              tag: postAccount!.imagePath, // ユニークなタグを設定
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: postAccount!.admin >= 4
+                        ? Colors.grey
+                        : Colors.transparent,
+                    width: postAccount!.admin >= 4 ? 4.0 : 0.0,
+                  ),
+                  borderRadius: BorderRadius.circular(8.0),
                 ),
-                borderRadius: BorderRadius.circular(8.0),
-              ),
-              child: Image.network(
-                postAccount!.imagePath ??
-                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                width: 55,
-                height: 55,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  // 画像の取得に失敗した場合のエラービルダー
-                  return Image.network(
-                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                    width: 55,
-                    height: 55,
-                    fit: BoxFit.cover,
-                  );
-                },
+                child: Image.network(
+                  postAccount!.imagePath ??
+                      'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                  width: 55,
+                  height: 55,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    // 画像の取得に失敗した場合のエラービルダー
+                    return Image.network(
+                      'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                      width: 55,
+                      height: 55,
+                      fit: BoxFit.cover,
+                    );
+                  },
+                ),
               ),
             ),
           ),
