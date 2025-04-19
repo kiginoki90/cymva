@@ -1,16 +1,10 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   final String videoUrl;
-  final VideoPlayerController controller;
 
-  const VideoPlayerScreen({
-    Key? key,
-    required this.videoUrl,
-    required this.controller,
-  }) : super(key: key);
+  const VideoPlayerScreen({Key? key, required this.videoUrl}) : super(key: key);
 
   @override
   _VideoPlayerScreenState createState() => _VideoPlayerScreenState();
@@ -18,58 +12,53 @@ class VideoPlayerScreen extends StatefulWidget {
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   late VideoPlayerController _controller;
+  bool _isPlaying = false;
+  bool _isMuted = false;
   bool _controlsVisible = true;
-  bool _isMuted = true;
-  Timer? _hideTimer;
 
   @override
   void initState() {
     super.initState();
-    _controller = widget.controller;
-    _controller.setVolume(_isMuted ? 0.0 : 1.0);
-    _startHideTimer();
+    _controller =
+        VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl)) // 修正
+          ..initialize().then((_) {
+            setState(() {}); // 動画が初期化されたら再描画
+          });
+    _controller.setVolume(0.0); // 音量をデフォルトでオフに設定
+    _isMuted = true; // デフォルトでミュート状態に設定
   }
 
   @override
   void dispose() {
-    _hideTimer?.cancel();
-    _controller.dispose(); // コントローラのリソースを解放
+    if (_controller.value.isInitialized) {
+      _controller.dispose(); // コントローラのリソースを解放
+    }
     super.dispose();
   }
 
-  void _toggleControls() {
+  void _togglePlayPause() {
     setState(() {
-      _controlsVisible = !_controlsVisible;
-      if (_controlsVisible) {
-        _startHideTimer();
+      if (_controller.value.isPlaying) {
+        _controller.pause();
+        _isPlaying = false;
       } else {
-        _hideTimer?.cancel();
+        _controller.play();
+        _isPlaying = true;
       }
     });
   }
 
-  void _toggleVolume() {
+  void _toggleMute() {
     setState(() {
       _isMuted = !_isMuted;
       _controller.setVolume(_isMuted ? 0.0 : 1.0);
     });
   }
 
-  void _startHideTimer() {
-    _hideTimer?.cancel();
-    _hideTimer = Timer(const Duration(seconds: 3), () {
-      setState(() {
-        _controlsVisible = false;
-      });
+  void _toggleControlsVisibility() {
+    setState(() {
+      _controlsVisible = !_controlsVisible;
     });
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final hours = twoDigits(duration.inHours);
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return [if (duration.inHours > 0) hours, minutes, seconds].join(':');
   }
 
   @override
@@ -80,125 +69,78 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: SafeArea(
-        child: GestureDetector(
-          onTap: _toggleControls,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              AspectRatio(
-                aspectRatio: _controller.value.aspectRatio,
-                child: VideoPlayer(_controller),
-              ),
-              // 中央の再生・停止ボタン
-              AnimatedOpacity(
-                opacity: _controlsVisible ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 500),
-                child: IconButton(
-                  iconSize: 64,
-                  icon: Icon(
-                    _controller.value.isPlaying
-                        ? Icons.pause
-                        : Icons.play_arrow,
-                    color: Colors.white,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      if (_controller.value.isPlaying) {
-                        _controller.pause();
-                      } else {
-                        _controller.play();
-                      }
-                      _startHideTimer();
-                    });
-                  },
-                ),
-              ),
-              // 右下の音量ボタンと戻るボタン
-              Positioned(
-                bottom: 50,
-                right: 10,
-                child: AnimatedOpacity(
-                  opacity: _controlsVisible ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 500),
-                  child: Row(
-                    children: [
-                      // 音量ボタン
-                      _buildControlButton(
-                        icon: _isMuted ? Icons.volume_off : Icons.volume_up,
-                        onPressed: _toggleVolume,
-                      ),
-                      const SizedBox(width: 10),
-                      // 戻るボタン
-                      _buildControlButton(
-                        icon: Icons.replay,
-                        onPressed: () {
-                          setState(() {
-                            _controller.seekTo(Duration.zero);
-                            _controller.play();
-                            _startHideTimer();
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // 最下部の時間バー
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: AnimatedOpacity(
-                  opacity: _controlsVisible ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 500),
-                  child: Container(
-                    color: Colors.black,
-                    child: Column(
-                      children: [
-                        VideoProgressIndicator(
-                          _controller,
-                          allowScrubbing: true,
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                _formatDuration(_controller.value.position),
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                              Text(
-                                _formatDuration(_controller.value.duration),
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+      body: GestureDetector(
+        onTap: _toggleControlsVisibility,
+        child: Center(
+          child: _controller.value.isInitialized
+              ? Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    AspectRatio(
+                      aspectRatio: _controller.value.aspectRatio,
+                      child: VideoPlayer(_controller),
                     ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+                    AnimatedOpacity(
+                      opacity: _controlsVisible ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 500), // 0.5秒に変更
+                      child: Stack(
+                        children: [
+                          // 再生・停止ボタン
+                          Center(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withAlpha(128), // グレーの枠を追加
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                iconSize: 64,
+                                icon: Icon(
+                                  _isPlaying ? Icons.pause : Icons.play_arrow,
+                                  color: Colors.white,
+                                ),
+                                onPressed: _togglePlayPause,
+                              ),
+                            ),
+                          ),
+                          // 音量ボタン
+                          Positioned(
+                            bottom: 20,
+                            right: 20,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withAlpha(128),
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                icon: Icon(
+                                  _isMuted ? Icons.volume_off : Icons.volume_up,
+                                  color: Colors.white,
+                                ),
+                                onPressed: _toggleMute,
+                              ),
+                            ),
+                          ),
+                          // スクロールバー
+                          Positioned(
+                            bottom: 20,
+                            left: 20,
+                            right: 80, // 音量ボタンのスペースを確保
+                            child: VideoProgressIndicator(
+                              _controller,
+                              allowScrubbing: true,
+                              colors: VideoProgressColors(
+                                playedColor: Colors.white,
+                                backgroundColor: Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              : const CircularProgressIndicator(), // 動画が初期化されるまでローディング表示
         ),
-      ),
-    );
-  }
-
-  Widget _buildControlButton(
-      {required IconData icon, required VoidCallback onPressed}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      padding: const EdgeInsets.all(8.0),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white),
-        onPressed: onPressed,
       ),
     );
   }

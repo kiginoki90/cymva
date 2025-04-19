@@ -252,240 +252,248 @@ class _PostPageState extends State<PostPage> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // カテゴリー選択欄
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              selectedCategory = null;
-                            });
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blueAccent,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                          ),
-                          child: Text(
-                            'クリア',
-                            style: TextStyle(fontSize: 12, color: Colors.white),
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        SizedBox(
-                          width: 120,
-                          child: DropdownButtonFormField<String>(
-                            value: selectedCategory,
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                                borderSide: BorderSide(
-                                  color: Colors.blueAccent,
-                                  width: 2.0,
+          Container(
+            child: SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 500),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // カテゴリー選択欄
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  selectedCategory = null;
+                                });
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blueAccent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8.0),
                                 ),
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
                               ),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 4),
+                              child: Text(
+                                'クリア',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.white),
+                              ),
                             ),
-                            items: (accountData == null ||
-                                    accountData!['admin'] == 3 ||
-                                    accountData!['admin'] == 4)
-                                ? categories.map((category) {
-                                    return DropdownMenuItem(
-                                      value: category,
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 0),
-                                        child: Text(category,
-                                            style: TextStyle(fontSize: 12)),
-                                      ),
-                                    );
-                                  }).toList()
-                                : adminCategories.map((category) {
-                                    return DropdownMenuItem(
-                                      value: category,
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 0),
-                                        child: Text(category,
-                                            style: TextStyle(fontSize: 12)),
-                                      ),
-                                    );
-                                  }).toList(),
-                            onChanged: (value) {
+                            SizedBox(width: 8),
+                            SizedBox(
+                              width: 120,
+                              child: DropdownButtonFormField<String>(
+                                value: selectedCategory,
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8.0),
+                                    borderSide: BorderSide(
+                                      color: Colors.blueAccent,
+                                      width: 2.0,
+                                    ),
+                                  ),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 4),
+                                ),
+                                items: (accountData == null ||
+                                        accountData!['admin'] == 3 ||
+                                        accountData!['admin'] == 4)
+                                    ? categories.map((category) {
+                                        return DropdownMenuItem(
+                                          value: category,
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 0),
+                                            child: Text(category,
+                                                style: TextStyle(fontSize: 12)),
+                                          ),
+                                        );
+                                      }).toList()
+                                    : adminCategories.map((category) {
+                                        return DropdownMenuItem(
+                                          value: category,
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 0),
+                                            child: Text(category,
+                                                style: TextStyle(fontSize: 12)),
+                                          ),
+                                        );
+                                      }).toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedCategory = value;
+                                  });
+                                },
+                                hint: const Text(
+                                  'カテゴリー',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                dropdownColor: Colors.white,
+                                icon: Icon(Icons.arrow_drop_down,
+                                    color: Colors.blueAccent),
+                                style: TextStyle(
+                                    color: Colors.black, fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // コンテンツ入力欄
+                      TextField(
+                        controller: contentController,
+                        decoration: InputDecoration(
+                          hintText: _getHintText(selectedCategory ?? ''),
+                          hintStyle: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                          filled: true,
+                          fillColor: selectedCategory == '俳句・短歌'
+                              ? Color.fromARGB(255, 255, 238, 240)
+                              : const Color.fromARGB(255, 222, 242, 251),
+                          border: InputBorder.none,
+                        ),
+                        minLines: 5,
+                        maxLines: null,
+                        maxLength: selectedCategory == '俳句・短歌' ? 40 : 200,
+                        keyboardType: TextInputType.multiline,
+                        textInputAction: TextInputAction.newline,
+                      ),
+                      const SizedBox(height: 20),
+                      // 選択した画像または動画を表示
+                      if (images.isNotEmpty)
+                        SizedBox(
+                          height: 150,
+                          child: ReorderableGridView.builder(
+                            itemCount: images.length,
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 4,
+                              mainAxisSpacing: 4,
+                            ),
+                            onReorder: (oldIndex, newIndex) {
                               setState(() {
-                                selectedCategory = value;
+                                // 順番を入れ替える
+                                final item = images.removeAt(oldIndex);
+                                images.insert(newIndex, item);
                               });
                             },
-                            hint: const Text(
-                              'カテゴリー',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                            dropdownColor: Colors.white,
-                            icon: Icon(Icons.arrow_drop_down,
-                                color: Colors.blueAccent),
-                            style: TextStyle(color: Colors.black, fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // コンテンツ入力欄
-                  TextField(
-                    controller: contentController,
-                    decoration: InputDecoration(
-                      hintText: _getHintText(selectedCategory ?? ''),
-                      hintStyle: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                      filled: true,
-                      fillColor: selectedCategory == '俳句・短歌'
-                          ? Color.fromARGB(255, 255, 238, 240)
-                          : const Color.fromARGB(255, 222, 242, 251),
-                      border: InputBorder.none,
-                    ),
-                    minLines: 5,
-                    maxLines: null,
-                    maxLength: selectedCategory == '俳句・短歌' ? 40 : 200,
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                  ),
-                  const SizedBox(height: 20),
-                  // 選択した画像または動画を表示
-                  if (images.isNotEmpty)
-                    SizedBox(
-                      height: 150,
-                      child: ReorderableGridView.builder(
-                        itemCount: images.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 4,
-                          mainAxisSpacing: 4,
-                        ),
-                        onReorder: (oldIndex, newIndex) {
-                          setState(() {
-                            // 順番を入れ替える
-                            final item = images.removeAt(oldIndex);
-                            images.insert(newIndex, item);
-                          });
-                        },
-                        itemBuilder: (BuildContext context, int index) {
-                          XFile xFile = images[index];
-                          File file = File(xFile.path);
+                            itemBuilder: (BuildContext context, int index) {
+                              XFile xFile = images[index];
+                              File file = File(xFile.path);
 
-                          return Stack(
-                            key: ValueKey(xFile.path), // 必須: 各アイテムに一意のキーを設定
-                            children: [
-                              GestureDetector(
-                                onTap: () {
-                                  // 拡大表示
-                                  showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return Dialog(
-                                        backgroundColor:
-                                            Colors.black.withOpacity(0.5),
-                                        child: GestureDetector(
-                                          onTap: () =>
-                                              Navigator.of(context).pop(),
-                                          child: Center(
-                                            child: Container(
-                                              width: MediaQuery.of(context)
-                                                      .size
-                                                      .width *
-                                                  0.8,
-                                              height: MediaQuery.of(context)
-                                                      .size
-                                                      .height *
-                                                  0.8,
-                                              decoration: BoxDecoration(
-                                                image: DecorationImage(
-                                                  image: FileImage(file),
-                                                  fit: BoxFit.contain,
+                              return Stack(
+                                key: ValueKey(xFile.path), // 必須: 各アイテムに一意のキーを設定
+                                children: [
+                                  GestureDetector(
+                                    onTap: () {
+                                      // 拡大表示
+                                      showDialog(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return Dialog(
+                                            backgroundColor:
+                                                Colors.black.withOpacity(0.5),
+                                            child: GestureDetector(
+                                              onTap: () =>
+                                                  Navigator.of(context).pop(),
+                                              child: Center(
+                                                child: Container(
+                                                  width: MediaQuery.of(context)
+                                                          .size
+                                                          .width *
+                                                      0.8,
+                                                  height: MediaQuery.of(context)
+                                                          .size
+                                                          .height *
+                                                      0.8,
+                                                  decoration: BoxDecoration(
+                                                    image: DecorationImage(
+                                                      image: FileImage(file),
+                                                      fit: BoxFit.contain,
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
                                             ),
-                                          ),
-                                        ),
+                                          );
+                                        },
                                       );
                                     },
-                                  );
-                                },
-                                child: Image.file(
-                                  file,
-                                  width: 150,
-                                  height: 150,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              // 削除ボタン
-                              Positioned(
-                                top: 4,
-                                right: 4,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      images.removeAt(index);
-                                    });
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.7),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    padding: const EdgeInsets.all(4),
-                                    child: const Icon(
-                                      Icons.close,
-                                      color: Colors.white,
-                                      size: 16,
+                                    child: Image.file(
+                                      file,
+                                      width: 150,
+                                      height: 150,
+                                      fit: BoxFit.cover,
                                     ),
                                   ),
+                                  // 削除ボタン
+                                  Positioned(
+                                    top: 4,
+                                    right: 4,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          images.removeAt(index);
+                                        });
+                                      },
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.7),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        padding: const EdgeInsets.all(4),
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                            dragWidgetBuilder: (index, child) {
+                              // ドラッグ中のアイテムの見た目をカスタマイズ
+                              return Transform.scale(
+                                scale: 1.1, // 少し拡大
+                                child: Opacity(
+                                  opacity: 0.8, // 半透明にする
+                                  child: child,
                                 ),
-                              ),
-                            ],
-                          );
-                        },
-                        dragWidgetBuilder: (index, child) {
-                          // ドラッグ中のアイテムの見た目をカスタマイズ
-                          return Transform.scale(
-                            scale: 1.1, // 少し拡大
-                            child: Opacity(
-                              opacity: 0.8, // 半透明にする
-                              child: child,
-                            ),
-                          );
-                        },
-                      ),
-                    )
-                  else if (_mediaFile != null && isVideo)
-                    _videoController != null &&
-                            _videoController!.value.isInitialized
-                        ? Container(
-                            width: double.infinity,
-                            height: 300,
-                            child: AspectRatio(
-                              aspectRatio: _videoController!.value.aspectRatio,
-                              child: VideoPlayer(_videoController!),
-                            ),
-                          )
-                        : const SizedBox(),
-                  const SizedBox(height: 20),
-                ],
+                              );
+                            },
+                          ),
+                        )
+                      else if (_mediaFile != null && isVideo)
+                        _videoController != null &&
+                                _videoController!.value.isInitialized
+                            ? Container(
+                                width: double.infinity,
+                                height: 300,
+                                child: AspectRatio(
+                                  aspectRatio:
+                                      _videoController!.value.aspectRatio,
+                                  child: VideoPlayer(_videoController!),
+                                ),
+                              )
+                            : const SizedBox(),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

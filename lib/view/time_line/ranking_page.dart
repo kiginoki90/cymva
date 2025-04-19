@@ -98,8 +98,9 @@ class _RankingPageState extends ConsumerState<RankingPage> {
                                 : const Center(child: Text("結果は以上です"));
                           }
 
-                          if (index % 11 == 10) {
-                            return BannerAdWidget(); // 広告ウィジェットを表示
+                          if (index % 8 == 7) {
+                            return BannerAdWidget() ??
+                                SizedBox(height: 50); // 広告ウィジェットを表示
                           }
 
                           final postIndex = index - (index ~/ 11);
@@ -208,52 +209,76 @@ class _RankingPageState extends ConsumerState<RankingPage> {
 class DbManager {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   DocumentSnapshot? _lastDocument;
+  Future<List<QueryDocumentSnapshot>> _fetchRankingPosts({
+    required String userId,
+    DocumentSnapshot? startAfter,
+  }) async {
+    try {
+      List<String> blockedAccounts = await fetchBlockedAccounts(userId);
 
-  Future<List<QueryDocumentSnapshot>> getRankingPosts() async {
-    DateTime now = DateTime.now();
-    DateTime oneWeekAgo = now.subtract(Duration(days: 14));
+      Query rankingQuery = _firestore
+          .collection('ranking')
+          .orderBy('count', descending: false)
+          .limit(15);
 
-    Query query = _firestore
-        .collection('posts')
-        .where('hide', isEqualTo: false)
-        .where('created_time', isGreaterThanOrEqualTo: oneWeekAgo)
-        .orderBy('created_time', descending: true)
-        .limit(15);
-    final querySnapshot = await query.get();
-    if (querySnapshot.docs.isNotEmpty) {
-      _lastDocument = querySnapshot.docs.last;
+      if (startAfter != null) {
+        rankingQuery = rankingQuery.startAfterDocument(startAfter);
+      }
+
+      final rankingSnapshot = await rankingQuery.get();
+
+      if (rankingSnapshot.docs.isEmpty) {
+        return [];
+      }
+
+      List<String> postIds = rankingSnapshot.docs.map((doc) => doc.id).toList();
+
+      Map<String, QueryDocumentSnapshot> postMap = {};
+      for (int i = 0; i < postIds.length; i += 10) {
+        // 投稿IDを10個ずつ分割してクエリを実行
+        List<String> batch = postIds.sublist(
+            i, i + 10 > postIds.length ? postIds.length : i + 10);
+        Query postsQuery = _firestore
+            .collection('posts')
+            .where(FieldPath.documentId, whereIn: batch);
+        final postsSnapshot = await postsQuery.get();
+
+        // ブロックされたユーザーの投稿を除外し、マップに格納
+        for (var doc in postsSnapshot.docs) {
+          final postAccountId =
+              (doc.data() as Map<String, dynamic>)['post_account_id'] as String;
+
+          if (!blockedAccounts.contains(postAccountId)) {
+            postMap[doc.id] = doc;
+          }
+        }
+      }
+
+// `ranking` コレクションの順序に従って投稿を並べ替え
+      List<QueryDocumentSnapshot> allPosts = postIds
+          .where((postId) => postMap.containsKey(postId)) // 存在する投稿IDのみ
+          .map((postId) => postMap[postId]!) // マップから投稿を取得
+          .toList();
+
+// `_lastDocument` を更新
+      if (rankingSnapshot.docs.isNotEmpty) {
+        _lastDocument = rankingSnapshot.docs.last;
+      }
+
+      return allPosts;
+    } catch (e) {
+      print('Error fetching ranking posts: $e');
+      return [];
     }
-    return querySnapshot.docs;
   }
 
-  Future<List<QueryDocumentSnapshot>> getRankingPostsNext() async {
+  Future<List<QueryDocumentSnapshot>> getRankingPosts(String userId) async {
+    return _fetchRankingPosts(userId: userId);
+  }
+
+  Future<List<QueryDocumentSnapshot>> getRankingPostsNext(String userId) async {
     if (_lastDocument == null) return [];
-
-    DateTime now = DateTime.now();
-    DateTime oneWeekAgo = now.subtract(Duration(days: 14));
-
-    Query query = _firestore
-        .collection('posts')
-        .where('hide', isEqualTo: false)
-        .where('created_time', isGreaterThanOrEqualTo: oneWeekAgo)
-        .orderBy('created_time', descending: true)
-        .startAfterDocument(_lastDocument!)
-        .limit(15);
-    final querySnapshot = await query.get();
-    if (querySnapshot.docs.isNotEmpty) {
-      _lastDocument = querySnapshot.docs.last;
-    }
-    return querySnapshot.docs;
-  }
-
-  Future<List<String>> getFavoritePosts(String userId) async {
-    final snapshot = await _firestore
-        .collection('favorites')
-        .doc(userId)
-        .collection('posts')
-        .get();
-
-    return snapshot.docs.map((doc) => doc['post_id'] as String).toList();
+    return _fetchRankingPosts(userId: userId, startAfter: _lastDocument);
   }
 
   Future<List<String>> fetchBlockedAccounts(String userId) async {
@@ -294,195 +319,52 @@ class RankingViewModel extends ChangeNotifier {
 
   final Ref ref;
   List<QueryDocumentSnapshot> rankingPostList = [];
-  List<QueryDocumentSnapshot> currentPostList = [];
-  List<String> favoritePosts = [];
   List<String> blockedAccounts = [];
   Map<String, Account> postUserMap = {};
 
   Future<void> getRankingPosts(String userId) async {
-    rankingPostList = [];
-    currentPostList = await ref.read(dbManagerProvider).getRankingPosts();
-    favoritePosts = await ref.read(dbManagerProvider).getFavoritePosts(userId);
-    blockedAccounts =
-        await ref.read(dbManagerProvider).fetchBlockedAccounts(userId);
+    try {
+      rankingPostList =
+          await ref.read(dbManagerProvider).getRankingPosts(userId);
 
-    Map<String, int> postPoints = {};
-
-    // 並列に非同期処理を実行
-    await Future.wait(currentPostList.map((postDoc) async {
-      Post post = Post.fromDocument(postDoc);
-      int points = 0;
-
-      // Calculate points for favorite_users
-      QuerySnapshot favoriteSnapshot = await FirebaseFirestore.instance
-          .collection('posts')
-          .doc(post.id)
-          .collection('favorite_users')
-          .get();
-
-      for (var favoriteDoc in favoriteSnapshot.docs) {
-        DateTime addedAt = (favoriteDoc['added_at'] as Timestamp).toDate();
-        if (addedAt.isAfter(DateTime.now().subtract(Duration(hours: 24)))) {
-          points += 3;
-        } else if (addedAt
-            .isAfter(DateTime.now().subtract(Duration(hours: 72)))) {
-          points += 2;
-        } else if (addedAt
-            .isAfter(DateTime.now().subtract(Duration(hours: 168)))) {
-          points += 1;
-        }
-      }
-
-      // Calculate points for reposts
-      QuerySnapshot repostSnapshot = await FirebaseFirestore.instance
-          .collection('posts')
-          .doc(post.id)
-          .collection('reposts')
-          .get();
-
-      for (var repostDoc in repostSnapshot.docs) {
-        DateTime timestamp = (repostDoc['timestamp'] as Timestamp).toDate();
-        if (timestamp.isAfter(DateTime.now().subtract(Duration(hours: 24)))) {
-          points += 9;
-        } else if (timestamp
-            .isAfter(DateTime.now().subtract(Duration(hours: 72)))) {
-          points += 6;
-        } else if (timestamp
-            .isAfter(DateTime.now().subtract(Duration(hours: 168)))) {
-          points += 3;
-        }
-      }
-
-      // Calculate points for reply_post
-      QuerySnapshot replySnapshot = await FirebaseFirestore.instance
-          .collection('posts')
-          .doc(post.id)
-          .collection('reply_post')
-          .get();
-
-      for (var replyDoc in replySnapshot.docs) {
-        DateTime timestamp = (replyDoc['timestamp'] as Timestamp).toDate();
-        if (timestamp.isAfter(DateTime.now().subtract(Duration(hours: 24)))) {
-          points += 6;
-        } else if (timestamp
-            .isAfter(DateTime.now().subtract(Duration(hours: 72)))) {
-          points += 4;
-        } else if (timestamp
-            .isAfter(DateTime.now().subtract(Duration(hours: 168)))) {
-          points += 2;
-        }
-      }
-
-      postPoints[post.id] = points;
-    }).toList());
-
-    // Sort posts by points
-    currentPostList.sort((a, b) {
-      final aPoints = postPoints[a.id] ?? 0;
-      final bPoints = postPoints[b.id] ?? 0;
-      return bPoints.compareTo(aPoints);
-    });
-
-    rankingPostList.addAll(currentPostList);
-    postUserMap = await UserFirestore.getPostUserMap(
-          rankingPostList
-              .map((doc) => (doc.data()
-                  as Map<String, dynamic>)['post_account_id'] as String)
-              .toList(),
-        ) ??
-        {};
-    notifyListeners();
-  }
-
-  Future<void> getRankingPostsNext(String userId) async {
-    currentPostList = await ref.read(dbManagerProvider).getRankingPostsNext();
-    if (currentPostList.isNotEmpty) {
-      rankingPostList.addAll(currentPostList);
-
-      Map<String, int> postPoints = {};
-
-      // 並列に非同期処理を実行
-      await Future.wait(currentPostList.map((postDoc) async {
-        Post post = Post.fromDocument(postDoc);
-        int points = 0;
-
-        // Calculate points for favorite_users
-        QuerySnapshot favoriteSnapshot = await FirebaseFirestore.instance
-            .collection('posts')
-            .doc(post.id)
-            .collection('favorite_users')
-            .get();
-
-        for (var favoriteDoc in favoriteSnapshot.docs) {
-          DateTime addedAt = (favoriteDoc['added_at'] as Timestamp).toDate();
-          if (addedAt.isAfter(DateTime.now().subtract(Duration(hours: 24)))) {
-            points += 3;
-          } else if (addedAt
-              .isAfter(DateTime.now().subtract(Duration(hours: 72)))) {
-            points += 2;
-          } else if (addedAt
-              .isAfter(DateTime.now().subtract(Duration(hours: 168)))) {
-            points += 1;
-          }
-        }
-
-        // Calculate points for reposts
-        QuerySnapshot repostSnapshot = await FirebaseFirestore.instance
-            .collection('posts')
-            .doc(post.id)
-            .collection('reposts')
-            .get();
-
-        for (var repostDoc in repostSnapshot.docs) {
-          DateTime timestamp = (repostDoc['timestamp'] as Timestamp).toDate();
-          if (timestamp.isAfter(DateTime.now().subtract(Duration(hours: 24)))) {
-            points += 9;
-          } else if (timestamp
-              .isAfter(DateTime.now().subtract(Duration(hours: 72)))) {
-            points += 6;
-          } else if (timestamp
-              .isAfter(DateTime.now().subtract(Duration(hours: 168)))) {
-            points += 3;
-          }
-        }
-
-        // Calculate points for reply_post
-        QuerySnapshot replySnapshot = await FirebaseFirestore.instance
-            .collection('posts')
-            .doc(post.id)
-            .collection('reply_post')
-            .get();
-
-        for (var replyDoc in replySnapshot.docs) {
-          DateTime timestamp = (replyDoc['timestamp'] as Timestamp).toDate();
-          if (timestamp.isAfter(DateTime.now().subtract(Duration(hours: 24)))) {
-            points += 6;
-          } else if (timestamp
-              .isAfter(DateTime.now().subtract(Duration(hours: 72)))) {
-            points += 4;
-          } else if (timestamp
-              .isAfter(DateTime.now().subtract(Duration(hours: 168)))) {
-            points += 2;
-          }
-        }
-
-        postPoints[post.id] = points;
-      }).toList());
-
-      // Sort posts by points
-      currentPostList
-          .sort((a, b) => postPoints[b.id]!.compareTo(postPoints[a.id]!));
-
-      final newPostUserMap = await UserFirestore.getPostUserMap(
-            currentPostList
+      // 投稿に関連するユーザー情報を取得
+      postUserMap = await UserFirestore.getPostUserMap(
+            rankingPostList
                 .map((doc) => (doc.data()
                     as Map<String, dynamic>)['post_account_id'] as String)
                 .toList(),
           ) ??
           {};
-      postUserMap.addAll(newPostUserMap);
+
+      notifyListeners();
+    } catch (e) {
+      print('Error fetching ranking posts: $e');
     }
-    notifyListeners();
+  }
+
+  Future<void> getRankingPostsNext(String userId) async {
+    try {
+      final nextPosts =
+          await ref.read(dbManagerProvider).getRankingPostsNext(userId);
+
+      if (nextPosts.isNotEmpty) {
+        rankingPostList.addAll(nextPosts);
+
+        // 新しい投稿に関連するユーザー情報を取得
+        final newPostUserMap = await UserFirestore.getPostUserMap(
+              nextPosts
+                  .map((doc) => (doc.data()
+                      as Map<String, dynamic>)['post_account_id'] as String)
+                  .toList(),
+            ) ??
+            {};
+        postUserMap.addAll(newPostUserMap);
+
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error fetching next ranking posts: $e');
+    }
   }
 }
 

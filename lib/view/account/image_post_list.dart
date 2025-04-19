@@ -88,8 +88,9 @@ class _ImagePostListState extends ConsumerState<ImagePostList> {
                             : const Center(child: Text("結果は以上です"));
                       }
 
-                      if (index % 11 == 10) {
-                        return BannerAdWidget(); // 広告ウィジェットを表示
+                      if (index % 8 == 7) {
+                        return BannerAdWidget() ??
+                            SizedBox(height: 50); // 広告ウィジェットを表示
                       }
 
                       final postIndex = index - (index ~/ 11);

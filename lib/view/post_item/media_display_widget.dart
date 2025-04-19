@@ -197,7 +197,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
               decoration: BoxDecoration(
                 border: Border.all(
                   color: Colors.grey.shade300, // 薄いグレーのライン
-                  width: 1.0, // ラインの太さ
+                  width: 0.5, // ラインの太さ
                 ),
               ),
               child: Image.network(
@@ -268,7 +268,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                   decoration: BoxDecoration(
                     border: Border.all(
                       color: Colors.grey.shade300, // 薄いグレーのライン
-                      width: 1.0, // ラインの太さ
+                      width: 0.5, // ラインの太さ
                     ),
                   ),
                   child: Image.network(
@@ -304,7 +304,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                   decoration: BoxDecoration(
                     border: Border.all(
                       color: Colors.grey.shade300, // 薄いグレーのライン
-                      width: 1.0, // ラインの太さ
+                      width: 0.5, // ラインの太さ
                     ),
                   ),
                   child: Image.network(
@@ -380,7 +380,6 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
           MaterialPageRoute(
             builder: (context) => VideoPlayerScreen(
               videoUrl: mediaUrl,
-              controller: controller, // コントローラを渡す
             ),
           ),
         );
@@ -422,7 +421,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                     decoration: BoxDecoration(
                       border: Border.all(
                         color: Colors.grey.shade300,
-                        width: 1.0,
+                        width: 0.5,
                       ),
                     ),
                     child: FittedBox(
@@ -482,8 +481,6 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                       MaterialPageRoute(
                         builder: (context) => VideoPlayerScreen(
                           videoUrl: mediaUrl,
-                          controller:
-                              _videoControllers[mediaUrl]!, // 必要なcontrollerを渡す
                         ),
                       ),
                     );
@@ -520,7 +517,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                       decoration: BoxDecoration(
                         border: Border.all(
                           color: Colors.grey.shade300, // 薄いグレーのライン
-                          width: 1.0, // ラインの太さ
+                          width: 0.5, // ラインの太さ
                         ),
                       ),
                       child: Image.network(

@@ -1,4 +1,3 @@
-import 'package:cymva/model/account.dart';
 import 'package:cymva/view/account/edit_page/options_page/support_page/terms_of_service_page.dart';
 import 'package:cymva/view/post_item/full_screen_image.dart';
 import 'package:cymva/view/slide_direction_page_route.dart';
@@ -196,7 +195,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
               contentPadding: EdgeInsets.zero,
               content: Container(
                 width: 340,
-                height: 670,
+                height: 650,
                 child: Stack(
                   children: [
                     Column(
@@ -204,7 +203,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                       children: [
                         Container(
                           width: 280,
-                          height: 620,
+                          height: 600,
                           child: PageView(
                             onPageChanged: (int page) {
                               setState(() {
@@ -213,7 +212,7 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                             },
                             children: [
                               Padding(
-                                padding: const EdgeInsets.only(top: 46.0),
+                                padding: const EdgeInsets.all(4.0), // 背景との余白を追加
                                 child: GestureDetector(
                                   onTap: () {
                                     Navigator.push(
@@ -229,14 +228,18 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                                       ),
                                     );
                                   },
-                                  child: Image.network(
-                                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/IMG_0036%202.JPG?alt=media&token=30c2a267-2ed9-4b5a-9260-01560b98d0f5',
-                                    fit: BoxFit.cover,
+                                  child: Container(
+                                    padding:
+                                        const EdgeInsets.all(4.0), // 画像との余白
+                                    child: Image.network(
+                                      'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/IMG_0036%202.JPG?alt=media&token=30c2a267-2ed9-4b5a-9260-01560b98d0f5',
+                                      fit: BoxFit.contain,
+                                    ),
                                   ),
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.only(top: 46.0),
+                                padding: const EdgeInsets.all(4.0),
                                 child: GestureDetector(
                                   onTap: () {
                                     Navigator.push(
@@ -252,14 +255,17 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                                       ),
                                     );
                                   },
-                                  child: Image.network(
-                                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/IMG_0037.JPG?alt=media&token=51d83dc5-5aeb-4534-9f60-c686aca6bd38',
-                                    fit: BoxFit.cover,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4.0),
+                                    child: Image.network(
+                                      'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/IMG_0037.JPG?alt=media&token=51d83dc5-5aeb-4534-9f60-c686aca6bd38',
+                                      fit: BoxFit.contain,
+                                    ),
                                   ),
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.only(top: 46.0),
+                                padding: const EdgeInsets.all(4.0),
                                 child: GestureDetector(
                                   onTap: () {
                                     Navigator.push(
@@ -275,9 +281,12 @@ class _TimeLineBodyState extends State<TimeLineBody> {
                                       ),
                                     );
                                   },
-                                  child: Image.network(
-                                    'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/IMG_0039.JPG?alt=media&token=748b8d99-15f3-49fa-87ea-ee2d564f29b1',
-                                    fit: BoxFit.cover,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4.0),
+                                    child: Image.network(
+                                      'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/IMG_0039.JPG?alt=media&token=748b8d99-15f3-49fa-87ea-ee2d564f29b1',
+                                      fit: BoxFit.contain,
+                                    ),
                                   ),
                                 ),
                               ),

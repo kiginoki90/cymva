@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "/Users/kobayashikazuki/flutter/packages/flutter_tools/gradle/src/main/groovy/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/kobayashikazuki/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/kobayashikazuki/cymva/android/app/.cxx/RelWithDebInfo/1u6e614p/x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/kobayashikazuki/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/kobayashikazuki/cymva/android/app/.cxx/RelWithDebInfo/1u6e614p/x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {}
+}

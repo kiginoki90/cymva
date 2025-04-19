@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/ad_widget.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:flutter/material.dart';
 
@@ -108,6 +109,10 @@ class _FollowPageState extends State<FollowPage> {
               } else {
                 return const SizedBox(height: 100);
               }
+            }
+
+            if (index % 8 == 7) {
+              return BannerAdWidget() ?? SizedBox(height: 50); // 広告ウィジェットを表示
             }
 
             final followDoc = _followDocs[index];

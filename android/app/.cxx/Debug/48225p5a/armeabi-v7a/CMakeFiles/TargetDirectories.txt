@@ -1,0 +1,2 @@
+/Users/kkbouu/Documents/GitHub/cymva/android/app/.cxx/Debug/48225p5a/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/kkbouu/Documents/GitHub/cymva/android/app/.cxx/Debug/48225p5a/armeabi-v7a/CMakeFiles/rebuild_cache.dir

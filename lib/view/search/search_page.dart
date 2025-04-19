@@ -332,7 +332,8 @@ class _SearchPageState extends State<SearchPage> {
                   }
 
                   if (index % 6 == 5) {
-                    return BannerAdWidget(); // 広告ウィジェットを表示
+                    return BannerAdWidget() ??
+                        SizedBox(height: 50); // 広告ウィジェットを表示
                   }
 
                   final postIndex = index - (index ~/ 6);
@@ -560,7 +561,8 @@ class _SearchPageState extends State<SearchPage> {
                   }
 
                   if (index % 6 == 5) {
-                    return BannerAdWidget(); // 広告ウィジェットを表示
+                    return BannerAdWidget() ??
+                        SizedBox(height: 50); // 広告ウィジェットを表示
                   }
 
                   final postIndex = index - (index ~/ 6);
@@ -695,7 +697,8 @@ class _SearchPageState extends State<SearchPage> {
                   }
 
                   if (index % 6 == 5) {
-                    return BannerAdWidget(); // 広告ウィジェットを表示
+                    return BannerAdWidget() ??
+                        SizedBox(height: 50); // 広告ウィジェットを表示
                   }
 
                   final postIndex = index - (index ~/ 6);

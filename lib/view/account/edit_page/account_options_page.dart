@@ -5,7 +5,6 @@ import 'package:cymva/view/account/edit_page/options_page/blocked_users_page.dar
 import 'package:cymva/view/account/edit_page/options_page/bookmark.dart';
 import 'package:cymva/view/account/edit_page/options_page/delete_account_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/support_page.dart';
-import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -104,136 +103,139 @@ class _AccountOptionsPageState extends State<AccountOptionsPage> {
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.black),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildOptionItem(
-              context,
-              icon: Icons.edit,
-              label: '設定編集',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => EditAccountPage(),
-                  ),
-                );
-              },
-            ),
-            _buildOptionItem(
-              context,
-              icon: Icons.lock,
-              label: 'パスワード変更',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChangePasswordPage(),
-                  ),
-                );
-              },
-            ),
-            _buildOptionItem(
-              context,
-              icon: Icons.bookmark,
-              label: '栞',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => BookmarkPage(userId: userId),
-                  ),
-                );
-              },
-            ),
-            _buildOptionItem(
-              context,
-              icon: Icons.logout,
-              label: 'ログアウト',
-              onTap: () {
-                _showConfirmationDialog(
-                  context,
-                  'ログアウト',
-                  '本当にログアウトしますか？',
-                  () async {
-                    try {
-                      // Firebaseからサインアウト
-                      await Authentication.signOut();
-
-                      // ストレージからアカウント情報を削除
-                      await storage.delete(key: 'account_id');
-                      await storage.delete(key: 'account_name');
-
-                      // ナビゲーションスタックを全て削除してLoginPageへ遷移
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (context) => LoginPage()),
-                        (Route<dynamic> route) => false, // 全てのルートを削除
-                      );
-                    } catch (e) {
-                      print('ログアウト処理中にエラーが発生しました: $e');
-                    }
-                  },
-                );
-              },
-            ),
-            _buildOptionItem(
-              context,
-              icon: Icons.remove_moderator,
-              label: 'ブロック管理',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => BlockedUsersPage(userId: userId),
-                  ),
-                );
-              },
-            ),
-            _buildOptionItem(
-              context,
-              icon: Icons.person_add,
-              label: 'アカウント追加',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AddAccountPage(),
-                  ),
-                );
-              },
-            ),
-            _buildOptionItem(
-              context,
-              icon: Icons.delete_forever,
-              label: 'アカウント削除',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => DeleteAccountPage(
-                      userId: myAccount.id,
-                      parentsId: myAccount.parents_id,
+      body: Container(
+        constraints: BoxConstraints(maxWidth: 500),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildOptionItem(
+                context,
+                icon: Icons.edit,
+                label: '設定編集',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EditAccountPage(),
                     ),
-                  ),
-                );
-              },
-            ),
-            _buildOptionItem(
-              context,
-              icon: Icons.support,
-              label: 'サポート',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SupportPage(),
-                  ),
-                );
-              },
-            ),
-          ],
+                  );
+                },
+              ),
+              _buildOptionItem(
+                context,
+                icon: Icons.lock,
+                label: 'パスワード変更',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChangePasswordPage(),
+                    ),
+                  );
+                },
+              ),
+              _buildOptionItem(
+                context,
+                icon: Icons.bookmark,
+                label: '栞',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BookmarkPage(userId: userId),
+                    ),
+                  );
+                },
+              ),
+              _buildOptionItem(
+                context,
+                icon: Icons.logout,
+                label: 'ログアウト',
+                onTap: () {
+                  _showConfirmationDialog(
+                    context,
+                    'ログアウト',
+                    '本当にログアウトしますか？',
+                    () async {
+                      try {
+                        // Firebaseからサインアウト
+                        await Authentication.signOut();
+
+                        // ストレージからアカウント情報を削除
+                        await storage.delete(key: 'account_id');
+                        await storage.delete(key: 'account_name');
+
+                        // ナビゲーションスタックを全て削除してLoginPageへ遷移
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (context) => LoginPage()),
+                          (Route<dynamic> route) => false, // 全てのルートを削除
+                        );
+                      } catch (e) {
+                        print('ログアウト処理中にエラーが発生しました: $e');
+                      }
+                    },
+                  );
+                },
+              ),
+              _buildOptionItem(
+                context,
+                icon: Icons.remove_moderator,
+                label: 'ブロック管理',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BlockedUsersPage(userId: userId),
+                    ),
+                  );
+                },
+              ),
+              _buildOptionItem(
+                context,
+                icon: Icons.person_add,
+                label: 'アカウント追加',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddAccountPage(),
+                    ),
+                  );
+                },
+              ),
+              _buildOptionItem(
+                context,
+                icon: Icons.delete_forever,
+                label: 'アカウント削除',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DeleteAccountPage(
+                        userId: myAccount.id,
+                        parentsId: myAccount.parents_id,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              _buildOptionItem(
+                context,
+                icon: Icons.support,
+                label: 'サポート',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SupportPage(),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -130,10 +130,17 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
                 child: AnimatedOpacity(
                   opacity: _arrowOpacity,
                   duration: Duration(milliseconds: 500),
-                  child: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                    size: 50,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withAlpha(128),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: EdgeInsets.all(8),
+                    child: const Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                      size: 50,
+                    ),
                   ),
                 ),
               ),
