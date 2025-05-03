@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cymva/ad_widget.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:flutter/material.dart';
 
@@ -26,18 +25,21 @@ class _FollowPageState extends State<FollowPage> {
     _fetchFollowDocs();
 
     // スクロールコントローラーのリスナーを追加
-    _scrollController.addListener(() {
-      if (_scrollController.position.atEdge) {
-        bool isBottom = _scrollController.position.pixels != 0;
-        if (isBottom) {
-          _fetchFollowDocs();
-        }
+    _scrollController.addListener(_scrollListener);
+  }
+
+  void _scrollListener() {
+    if (_scrollController.position.atEdge) {
+      bool isBottom = _scrollController.position.pixels != 0;
+      if (isBottom) {
+        _fetchFollowDocs();
       }
-    });
+    }
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
     super.dispose();
   }
@@ -109,10 +111,6 @@ class _FollowPageState extends State<FollowPage> {
               } else {
                 return const SizedBox(height: 100);
               }
-            }
-
-            if (index % 8 == 7) {
-              return BannerAdWidget() ?? SizedBox(height: 50); // 広告ウィジェットを表示
             }
 
             final followDoc = _followDocs[index];

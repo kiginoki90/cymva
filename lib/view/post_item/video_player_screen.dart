@@ -104,7 +104,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           ),
                           // 音量ボタン
                           Positioned(
-                            bottom: 20,
+                            bottom: 40, // 音量ボタンの位置を調整
                             right: 20,
                             child: Container(
                               decoration: BoxDecoration(
@@ -120,10 +120,36 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               ),
                             ),
                           ),
+                          // 動画を最初に戻すボタン
+                          Positioned(
+                            bottom: 100, // 音量ボタンの上に配置
+                            right: 20,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withAlpha(128),
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.replay,
+                                  color: Colors.white,
+                                ),
+                                onPressed: () {
+                                  _controller.seekTo(Duration.zero); // 動画を最初に戻す
+                                  if (!_controller.value.isPlaying) {
+                                    _controller.play(); // 再生を開始
+                                    setState(() {
+                                      _isPlaying = true;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
                           // スクロールバー
                           Positioned(
-                            bottom: 20,
-                            left: 20,
+                            bottom: 80, // スクロールバーの位置を少し上に調整
+                            left: 10,
                             right: 80, // 音量ボタンのスペースを確保
                             child: VideoProgressIndicator(
                               _controller,

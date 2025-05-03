@@ -5,8 +5,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class GroupPostsPage extends StatelessWidget {
   final Account postAccount;
+  final userId;
 
-  const GroupPostsPage({Key? key, required this.postAccount}) : super(key: key);
+  const GroupPostsPage(
+      {Key? key, required this.postAccount, required this.userId})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -19,13 +22,13 @@ class GroupPostsPage extends StatelessWidget {
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return Center(child: CircularProgressIndicator());
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: Text("データ取得中...")); // 初回データ取得中のメッセージ
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text("グループがありません"));
           }
           final groups = snapshot.data!.docs;
-          if (groups.isEmpty) {
-            return Center(child: Text('グループがありません'));
-          }
           return ListView.builder(
             itemCount: groups.length,
             itemBuilder: (context, index) {
@@ -38,20 +41,22 @@ class GroupPostsPage extends StatelessWidget {
                       builder: (context) => GroupDetailPage(
                         groupId: group.id,
                         postAccount: postAccount,
+                        userId: userId,
                       ),
                     ),
                   );
                 },
                 child: Container(
-                  margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-                  padding: EdgeInsets.all(16.0),
+                  margin: const EdgeInsets.symmetric(
+                      vertical: 8.0, horizontal: 16.0),
+                  padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey),
                     borderRadius: BorderRadius.circular(8.0),
                   ),
                   child: Text(
                     group.id,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 18.0,
                       fontWeight: FontWeight.bold,
                     ),

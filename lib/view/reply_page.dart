@@ -57,7 +57,7 @@ class _ReplyPageState extends State<ReplyPage> {
           .doc(widget.userId)
           .get();
 
-      if (userDoc.exists) {
+      if (userDoc.exists && mounted) {
         setState(() {
           userProfileImageUrl = userDoc['image_path'];
           postUserId = userDoc['user_id'];
@@ -208,23 +208,25 @@ class _ReplyPageState extends State<ReplyPage> {
   }
 
   Future<void> _getImageUrl() async {
-    // FirestoreからURLを取得
-    DocumentSnapshot<Map<String, dynamic>> doc = await FirebaseFirestore
-        .instance
-        .collection('setting')
-        .doc('AppBarIMG')
-        .get();
-    String? imageUrl = doc.data()?['ReplyPage'];
-    if (imageUrl != null) {
-      // URLが正しい形式であることを確認
-      if (imageUrl.startsWith('gs://') || imageUrl.startsWith('https://')) {
-        // Firebase StorageからダウンロードURLを取得
+    try {
+      DocumentSnapshot<Map<String, dynamic>> doc = await FirebaseFirestore
+          .instance
+          .collection('setting')
+          .doc('AppBarIMG')
+          .get();
+      String? imageUrl = doc.data()?['ReplyPage'];
+      if (imageUrl != null &&
+          (imageUrl.startsWith('gs://') || imageUrl.startsWith('https://'))) {
         final ref = FirebaseStorage.instance.refFromURL(imageUrl);
         String downloadUrl = await ref.getDownloadURL();
-        setState(() {
-          _imageUrl = downloadUrl;
-        });
+        if (mounted) {
+          setState(() {
+            _imageUrl = downloadUrl;
+          });
+        }
       }
+    } catch (e) {
+      print('画像URLの取得中にエラーが発生しました: $e');
     }
   }
 
@@ -276,137 +278,145 @@ class _ReplyPageState extends State<ReplyPage> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          Align(
+            alignment: Alignment.topCenter,
+            child: SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 500),
+                child: Padding(
+                  padding: const EdgeInsets.all(10.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (_postAccountName != null)
-                        GestureDetector(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8.0),
-                            child: Image.network(
-                              _postAccountIconUrl! ??
-                                  'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                              width: 40,
-                              height: 40,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.network(
-                                  'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                      Row(
+                        children: [
+                          if (_postAccountName != null)
+                            GestureDetector(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8.0),
+                                child: Image.network(
+                                  _postAccountIconUrl! ??
+                                      'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
                                   width: 40,
                                   height: 40,
                                   fit: BoxFit.cover,
-                                );
-                              },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.network(
+                                      'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+                                      width: 40,
+                                      height: 40,
+                                      fit: BoxFit.cover,
+                                    );
+                                  },
+                                ),
+                              ),
                             ),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (_postAccountName != null)
+                                Text(
+                                  _postAccountName!.length > 18
+                                      ? '${_postAccountName!.substring(0, 18)}...'
+                                      : _postAccountName!,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15),
+                                ),
+                              if (_postAccountId != null)
+                                Text(
+                                  '@${_postAccountId!.length > 23 ? '${_postAccountId!.substring(0, 23)}...' : _postAccountId}',
+                                  style: const TextStyle(
+                                      color: Colors.grey, fontSize: 13),
+                                ),
+                            ],
                           ),
-                        ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (_postAccountName != null)
-                            Text(
-                              _postAccountName!.length > 18
-                                  ? '${_postAccountName!.substring(0, 18)}...'
-                                  : _postAccountName!,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 15),
-                            ),
-                          if (_postAccountId != null)
-                            Text(
-                              '@${_postAccountId!.length > 23 ? '${_postAccountId!.substring(0, 23)}...' : _postAccountId}',
-                              style: const TextStyle(
-                                  color: Colors.grey, fontSize: 13),
-                            ),
                         ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    widget.post.content,
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  const SizedBox(height: 10),
-                  if (widget.post.mediaUrl != null &&
-                      widget.post.mediaUrl!.isNotEmpty)
-                    MediaDisplayWidget(
-                      mediaUrl: widget.post.mediaUrl,
-                      category: widget.post.category ?? '',
-                      atStart: true,
-                    ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _replyController,
-                    maxLines: 5,
-                    decoration: const InputDecoration(
-                      hintText: '返信を入力...',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ValueListenableBuilder<int>(
-                    valueListenable: _currentTextLength,
-                    builder: (context, value, child) {
-                      return Text(
-                        '$value / 200',
-                        style: TextStyle(
-                          color: value > 200 ? Colors.red : Colors.grey,
+                      const SizedBox(height: 10),
+                      Text(
+                        widget.post.content,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      const SizedBox(height: 10),
+                      if (widget.post.mediaUrl != null &&
+                          widget.post.mediaUrl!.isNotEmpty)
+                        MediaDisplayWidget(
+                          mediaUrl: widget.post.mediaUrl,
+                          category: widget.post.category ?? '',
+                          atStart: true,
                         ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  ValueListenableBuilder<int>(
-                    valueListenable: _currentTextLength,
-                    builder: (context, value, child) {
-                      if (value > 200) {
-                        return const Text(
-                          '返信は200文字以内で入力してください。',
-                          style: TextStyle(color: Colors.red),
-                        );
-                      } else {
-                        return const SizedBox.shrink();
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  if (_mediaFiles.isNotEmpty)
-                    SizedBox(
-                      height: 150,
-                      child: GridView.builder(
-                        itemCount: _mediaFiles.length,
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 4,
-                          mainAxisSpacing: 4,
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: _replyController,
+                        maxLines: 5,
+                        decoration: const InputDecoration(
+                          hintText: '返信を入力...',
+                          border: OutlineInputBorder(),
                         ),
-                        itemBuilder: (BuildContext context, int index) {
-                          return Image.file(
-                            _mediaFiles[index],
-                            width: 150,
-                            height: 150,
-                            fit: BoxFit.cover,
+                      ),
+                      const SizedBox(height: 10),
+                      ValueListenableBuilder<int>(
+                        valueListenable: _currentTextLength,
+                        builder: (context, value, child) {
+                          return Text(
+                            '$value / 200',
+                            style: TextStyle(
+                              color: value > 200 ? Colors.red : Colors.grey,
+                            ),
                           );
                         },
                       ),
-                    ),
-                ],
+                      const SizedBox(height: 10),
+                      ValueListenableBuilder<int>(
+                        valueListenable: _currentTextLength,
+                        builder: (context, value, child) {
+                          if (value > 200) {
+                            return const Text(
+                              '返信は200文字以内で入力してください。',
+                              style: TextStyle(color: Colors.red),
+                            );
+                          } else {
+                            return const SizedBox.shrink();
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      if (_mediaFiles.isNotEmpty)
+                        SizedBox(
+                          height: 150,
+                          child: GridView.builder(
+                            itemCount: _mediaFiles.length,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 4,
+                              mainAxisSpacing: 4,
+                            ),
+                            itemBuilder: (BuildContext context, int index) {
+                              return Image.file(
+                                _mediaFiles[index],
+                                width: 150,
+                                height: 150,
+                                fit: BoxFit.cover,
+                              );
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
           Positioned(
-            bottom: keyboardHeight > 0 ? 0 : 0,
+            bottom: keyboardHeight > 0 ? 10 : 0,
             left: 0,
             right: 0,
             child: Padding(
               padding: const EdgeInsets.only(
-                  left: 0, top: 0, right: 25.0, bottom: 0),
+                  left: 0, top: 0, right: 25.0, bottom: 15.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [

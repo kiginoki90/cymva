@@ -99,12 +99,12 @@ class _PostListState extends ConsumerState<PostList> {
                       return ListView.builder(
                         controller: _scrollController,
                         itemCount: model.postList.length +
-                            (model.postList.length ~/ 10) +
+                            (model.postList.length ~/ 7) +
                             1,
                         itemBuilder: (context, index) {
                           if (index ==
                               model.postList.length +
-                                  (model.postList.length ~/ 10)) {
+                                  (model.postList.length ~/ 7)) {
                             return _isLoadingMore
                                 ? const Center(child: Text(" Loading..."))
                                 : const Center(child: Text("結果は以上です"));
@@ -115,7 +115,7 @@ class _PostListState extends ConsumerState<PostList> {
                                 SizedBox(height: 50); // 広告ウィジェットを表示
                           }
 
-                          final postIndex = index - (index ~/ 11);
+                          final postIndex = index - (index ~/ 8);
                           if (postIndex >= model.postList.length) {
                             return Container(); // インデックスが範囲外の場合は空のコンテナを返す
                           }
@@ -205,7 +205,7 @@ class DbManager {
         .where('post_account_id', isEqualTo: userId)
         .where('clip', isEqualTo: true)
         .orderBy('clipTime', descending: true)
-        .limit(15);
+        .limit(10);
 
     final querySnapshotTrue = await queryTrue.get();
     if (querySnapshotTrue.docs.isNotEmpty) {
@@ -223,7 +223,7 @@ class DbManager {
         .where('post_account_id', isEqualTo: userId)
         .where('clip', isEqualTo: false)
         .orderBy('created_time', descending: true)
-        .limit(15);
+        .limit(10);
 
     final querySnapshotFalse = await queryFalse.get();
     if (querySnapshotFalse.docs.isNotEmpty) {

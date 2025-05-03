@@ -26,31 +26,37 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
 
   Future<void> _deleteAccount() async {
     try {
-      // パスワードを確認
       String password = _passwordController.text;
       User? user = FirebaseAuth.instance.currentUser;
 
-      // 再認証用の認証クレデンシャルを作成
-      AuthCredential credential = EmailAuthProvider.credential(
-        email: user!.email!,
-        password: password,
-      );
+      if (user == null) {
+        throw Exception('ユーザーが認証されていません');
+      }
 
-      // ユーザーを再認証
-      await user.reauthenticateWithCredential(credential);
+      // 再認証
+      try {
+        AuthCredential credential = EmailAuthProvider.credential(
+          email: user.email!,
+          password: password,
+        );
+        await user.reauthenticateWithCredential(credential);
+      } catch (e) {
+        print('再認証エラー: $e');
+        throw Exception('パスワードが間違っています');
+      }
 
-      // Firestoreトランザクションを開始
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        // パスワードが正しければ削除処理を実行
-        await UserFirestore.deleteUser(widget.userId);
-
-        // 同じ parents_id に紐づく他のユーザーとその投稿も削除
-        await _deleteUsersAndPostsWithSameParentsId(
-            transaction, widget.parentsId);
-
-        // 認証情報の削除
-        await Authentication.deleteAuth();
-      });
+      // Firestoreトランザクション
+      try {
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          await UserFirestore.deleteUser(widget.userId);
+          await _deleteUsersAndPostsWithSameParentsId(
+              transaction, widget.parentsId);
+          await Authentication.deleteAuth();
+        });
+      } catch (e) {
+        print('トランザクションエラー: $e');
+        throw Exception('$e');
+      }
 
       // ログインページに遷移
       Navigator.pushReplacement(
@@ -61,6 +67,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
       setState(() {
         _errorMessage = 'エラーが発生しました: $e';
       });
+      print('アカウント削除エラー: $e');
     }
   }
 

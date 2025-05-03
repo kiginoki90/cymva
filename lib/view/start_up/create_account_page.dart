@@ -8,6 +8,7 @@ import 'package:cymva/utils/function_utils.dart';
 import 'package:cymva/utils/widget_utils.dart';
 import 'package:cymva/view/start_up/check_email_page.dart';
 import 'package:flutter/services.dart';
+import 'package:cymva/utils/snackbar_utils.dart'; // showTopSnackBarをインポート
 
 class CreateAccountPage extends StatefulWidget {
   const CreateAccountPage({super.key});
@@ -167,44 +168,63 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                             }
                           }
                         } on FirebaseAuthException catch (e) {
-                          // FirebaseAuthExceptionのエラーメッセージをハンドリング
-                          if (e.code == 'email-already-in-use') {
-                            setState(() {
-                              errorMessage = 'このメールアドレスは既に使用されています';
-                            });
-                          } else if (e.code == 'weak-password') {
-                            setState(() {
-                              errorMessage = 'パスワードは6文字以上で入力してください';
-                            });
-                          } else if (e.code == 'invalid-email') {
-                            setState(() {
-                              errorMessage = '無効なメールアドレスです';
-                            });
-                          } else {
-                            setState(() {
-                              errorMessage = 'アカウント作成に失敗しました: ${e.message}';
-                            });
+                          switch (e.code) {
+                            case 'email-already-in-use':
+                              showTopSnackBar(
+                                context,
+                                'このメールアドレスは既に使用されています',
+                                backgroundColor: Colors.red,
+                              );
+                              break;
+                            case 'weak-password':
+                              showTopSnackBar(
+                                context,
+                                'パスワードは6文字以上で入力してください',
+                                backgroundColor: Colors.red,
+                              );
+                              break;
+                            case 'invalid-email':
+                              showTopSnackBar(
+                                context,
+                                '無効なメールアドレスです',
+                                backgroundColor: Colors.red,
+                              );
+                              break;
+                            default:
+                              showTopSnackBar(
+                                context,
+                                'アカウント作成に失敗しました: ${e.message}',
+                                backgroundColor: Colors.red,
+                              );
+                              break;
                           }
                         } catch (e) {
-                          // その他のエラーハンドリング
-                          setState(() {
-                            errorMessage = 'アカウント作成に失敗しました: ${e.toString()}';
-                          });
+                          showTopSnackBar(
+                            context,
+                            'アカウント作成に失敗しました: ${e.toString()}',
+                            backgroundColor: Colors.red,
+                          );
                         }
                       } else {
-                        setState(() {
-                          errorMessage = 'そのユーザーIDは既に使われています';
-                        });
+                        showTopSnackBar(
+                          context,
+                          'そのユーザーIDは既に使われています',
+                          backgroundColor: Colors.red,
+                        );
                       }
                     } else {
-                      setState(() {
-                        errorMessage = 'ユーザーIDに無効な文字が含まれています';
-                      });
+                      showTopSnackBar(
+                        context,
+                        'ユーザーIDに無効な文字が含まれています',
+                        backgroundColor: Colors.red,
+                      );
                     }
                   } else {
-                    setState(() {
-                      errorMessage = '全ての項目を入力してください';
-                    });
+                    showTopSnackBar(
+                      context,
+                      '全ての項目を入力してください',
+                      backgroundColor: Colors.red,
+                    );
                   }
                 },
                 child: Text('アカウントを作成'),

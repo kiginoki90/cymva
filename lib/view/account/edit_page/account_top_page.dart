@@ -10,6 +10,7 @@ import 'package:cymva/view/admin/admin_page.dart';
 import 'package:cymva/view/post_item/full_screen_image.dart';
 import 'package:cymva/view/post_item/link_text.dart';
 import 'package:cymva/view/post_item/show_account_report_dialog.dart';
+import 'package:cymva/view/slide_direction_page_route.dart';
 import 'package:cymva/view/time_line/time_line_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/utils/firestore/users.dart';
@@ -42,6 +43,7 @@ class _AccountTopPageState extends State<AccountTopPage> {
   final FollowService followService = FollowService(FirebaseFirestore.instance);
   bool isFollowed = false;
   String? backgroundImageUrl;
+  bool isProcessing = false; // 処理中フラグを追加
 
   @override
   void initState() {
@@ -63,55 +65,86 @@ class _AccountTopPageState extends State<AccountTopPage> {
   }
 
   Future<void> _checkFollowStatus() async {
-    isFollowing = await followService.checkFollowStatus(widget.postAccountId);
-    setState(() {});
-  }
+    if (isProcessing) return; // 処理中の場合は何もしない
+    setState(() {
+      isProcessing = true; // 処理開始
+    });
 
-  Future<void> _fetchBackgroundImage() async {
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.userId)
-        .get();
-
-    if (doc.exists) {
-      final data = doc.data();
-      final imageUrl = data?['background_image'] as String?;
-      if (imageUrl != null && imageUrl.isNotEmpty) {
+    try {
+      isFollowing = await followService.checkFollowStatus(widget.postAccountId);
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('フォロー状態の確認中にエラーが発生しました: $e');
+    } finally {
+      if (mounted) {
         setState(() {
-          backgroundImageUrl = imageUrl;
+          isProcessing = false; // 処理終了
         });
       }
     }
   }
 
-  Future<void> _getPostAccount() async {
-    final postUserSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.postAccountId)
-        .get();
+  Future<void> _fetchBackgroundImage() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .get();
 
-    if (postUserSnapshot.exists) {
-      setState(() {
-        postAccount = Account.fromDocument(postUserSnapshot);
-      });
+      if (doc.exists) {
+        final data = doc.data();
+        final imageUrl = data?['background_image'] as String?;
+        if (imageUrl != null && imageUrl.isNotEmpty && mounted) {
+          setState(() {
+            backgroundImageUrl = imageUrl;
+          });
+        }
+      }
+    } catch (e) {
+      print('背景画像の取得中にエラーが発生しました: $e');
+    }
+  }
+
+  Future<void> _getPostAccount() async {
+    try {
+      final postUserSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.postAccountId)
+          .get();
+
+      if (postUserSnapshot.exists && mounted) {
+        setState(() {
+          postAccount = Account.fromDocument(postUserSnapshot);
+        });
+      }
+    } catch (e) {
+      print('投稿アカウントの取得中にエラーが発生しました: $e');
     }
   }
 
   Future<void> _getAccount() async {
-    final Account? account = await UserFirestore.getUser(widget.userId);
-    if (account == null) {
-      showTopSnackBar(context, 'ユーザー情報が取得できませんでした',
-          backgroundColor: Colors.red);
-
-      Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (context) => TimeLinePage(userId: widget.userId)));
-    } else {
-      setState(() {
-        myAccount = account;
-      });
-      await _getSiblingAccounts(account.parents_id);
+    try {
+      final Account? account = await UserFirestore.getUser(widget.userId);
+      if (account == null) {
+        if (mounted) {
+          showTopSnackBar(context, 'ユーザー情報が取得できませんでした',
+              backgroundColor: Colors.red);
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (context) => TimeLinePage(userId: widget.userId)),
+          );
+        }
+      } else if (mounted) {
+        setState(() {
+          myAccount = account;
+        });
+        await _getSiblingAccounts(account.parents_id);
+      }
+    } catch (e) {
+      print('アカウント情報の取得中にエラーが発生しました: $e');
     }
   }
 
@@ -186,44 +219,41 @@ class _AccountTopPageState extends State<AccountTopPage> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: isProcessing
+            ? null // 処理中の場合は無効化
+            : IconButton(
+                icon: Icon(Icons.arrow_back),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
         title: Text(
           postAccount!.name,
           style: TextStyle(
-              color: const Color.fromARGB(255, 255, 255, 255),
-              fontWeight: FontWeight.bold),
+            color: const Color.fromARGB(255, 255, 255, 255),
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: Colors.blueGrey,
       ),
-      body: NotificationListener<ScrollNotification>(
-        onNotification: (ScrollNotification scrollInfo) {
-          if (scrollInfo is ScrollUpdateNotification) {
-            if (scrollInfo.metrics.pixels > previousScrollOffset) {
-              // スクロールが下方向に進んだ場合
-              navigateToPage(context, widget.userId, '1', true, true);
-            }
-            previousScrollOffset = scrollInfo.metrics.pixels; // スクロール位置を更新
-          }
-          return true;
-        },
-        child: Stack(
-          children: [
-            if (backgroundImageUrl != null)
-              Positioned.fill(
-                child: Image.network(
-                  backgroundImageUrl!,
-                  fit: BoxFit.cover,
-                ),
+      body: Stack(
+        children: [
+          if (backgroundImageUrl != null)
+            Positioned.fill(
+              child: Image.network(
+                backgroundImageUrl!,
+                fit: BoxFit.cover,
               ),
-            Column(
-              children: [
-                _buildHeader(),
-                SizedBox(height: 30),
-                if (widget.userId == widget.postAccountId)
-                  _buildSiblingAccounts(),
-              ],
             ),
-          ],
-        ),
+          Column(
+            children: [
+              _buildHeader(),
+              SizedBox(height: 30),
+              if (widget.userId == widget.postAccountId)
+                _buildSiblingAccounts(),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -277,35 +307,26 @@ class _AccountTopPageState extends State<AccountTopPage> {
             height: 25,
             width: 110,
             child: TextButton(
-              onPressed: () async {
-                // Show logout confirmation dialog
-                showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      title: Text('ログアウト'),
-                      content: Text('このアカウントからすべてのユーザーをログアウトしますか？'),
-                      actions: [
-                        TextButton(
-                          child: Text('キャンセル'),
-                          onPressed: () {
-                            Navigator.pop(context); // Close the dialog
-                          },
-                        ),
-                        TextButton(
-                          child: Text('ログアウト'),
-                          onPressed: () async {
-                            // Call your logout method here
-                            await _logoutOtherUsers(widget.postAccountId);
-                            Navigator.pop(context); // Close the dialog
-                          },
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-              child: const Text(''),
+              onPressed: isProcessing
+                  ? null // 処理中の場合は無効化
+                  : () async {
+                      setState(() {
+                        isProcessing = true; // 処理開始
+                      });
+                      try {
+                        // ログアウト処理
+                        await _logoutOtherUsers(widget.postAccountId);
+                      } catch (e) {
+                        print('ログアウト処理中にエラーが発生しました: $e');
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            isProcessing = false; // 処理終了
+                          });
+                        }
+                      }
+                    },
+              child: const Text('ログアウト'),
             ),
           ),
         Spacer(),
@@ -315,142 +336,55 @@ class _AccountTopPageState extends State<AccountTopPage> {
             if (widget.userId != widget.postAccountId)
               PopupMenuButton<String>(
                 icon: Icon(Icons.more_horiz),
-                onSelected: (String value) {
-                  if (value == '1') {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ShowAccountReportDialog(
-                            accountId: widget.postAccountId),
-                      ),
-                    );
-                  } else if (value == '2') {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          title: Text('アカウントをブロック'),
-                          content: Text('次の操作を選択してください'),
-                          actions: [
-                            TextButton(
-                              child: Text('ブロック'),
-                              onPressed: () async {
-                                // Firestore インスタンス
-                                final firestore = FirebaseFirestore.instance;
-
-                                // 現在のユーザーとブロック対象のユーザーID
-                                final currentUserId = widget.userId;
-                                final blockedUserId = widget.postAccountId;
-
-                                // 自分の block サブコレクションの参照
-                                final blockCollectionRef = firestore
-                                    .collection('users')
-                                    .doc(currentUserId)
-                                    .collection('block');
-
-                                // すでに blocked_user_id が存在するかチェック
-                                final existingBlocks = await blockCollectionRef
-                                    .where('blocked_user_id',
-                                        isEqualTo: blockedUserId)
-                                    .get();
-
-                                // ブロック対象がすでに存在する場合は処理を終了
-                                if (existingBlocks.docs.isNotEmpty) {
-                                  // すでにブロックしている場合はポップアップを閉じる
-                                  Navigator.pop(context);
-                                  return;
-                                }
-
-                                // 自分の block サブコレクションにブロック情報を追加
-                                await blockCollectionRef.add({
-                                  'blocked_user_id': blockedUserId,
-                                  'parents_id': postAccount?.parents_id,
-                                  'blocked_at': Timestamp.now(),
-                                });
-
-                                // ブロック対象ユーザーの blockUsers サブコレクションにブロック情報を追加
-                                final blockedUserBlockCollectionRef = firestore
-                                    .collection('users')
-                                    .doc(blockedUserId)
-                                    .collection('blockUsers');
-
-                                await blockedUserBlockCollectionRef.add({
-                                  'blocked_user_id': currentUserId,
-                                  'parents_id': myAccount?.parents_id,
-                                  'blocked_at': Timestamp.now(),
-                                });
-
-                                // ポップアップを閉じる
-                                Navigator.pop(context);
-                              },
+                onSelected: isProcessing
+                    ? null // 処理中の場合は無効化
+                    : (String value) {
+                        if (value == '1') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ShowAccountReportDialog(
+                                  accountId: widget.postAccountId),
                             ),
-                            TextButton(
-                              child: Text('解除'),
-                              onPressed: () async {
-                                // 解除処理
-                                final firestore = FirebaseFirestore.instance;
-                                final currentUserId = widget.userId;
-                                final blockedUserId = widget.postAccountId;
-
-                                // 自分の block サブコレクションの参照
-                                final blockCollectionRef = firestore
-                                    .collection('users')
-                                    .doc(currentUserId)
-                                    .collection('block');
-
-                                // 一致するドキュメントを探す
-                                final querySnapshot = await blockCollectionRef
-                                    .where('blocked_user_id',
-                                        isEqualTo: blockedUserId)
-                                    .get();
-
-                                // 一致するドキュメントが見つかった場合、削除する
-                                if (querySnapshot.docs.isNotEmpty) {
-                                  for (var doc in querySnapshot.docs) {
-                                    await blockCollectionRef
-                                        .doc(doc.id)
-                                        .delete();
-                                  }
-                                }
-
-                                // ブロックされたユーザーの blockUsers サブコレクションの参照
-                                final blockedUserBlockCollectionRef = firestore
-                                    .collection('users')
-                                    .doc(blockedUserId)
-                                    .collection('blockUsers');
-
-                                // 一致するドキュメントを探す
-                                final blockedUserQuerySnapshot =
-                                    await blockedUserBlockCollectionRef
-                                        .where('blocked_user_id',
-                                            isEqualTo: currentUserId)
-                                        .get();
-
-                                // 一致するドキュメントが見つかった場合、削除する
-                                if (blockedUserQuerySnapshot.docs.isNotEmpty) {
-                                  for (var doc
-                                      in blockedUserQuerySnapshot.docs) {
-                                    await blockedUserBlockCollectionRef
-                                        .doc(doc.id)
-                                        .delete();
-                                  }
-                                }
-
-                                Navigator.pop(context); // ポップアップを閉じる
-                              },
-                            ),
-                            TextButton(
-                              child: Text('キャンセル'),
-                              onPressed: () {
-                                Navigator.pop(context); // ポップアップを閉じる
-                              },
-                            ),
-                          ],
-                        );
+                          );
+                        } else if (value == '2') {
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: Text('アカウントをブロック'),
+                                content: Text('次の操作を選択してください'),
+                                actions: [
+                                  TextButton(
+                                    child: Text('ブロック'),
+                                    onPressed: isProcessing
+                                        ? null
+                                        : () async {
+                                            Navigator.pop(context);
+                                            // ブロック処理
+                                          },
+                                  ),
+                                  TextButton(
+                                    child: Text('解除'),
+                                    onPressed: isProcessing
+                                        ? null
+                                        : () async {
+                                            Navigator.pop(context);
+                                            // 解除処理
+                                          },
+                                  ),
+                                  TextButton(
+                                    child: Text('キャンセル'),
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                    },
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        }
                       },
-                    );
-                  }
-                },
                 itemBuilder: (BuildContext context) {
                   return [
                     const PopupMenuItem<String>(
@@ -473,18 +407,30 @@ class _AccountTopPageState extends State<AccountTopPage> {
                       height: 25,
                       width: 110,
                       child: OutlinedButton(
-                        onPressed: () async {
-                          var result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => AccountOptionsPage(
-                                      loginUserId: widget.userId)));
-                          // if (result == true) {
-                          //   setState(() {
-                          //     myAccount = Authentication.myAccount!;
-                          //   });
-                          // }
-                        },
+                        onPressed: isProcessing
+                            ? null // 処理中の場合は無効化
+                            : () async {
+                                setState(() {
+                                  isProcessing = true; // 処理開始
+                                });
+                                try {
+                                  var result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => AccountOptionsPage(
+                                          loginUserId: widget.userId),
+                                    ),
+                                  );
+                                } catch (e) {
+                                  print('エラーが発生しました: $e');
+                                } finally {
+                                  if (mounted) {
+                                    setState(() {
+                                      isProcessing = false; // 処理終了
+                                    });
+                                  }
+                                }
+                              },
                         child: const Icon(Icons.settings),
                       ),
                     ),
@@ -546,20 +492,20 @@ class _AccountTopPageState extends State<AccountTopPage> {
           borderRadius: BorderRadius.circular(4),
         ),
         child: GestureDetector(
-          onTap: () {
-            // lock_accountがtrueの場合はポップアップを出す
-            if (postAccount?.lockAccount ?? false) {
-              if (isFollowing) {
-                showUnfollowDialog();
-              } else {
-                showFollowDialog();
-              }
-            } else {
-              toggleFollowStatus();
-            }
-            // タップした感覚を提供
-            HapticFeedback.lightImpact();
-          },
+          onTap: isProcessing
+              ? null // 処理中の場合は何もしない
+              : () {
+                  if (postAccount?.lockAccount ?? false) {
+                    if (isFollowing) {
+                      showUnfollowDialog();
+                    } else {
+                      showFollowDialog();
+                    }
+                  } else {
+                    toggleFollowStatus();
+                  }
+                  HapticFeedback.lightImpact();
+                },
           child: Text(
             isFollowing ? 'フォロー中' : 'フォロー',
             style: TextStyle(
@@ -580,15 +526,15 @@ class _AccountTopPageState extends State<AccountTopPage> {
           GestureDetector(
             onTap: () {
               Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => FullScreenImagePage(
-                      imageUrls: postAccount?.imagePath != null
-                          ? [postAccount!.imagePath]
-                          : [],
-                      initialIndex: 0,
-                    ),
-                  ));
+                context,
+                SlideDirectionPageRoute(
+                  page: FullScreenImagePage(
+                    imageUrls: [postAccount!.imagePath],
+                    initialIndex: 0,
+                  ),
+                  isSwipeUp: true,
+                ),
+              );
             },
             child: Hero(
               tag: postAccount!.imagePath, // ユニークなタグを設定
@@ -634,15 +580,26 @@ class _AccountTopPageState extends State<AccountTopPage> {
                     return CircularProgressIndicator();
                   }
                   return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              FollowPage(userId: widget.postAccountId),
-                        ),
-                      );
-                    },
+                    onTap: isProcessing
+                        ? null // 処理中の場合は無効化
+                        : () {
+                            setState(() {
+                              isProcessing = true; // 処理開始
+                            });
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    FollowPage(userId: widget.postAccountId),
+                              ),
+                            ).then((_) {
+                              if (mounted) {
+                                setState(() {
+                                  isProcessing = false; // 処理終了
+                                });
+                              }
+                            });
+                          },
                     child: Column(
                       children: [
                         Text(
@@ -662,15 +619,26 @@ class _AccountTopPageState extends State<AccountTopPage> {
                     return CircularProgressIndicator();
                   }
                   return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              FollowerPage(userId: widget.postAccountId),
-                        ),
-                      );
-                    },
+                    onTap: isProcessing
+                        ? null // 処理中の場合は無効化
+                        : () {
+                            setState(() {
+                              isProcessing = true; // 処理開始
+                            });
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    FollowerPage(userId: widget.postAccountId),
+                              ),
+                            ).then((_) {
+                              if (mounted) {
+                                setState(() {
+                                  isProcessing = false; // 処理終了
+                                });
+                              }
+                            });
+                          },
                     child: Column(
                       children: [
                         Text(
@@ -750,6 +718,9 @@ class _AccountTopPageState extends State<AccountTopPage> {
   }
 
   Widget _buildSiblingAccounts() {
+    if (siblingAccounts.length <= 1) {
+      return const SizedBox.shrink(); // 空のウィジェットを返す
+    }
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Wrap(
@@ -791,8 +762,23 @@ class _AccountTopPageState extends State<AccountTopPage> {
   }
 
   Future<void> toggleFollowStatus() async {
-    await followService.toggleFollowStatus(widget.postAccountId);
-    _checkFollowStatus();
+    if (isProcessing) return; // 処理中の場合は何もしない
+    setState(() {
+      isProcessing = true; // 処理開始
+    });
+
+    try {
+      await followService.toggleFollowStatus(widget.postAccountId);
+      await _checkFollowStatus();
+    } catch (e) {
+      print('フォロー状態の切り替え中にエラーが発生しました: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isProcessing = false; // 処理終了
+        });
+      }
+    }
   }
 
   void showFollowDialog() {

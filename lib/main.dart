@@ -13,13 +13,31 @@ import 'view/start_up/login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+
+  // エラーハンドリングを設定
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    // ログを送信する場合はここで処理
+  };
+
+  try {
+    // Firebaseの初期化
+    await Firebase.initializeApp();
+  } catch (e) {
+    // Firebase初期化エラーの処理
+    print('Firebase initialization failed: $e');
+    return; // アプリを起動しない
+  }
+
+  // MobileAdsの初期化を非同期で実行
   MobileAds.instance.initialize();
+
+  // アプリを起動
   runApp(ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
-  static const String currentVersion = '1.2.0'; // 現在のバージョンを直接記述
+  static const String currentVersion = '1.2.3'; // 現在のバージョンを直接記述
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +46,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
             seedColor: const Color.fromARGB(255, 140, 199, 221)),
         useMaterial3: true,
+        fontFamily: 'CustomFont',
       ),
       home: InitialScreen(currentVersion: currentVersion), // 初期画面に遷移するウィジェットを指定
       debugShowCheckedModeBanner: false,

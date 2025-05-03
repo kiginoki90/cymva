@@ -37,8 +37,8 @@ class _FavoriteListState extends ConsumerState<FavoriteList> {
 
   @override
   void dispose() {
-    _scrollController.removeListener(_scrollListener);
-    _scrollController.dispose();
+    _scrollController.removeListener(_scrollListener); // リスナーを解除
+    _scrollController.dispose(); // コントローラーを破棄
     super.dispose();
   }
 

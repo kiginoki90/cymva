@@ -1,7 +1,5 @@
 import 'package:cymva/ad_widget.dart';
 import 'package:cymva/model/account.dart';
-import 'package:cymva/utils/authentication.dart';
-import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:flutter/material.dart';
@@ -14,9 +12,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class GroupDetailPage extends ConsumerStatefulWidget {
   final String groupId;
   final Account postAccount;
+  final userId;
 
   const GroupDetailPage(
-      {Key? key, required this.groupId, required this.postAccount})
+      {Key? key,
+      required this.groupId,
+      required this.postAccount,
+      required this.userId})
       : super(key: key);
 
   @override
@@ -28,7 +30,7 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
   final BookmarkPost _bookmarkPost = BookmarkPost();
   final ScrollController _scrollController = ScrollController();
   bool _isLoadingMore = false;
-  bool _isOwner = false; // 追加: オーナーかどうかのフラグ
+  bool _isOwner = false;
 
   @override
   void initState() {
@@ -46,8 +48,7 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
   }
 
   Future<void> _fetchAccountData() async {
-    final account = await UserFirestore.getUser(Authentication.myAccount!.id);
-    if (account!.id == widget.postAccount.id) {
+    if (widget.userId == widget.postAccount.id) {
       setState(() {
         _isOwner = true; // オーナーかどうかを設定
       });
@@ -344,7 +345,7 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
                                         .contains(post.id),
                                   ),
                                   replyFlag: ValueNotifier<bool>(false),
-                                  userId: widget.postAccount.id,
+                                  userId: widget.userId,
                                 ),
                               );
                             },

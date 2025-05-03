@@ -77,12 +77,12 @@ class _ImagePostListState extends ConsumerState<ImagePostList> {
                 : ListView.builder(
                     controller: _scrollController,
                     itemCount: model.postList.length +
-                        (model.postList.length ~/ 10) +
+                        (model.postList.length ~/ 7) +
                         1,
                     itemBuilder: (context, index) {
                       if (index ==
                           model.postList.length +
-                              (model.postList.length ~/ 10)) {
+                              (model.postList.length ~/ 7)) {
                         return _isLoadingMore
                             ? const Center(child: Text(" Loading..."))
                             : const Center(child: Text("結果は以上です"));
@@ -93,7 +93,7 @@ class _ImagePostListState extends ConsumerState<ImagePostList> {
                             SizedBox(height: 50); // 広告ウィジェットを表示
                       }
 
-                      final postIndex = index - (index ~/ 11);
+                      final postIndex = index - (index ~/ 8);
                       if (postIndex >= model.postList.length) {
                         return Container(); // インデックスが範囲外の場合は空のコンテナを返す
                       }

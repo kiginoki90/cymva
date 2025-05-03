@@ -31,8 +31,6 @@ class _RankingPageState extends ConsumerState<RankingPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_scrollListener);
-    // _favoritePost.getFavoritePosts();
-    // _bookmarkPost.getBookmarkPosts(); // ブックマークの投稿を取得
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(rankingViewModelProvider).getRankingPosts(widget.userId);
     });
@@ -78,94 +76,95 @@ class _RankingPageState extends ConsumerState<RankingPage> {
           Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: 500),
-              // リフレッシュ機能
               child: RefreshIndicator(
                 onRefresh: () => model.getRankingPosts(widget.userId),
-                child: model.rankingPostList.isEmpty
-                    ? const Center(child: Text("まだ投稿がありません"))
-                    : ListView.builder(
-                        //リストのスクロール位置を制御するためにScrollControllerを指定
-                        controller: _scrollController,
-                        itemCount: model.rankingPostList.length +
-                            (model.rankingPostList.length ~/ 10) +
-                            1,
-                        itemBuilder: (context, int index) {
-                          if (index ==
-                              model.rankingPostList.length +
-                                  (model.rankingPostList.length ~/ 10)) {
-                            return _isLoadingMore
-                                ? const Center(child: Text(" Loading..."))
-                                : const Center(child: Text("結果は以上です"));
-                          }
+                child: model.isFirstLoad && model.isLoading
+                    ? const Center(child: Text("データ取得中...")) // 初回データ取得中のメッセージ
+                    : model.rankingPostList.isEmpty
+                        ? const Center(child: Text("まだ投稿がありません"))
+                        : ListView.builder(
+                            controller: _scrollController,
+                            itemCount: model.rankingPostList.length +
+                                (model.rankingPostList.length ~/ 7) +
+                                1,
+                            itemBuilder: (context, int index) {
+                              if (index ==
+                                  model.rankingPostList.length +
+                                      (model.rankingPostList.length ~/ 7)) {
+                                return _isLoadingMore
+                                    ? const Center(child: Text(" Loading..."))
+                                    : const Center(child: Text("結果は以上です"));
+                              }
 
-                          if (index % 8 == 7) {
-                            return BannerAdWidget() ??
-                                SizedBox(height: 50); // 広告ウィジェットを表示
-                          }
+                              if (index % 8 == 7) {
+                                return BannerAdWidget() ??
+                                    SizedBox(height: 50); // 広告ウィジェットを表示
+                              }
 
-                          final postIndex = index - (index ~/ 11);
-                          if (postIndex >= model.rankingPostList.length) {
-                            return Container(); // インデックスが範囲外の場合は空のコンテナを返す
-                          }
+                              final postIndex = index - (index ~/ 8);
+                              if (postIndex >= model.rankingPostList.length) {
+                                return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+                              }
 
-                          final postDoc = model.rankingPostList[postIndex];
-                          final post = Post.fromDocument(postDoc);
-                          final postAccount =
-                              model.postUserMap[post.postAccountId];
+                              final postDoc = model.rankingPostList[postIndex];
+                              final post = Post.fromDocument(postDoc);
+                              final postAccount =
+                                  model.postUserMap[post.postAccountId];
 
-                          // blockedUserIds に postAccount.id が含まれている場合は表示をスキップ
-                          if (postAccount == null ||
-                              postAccount.lockAccount ||
-                              model.blockedAccounts.contains(postAccount.id)) {
-                            return Container();
-                          }
+                              // blockedUserIds に postAccount.id が含まれている場合は表示をスキップ
+                              if (postAccount == null ||
+                                  postAccount.lockAccount ||
+                                  model.blockedAccounts
+                                      .contains(postAccount.id)) {
+                                return Container();
+                              }
 
-                          _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                              ValueNotifier<int>(0);
-                          _favoritePost.updateFavoriteUsersCount(post.id);
+                              _favoritePost.favoriteUsersNotifiers[post.id] ??=
+                                  ValueNotifier<int>(0);
+                              _favoritePost.updateFavoriteUsersCount(post.id);
 
-                          _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
-                              ValueNotifier<int>(0);
-                          _bookmarkPost.updateBookmarkUsersCount(post.id);
+                              _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+                                  ValueNotifier<int>(0);
+                              _bookmarkPost.updateBookmarkUsersCount(post.id);
 
-                          return PostItemWidget(
-                            key: PageStorageKey(post.id),
-                            post: post,
-                            postAccount: postAccount,
-                            favoriteUsersNotifier:
-                                _favoritePost.favoriteUsersNotifiers[post.id]!,
-                            isFavoriteNotifier: ValueNotifier<bool>(
-                              _favoritePost.favoritePostsNotifier.value
-                                  .contains(post.id),
-                            ),
-                            onFavoriteToggle: () =>
-                                _favoritePost.toggleFavorite(
-                              post.id,
-                              _favoritePost.favoritePostsNotifier.value
-                                  .contains(post.id),
-                            ),
-                            replyFlag: ValueNotifier<bool>(false),
-                            bookmarkUsersNotifier:
-                                _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
-                            isBookmarkedNotifier: ValueNotifier<bool>(
-                              _bookmarkPost.bookmarkPostsNotifier.value
-                                  .contains(post.id),
-                            ),
-                            onBookMsrkToggle: () =>
-                                _bookmarkPost.toggleBookmark(
-                              post.id,
-                              _bookmarkPost.bookmarkPostsNotifier.value
-                                  .contains(post.id),
-                            ),
-                            userId: widget.userId,
-                          );
-                        },
-                      ),
+                              return PostItemWidget(
+                                key: PageStorageKey(post.id),
+                                post: post,
+                                postAccount: postAccount,
+                                favoriteUsersNotifier: _favoritePost
+                                    .favoriteUsersNotifiers[post.id]!,
+                                isFavoriteNotifier: ValueNotifier<bool>(
+                                  _favoritePost.favoritePostsNotifier.value
+                                      .contains(post.id),
+                                ),
+                                onFavoriteToggle: () =>
+                                    _favoritePost.toggleFavorite(
+                                  post.id,
+                                  _favoritePost.favoritePostsNotifier.value
+                                      .contains(post.id),
+                                ),
+                                replyFlag: ValueNotifier<bool>(false),
+                                bookmarkUsersNotifier: _bookmarkPost
+                                    .bookmarkUsersNotifiers[post.id]!,
+                                isBookmarkedNotifier: ValueNotifier<bool>(
+                                  _bookmarkPost.bookmarkPostsNotifier.value
+                                      .contains(post.id),
+                                ),
+                                onBookMsrkToggle: () =>
+                                    _bookmarkPost.toggleBookmark(
+                                  post.id,
+                                  _bookmarkPost.bookmarkPostsNotifier.value
+                                      .contains(post.id),
+                                ),
+                                userId: widget.userId,
+                              );
+                            },
+                          ),
               ),
             ),
           ),
           Positioned(
-            bottom: 30.0, // ここで位置を調整
+            bottom: 30.0,
             right: 16.0,
             child: ValueListenableBuilder<bool>(
               valueListenable: _showScrollToTopButton,
@@ -186,7 +185,7 @@ class _RankingPageState extends ConsumerState<RankingPage> {
                             shape: BoxShape.circle,
                             border:
                                 Border.all(color: Colors.lightBlue, width: 2.0),
-                            color: Colors.transparent, // 内側を透明にする場合
+                            color: Colors.transparent,
                           ),
                           child: Icon(
                             Icons.keyboard_double_arrow_up,
@@ -219,7 +218,7 @@ class DbManager {
       Query rankingQuery = _firestore
           .collection('ranking')
           .orderBy('count', descending: false)
-          .limit(15);
+          .limit(10);
 
       if (startAfter != null) {
         rankingQuery = rankingQuery.startAfterDocument(startAfter);
@@ -235,7 +234,6 @@ class DbManager {
 
       Map<String, QueryDocumentSnapshot> postMap = {};
       for (int i = 0; i < postIds.length; i += 10) {
-        // 投稿IDを10個ずつ分割してクエリを実行
         List<String> batch = postIds.sublist(
             i, i + 10 > postIds.length ? postIds.length : i + 10);
         Query postsQuery = _firestore
@@ -243,7 +241,6 @@ class DbManager {
             .where(FieldPath.documentId, whereIn: batch);
         final postsSnapshot = await postsQuery.get();
 
-        // ブロックされたユーザーの投稿を除外し、マップに格納
         for (var doc in postsSnapshot.docs) {
           final postAccountId =
               (doc.data() as Map<String, dynamic>)['post_account_id'] as String;
@@ -254,13 +251,11 @@ class DbManager {
         }
       }
 
-// `ranking` コレクションの順序に従って投稿を並べ替え
       List<QueryDocumentSnapshot> allPosts = postIds
-          .where((postId) => postMap.containsKey(postId)) // 存在する投稿IDのみ
-          .map((postId) => postMap[postId]!) // マップから投稿を取得
+          .where((postId) => postMap.containsKey(postId))
+          .map((postId) => postMap[postId]!)
           .toList();
 
-// `_lastDocument` を更新
       if (rankingSnapshot.docs.isNotEmpty) {
         _lastDocument = rankingSnapshot.docs.last;
       }
@@ -282,7 +277,6 @@ class DbManager {
   }
 
   Future<List<String>> fetchBlockedAccounts(String userId) async {
-    // blockUsers コレクションから blocked_user_id を取得
     final blockUsersSnapshot = await _firestore
         .collection('users')
         .doc(userId)
@@ -293,7 +287,6 @@ class DbManager {
         .map((doc) => doc['blocked_user_id'] as String)
         .toList();
 
-    // block ドキュメントから blocked_user_id を取得
     final blockDocSnapshot = await _firestore
         .collection('users')
         .doc(userId)
@@ -304,7 +297,6 @@ class DbManager {
         .map((doc) => doc['blocked_user_id'] as String)
         .toList();
 
-    // 両方のリストを結合して返す
     blockedUserIds.addAll(blockDocUserIds);
     return blockedUserIds;
   }
@@ -321,13 +313,17 @@ class RankingViewModel extends ChangeNotifier {
   List<QueryDocumentSnapshot> rankingPostList = [];
   List<String> blockedAccounts = [];
   Map<String, Account> postUserMap = {};
+  bool isLoading = false; // データ取得中の状態を管理
+  bool isFirstLoad = true; // 初回データ取得中の状態を管理
 
   Future<void> getRankingPosts(String userId) async {
     try {
+      isLoading = true; // データ取得開始
+      notifyListeners();
+
       rankingPostList =
           await ref.read(dbManagerProvider).getRankingPosts(userId);
 
-      // 投稿に関連するユーザー情報を取得
       postUserMap = await UserFirestore.getPostUserMap(
             rankingPostList
                 .map((doc) => (doc.data()
@@ -336,8 +332,11 @@ class RankingViewModel extends ChangeNotifier {
           ) ??
           {};
 
+      isLoading = false; // データ取得完了
+      isFirstLoad = false; // 初回データ取得完了
       notifyListeners();
     } catch (e) {
+      isLoading = false; // エラー時もデータ取得完了として扱う
       print('Error fetching ranking posts: $e');
     }
   }
@@ -350,7 +349,6 @@ class RankingViewModel extends ChangeNotifier {
       if (nextPosts.isNotEmpty) {
         rankingPostList.addAll(nextPosts);
 
-        // 新しい投稿に関連するユーザー情報を取得
         final newPostUserMap = await UserFirestore.getPostUserMap(
               nextPosts
                   .map((doc) => (doc.data()

@@ -70,12 +70,25 @@ class _FullScreenImagePageState extends State<FullScreenImagePage> {
               },
               builder: (context, index) {
                 final imageUrl = widget.imageUrls[index];
+                print('Loading image at index $index: $imageUrl'); // デバッグメッセージ
+
                 return PhotoViewGalleryPageOptions(
                   imageProvider: NetworkImage(imageUrl),
                   minScale: PhotoViewComputedScale.contained,
                   maxScale: PhotoViewComputedScale.covered * 2, // 最大拡大率を設定
                   heroAttributes:
                       PhotoViewHeroAttributes(tag: imageUrl), // Heroアニメーションを追加
+                  errorBuilder: (context, error, stackTrace) {
+                    print(
+                        'Error loading image at index $index: $imageUrl'); // エラー時のデバッグメッセージ
+                    print('Error details: $error'); // エラー詳細を出力
+                    return Center(
+                      child: Text(
+                        '画像を読み込めませんでした',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    );
+                  },
                 );
               },
               scrollPhysics: BouncingScrollPhysics(),

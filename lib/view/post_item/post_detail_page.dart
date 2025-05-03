@@ -83,7 +83,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
   Future<void> _checkPostInGroups() async {
     final groupCollectionRef = FirebaseFirestore.instance
         .collection('users')
-        .doc(widget.userId)
+        .doc(widget.postAccount.id)
         .collection('group');
 
     final groupSnapshot = await groupCollectionRef.get();
@@ -808,6 +808,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                   builder: (context) => GroupDetailPage(
                                     groupId: groupId!,
                                     postAccount: widget.postAccount,
+                                    userId: widget.userId,
                                   ),
                                 ),
                               );

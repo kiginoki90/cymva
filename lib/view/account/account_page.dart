@@ -235,7 +235,8 @@ class _AccountPageState extends State<AccountPage> {
                               FavoriteList(myAccount: account!, userId: userId),
                               GroupPostsPage(
                                   // postAccount: postAccount!,
-                                  postAccount: account!),
+                                  postAccount: account!,
+                                  userId: userId),
                             ],
                           ),
                         ),

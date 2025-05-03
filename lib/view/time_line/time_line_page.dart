@@ -89,91 +89,96 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
               // リフレッシュ機能
               child: RefreshIndicator(
                 onRefresh: () => model.getPosts(widget.userId),
-                child: model.stackedPostList.isEmpty
-                    ? const Center(child: Text("まだ投稿がありません"))
-                    : ListView.builder(
-                        //リストのスクロール位置を制御するためにScrollControllerを指定
-                        controller: _scrollController,
-                        itemCount: model.stackedPostList.length +
-                            (model.stackedPostList.length ~/ 10) +
-                            1,
-                        itemBuilder: (context, int index) {
-                          if (index ==
-                              model.stackedPostList.length +
-                                  (model.stackedPostList.length ~/ 10)) {
-                            return _isLoadingMore
-                                ? const Center(child: Text(" Loading..."))
-                                : const Center(child: Text("結果は以上です"));
-                          }
+                child: model.isFirstLoad && model.isLoading
+                    ? const Center(child: Text("データ取得中...")) // 初回データ取得中のメッセージ
+                    : model.stackedPostList.isEmpty
+                        ? const Center(child: Text("まだ投稿がありません"))
+                        : ListView.builder(
+                            //リストのスクロール位置を制御するためにScrollControllerを指定
+                            controller: _scrollController,
+                            itemCount: model.stackedPostList.length +
+                                (model.stackedPostList.length ~/ 7) +
+                                1,
+                            itemBuilder: (context, int index) {
+                              if (index ==
+                                  model.stackedPostList.length +
+                                      (model.stackedPostList.length ~/ 7)) {
+                                return _isLoadingMore
+                                    ? const Center(child: Text(" Loading..."))
+                                    : const Center(child: Text("結果は以上です"));
+                              }
 
-                          if (index % 8 == 7) {
-                            return BannerAdWidget() ??
-                                SizedBox(height: 50); // 広告ウィジェットを表示
-                          }
+                              if (index % 8 == 7) {
+                                return BannerAdWidget() ??
+                                    SizedBox(height: 50); // 広告ウィジェットを表示
+                              }
 
-                          final postIndex = index - (index ~/ 11);
-                          if (postIndex >= model.stackedPostList.length) {
-                            return Container(); // インデックスが範囲外の場合は空のコンテナを返す
-                          }
+                              final postIndex = index - (index ~/ 8);
+                              if (postIndex >= model.stackedPostList.length) {
+                                return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+                              }
 
-                          final postDoc = model.stackedPostList[postIndex];
-                          final post = Post.fromDocument(postDoc);
-                          final postAccount =
-                              model.postUserMap[post.postAccountId];
+                              final postDoc = model.stackedPostList[postIndex];
+                              final post = Post.fromDocument(postDoc);
+                              final postAccount =
+                                  model.postUserMap[post.postAccountId];
 
-                          // blockedUserIds に postAccount.id が含まれている場合は表示をスキップ
-                          if (postAccount == null ||
-                              postAccount.lockAccount ||
-                              model.blockedAccounts.contains(postAccount.id)) {
-                            return Container();
-                          }
+                              // blockedUserIds に postAccount.id が含まれている場合は表示をスキップ
+                              if (postAccount == null ||
+                                  postAccount.lockAccount ||
+                                  model.blockedAccounts
+                                      .contains(postAccount.id)) {
+                                return Container();
+                              }
 
-                          // ValueNotifierを再利用する
-                          _favoriteUsersNotifiers[post.id] ??=
-                              ValueNotifier<int>(0);
-                          _favoritePost.updateFavoriteUsersCount(post.id);
+                              // ValueNotifierを再利用する
+                              _favoriteUsersNotifiers[post.id] ??=
+                                  ValueNotifier<int>(0);
+                              _favoritePost.updateFavoriteUsersCount(post.id);
 
-                          _bookmarkUsersNotifiers[post.id] ??=
-                              ValueNotifier<int>(0);
-                          _bookmarkPost.updateBookmarkUsersCount(post.id);
+                              _bookmarkUsersNotifiers[post.id] ??=
+                                  ValueNotifier<int>(0);
+                              _bookmarkPost.updateBookmarkUsersCount(post.id);
 
-                          _isFavoriteNotifiers[post.id] ??= ValueNotifier<bool>(
-                            _favoritePost.favoritePostsNotifier.value
-                                .contains(post.id),
-                          );
+                              _isFavoriteNotifiers[post.id] ??=
+                                  ValueNotifier<bool>(
+                                _favoritePost.favoritePostsNotifier.value
+                                    .contains(post.id),
+                              );
 
-                          _isBookmarkedNotifiers[post.id] ??=
-                              ValueNotifier<bool>(
-                            _bookmarkPost.bookmarkPostsNotifier.value
-                                .contains(post.id),
-                          );
+                              _isBookmarkedNotifiers[post.id] ??=
+                                  ValueNotifier<bool>(
+                                _bookmarkPost.bookmarkPostsNotifier.value
+                                    .contains(post.id),
+                              );
 
-                          return PostItemWidget(
-                            key: PageStorageKey(post.id),
-                            post: post,
-                            postAccount: postAccount,
-                            favoriteUsersNotifier:
-                                _favoriteUsersNotifiers[post.id]!,
-                            isFavoriteNotifier: _isFavoriteNotifiers[post.id]!,
-                            onFavoriteToggle: () =>
-                                _favoritePost.toggleFavorite(
-                              post.id,
-                              _isFavoriteNotifiers[post.id]!.value,
-                            ),
-                            replyFlag: ValueNotifier<bool>(false),
-                            bookmarkUsersNotifier:
-                                _bookmarkUsersNotifiers[post.id]!,
-                            isBookmarkedNotifier:
-                                _isBookmarkedNotifiers[post.id]!,
-                            onBookMsrkToggle: () =>
-                                _bookmarkPost.toggleBookmark(
-                              post.id,
-                              _isBookmarkedNotifiers[post.id]!.value,
-                            ),
-                            userId: widget.userId,
-                          );
-                        },
-                      ),
+                              return PostItemWidget(
+                                key: PageStorageKey(post.id),
+                                post: post,
+                                postAccount: postAccount,
+                                favoriteUsersNotifier:
+                                    _favoriteUsersNotifiers[post.id]!,
+                                isFavoriteNotifier:
+                                    _isFavoriteNotifiers[post.id]!,
+                                onFavoriteToggle: () =>
+                                    _favoritePost.toggleFavorite(
+                                  post.id,
+                                  _isFavoriteNotifiers[post.id]!.value,
+                                ),
+                                replyFlag: ValueNotifier<bool>(false),
+                                bookmarkUsersNotifier:
+                                    _bookmarkUsersNotifiers[post.id]!,
+                                isBookmarkedNotifier:
+                                    _isBookmarkedNotifiers[post.id]!,
+                                onBookMsrkToggle: () =>
+                                    _bookmarkPost.toggleBookmark(
+                                  post.id,
+                                  _isBookmarkedNotifiers[post.id]!.value,
+                                ),
+                                userId: widget.userId,
+                              );
+                            },
+                          ),
               ),
             ),
           ),
@@ -244,7 +249,7 @@ class DbManager {
         .where('hide', isEqualTo: false)
         .orderBy('created_time', descending: true)
         .startAfterDocument(_lastDocument!)
-        .limit(15);
+        .limit(10);
     final querySnapshot = await query.get();
     if (querySnapshot.docs.isNotEmpty) {
       _lastDocument = querySnapshot.docs.last;
@@ -304,8 +309,13 @@ class ViewModel extends ChangeNotifier {
   List<String> favoritePosts = [];
   List<String> blockedAccounts = [];
   Map<String, Account> postUserMap = {};
+  bool isLoading = false; // データ取得中の状態を管理
+  bool isFirstLoad = true; // 初回データ取得中の状態を管理
 
   Future<void> getPosts(String userId) async {
+    isLoading = true; // データ取得開始
+    notifyListeners();
+
     stackedPostList = [];
     final dbManager = ref.read(dbManagerProvider);
 
@@ -328,10 +338,16 @@ class ViewModel extends ChangeNotifier {
               .toList(),
         ) ??
         {};
+
+    isLoading = false; // データ取得完了
+    isFirstLoad = false; // 初回データ取得完了
     notifyListeners();
   }
 
   Future<void> getPostsNext(String userId) async {
+    isLoading = true; // データ取得開始
+    notifyListeners();
+
     currentPostList = await ref.read(dbManagerProvider).getPostsNext();
     if (currentPostList.isNotEmpty) {
       stackedPostList.addAll(currentPostList);
@@ -344,6 +360,8 @@ class ViewModel extends ChangeNotifier {
           {};
       postUserMap.addAll(newPostUserMap);
     }
+
+    isLoading = false; // データ取得完了
     notifyListeners();
   }
 }

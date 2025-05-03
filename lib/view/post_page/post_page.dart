@@ -210,6 +210,7 @@ class _PostPageState extends State<PostPage> {
     return Scaffold(
       key: scaffoldMessengerKey,
       appBar: AppBar(
+        automaticallyImplyLeading: false, // 戻るボタンを非表示にする
         centerTitle: true,
         title: _imageUrl == null
             ? const Text('投稿', style: TextStyle(color: Colors.black))
@@ -252,7 +253,8 @@ class _PostPageState extends State<PostPage> {
       ),
       body: Stack(
         children: [
-          Container(
+          Align(
+            alignment: Alignment.topCenter, // 上寄せに設定
             child: SingleChildScrollView(
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: 500),
@@ -640,6 +642,12 @@ class _PostPageState extends State<PostPage> {
 
                                     // 投稿完了後の処理
                                     if (result != null) {
+                                      // Firestoreのdraftフィールドを空にする
+                                      await FirebaseFirestore.instance
+                                          .collection('users')
+                                          .doc(widget.userId)
+                                          .update({'draft': ''});
+
                                       showTopSnackBar(context, '投稿が完了しました',
                                           backgroundColor: Colors.green);
                                     } else {

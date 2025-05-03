@@ -14,6 +14,7 @@ import 'package:cymva/view/account/edit_page/options_page/change_password_page.d
 import 'package:cymva/view/account/edit_page/options_page/edit_account_page.dart';
 import 'package:cymva/view/start_up/login_page.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:io'; // Platformクラスを使用するために追加
 
 class AccountOptionsPage extends StatefulWidget {
   final String loginUserId;
@@ -149,6 +150,20 @@ class _AccountOptionsPageState extends State<AccountOptionsPage> {
                   );
                 },
               ),
+              if (!Platform.isAndroid) // Androidの場合は非表示
+                _buildOptionItem(
+                  context,
+                  icon: Icons.person_add,
+                  label: 'アカウント追加',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddAccountPage(),
+                      ),
+                    );
+                  },
+                ),
               _buildOptionItem(
                 context,
                 icon: Icons.logout,
@@ -188,19 +203,6 @@ class _AccountOptionsPageState extends State<AccountOptionsPage> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => BlockedUsersPage(userId: userId),
-                    ),
-                  );
-                },
-              ),
-              _buildOptionItem(
-                context,
-                icon: Icons.person_add,
-                label: 'アカウント追加',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AddAccountPage(),
                     ),
                   );
                 },
