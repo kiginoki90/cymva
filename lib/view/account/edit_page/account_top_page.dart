@@ -762,22 +762,16 @@ class _AccountTopPageState extends State<AccountTopPage> {
   }
 
   Future<void> toggleFollowStatus() async {
-    if (isProcessing) return; // 処理中の場合は何もしない
-    setState(() {
-      isProcessing = true; // 処理開始
-    });
+    // if (isProcessing) return; // 処理中の場合は何もしない
+    // setState(() {
+    //   isProcessing = true; // 処理開始
+    // });
 
     try {
       await followService.toggleFollowStatus(widget.postAccountId);
       await _checkFollowStatus();
     } catch (e) {
       print('フォロー状態の切り替え中にエラーが発生しました: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          isProcessing = false; // 処理終了
-        });
-      }
     }
   }
 

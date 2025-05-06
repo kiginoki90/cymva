@@ -92,7 +92,7 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
                 child: model.isFirstLoad && model.isLoading
                     ? const Center(child: Text("データ取得中...")) // 初回データ取得中のメッセージ
                     : model.stackedPostList.isEmpty
-                        ? const Center(child: Text("まだ投稿がありません"))
+                        ? const Center(child: Text("データ取得中..."))
                         : ListView.builder(
                             //リストのスクロール位置を制御するためにScrollControllerを指定
                             controller: _scrollController,

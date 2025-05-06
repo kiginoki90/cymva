@@ -37,7 +37,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  static const String currentVersion = '1.2.3'; // 現在のバージョンを直接記述
+  static const String currentVersion = '1.2.4'; // 現在のバージョンを直接記述
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +158,7 @@ class _InitialScreenState extends State<InitialScreen> {
                 final Uri appStoreUrl = Uri.parse(
                     'https://apps.apple.com/jp/app/cymva/id6733224284');
                 final Uri playStoreUrl = Uri.parse(
-                    'https://play.google.com/store/apps/details?id=your.package.name');
+                    'https://play.google.com/store/apps/details?id=com.kobayashi.cymva');
 
                 if (Platform.isIOS) {
                   if (await canLaunchUrl(appStoreUrl)) {

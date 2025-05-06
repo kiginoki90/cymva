@@ -155,6 +155,7 @@ class _MessesPageState extends State<MessesPage> {
           'postID':
               data?.containsKey('postID') == true ? data!['postID'] : null,
           'count': data?.containsKey('count') == true ? data!['count'] : 1,
+          'bold': data?.containsKey('bold') == true ? data!['bold'] : false,
         };
       }).toList();
 
@@ -244,6 +245,7 @@ class _MessesPageState extends State<MessesPage> {
         'request_user': currentUserId,
         'timestamp': FieldValue.serverTimestamp(),
         'isRead': false,
+        'bold': true,
       });
 
       await _updateFollowRequests();
@@ -496,13 +498,16 @@ class _MessesPageState extends State<MessesPage> {
             }
 
             final notification = notifications[index];
-            final requestUser = notification['request_user'];
             final user = notification['user'];
-            final requestUserId = notification['request_userId'];
-            final messageId = notification['id'];
-            final title = notification['title'];
-            final content = notification['content'];
-            final messageRead = notification['message_read'];
+            final isBold = notification['bold'] == true; // bold フィールドをチェック
+
+            // ユーザーが必要な場合のみ非表示にする
+            if ((notification['message_type'] == 2 ||
+                    notification['message_type'] == 3 ||
+                    notification['message_type'] == 6) &&
+                user == null) {
+              return const SizedBox.shrink();
+            }
 
             return Column(
               children: [
@@ -515,14 +520,36 @@ class _MessesPageState extends State<MessesPage> {
                       children: [
                         Expanded(
                           child: GestureDetector(
-                            onTap: () {
+                            onTap: () async {
                               navigateToPage(
-                                  context, requestUser, '1', false, false);
+                                  context,
+                                  notification['request_user'],
+                                  '1',
+                                  false,
+                                  false);
+
+                              // Firestoreでboldをfalseに更新
+                              await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(widget.userId)
+                                  .collection('message')
+                                  .doc(notification['id'])
+                                  .update({'bold': false});
+
+                              // ローカルの通知リストを更新
+                              setState(() {
+                                notification['bold'] = false;
+                              });
                             },
                             child: Text(
-                              '@${requestUserId}さんからフォロー依頼が届いています',
-                              maxLines: 3, // 最大3行
-                              overflow: TextOverflow.ellipsis, // 3行を超えたら省略表示
+                              '@${notification['request_userId']}さんからフォロー依頼が届いています',
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: isBold
+                                    ? FontWeight.bold
+                                    : FontWeight.normal, // 太文字を適用
+                              ),
                             ),
                           ),
                         ),
@@ -543,7 +570,8 @@ class _MessesPageState extends State<MessesPage> {
                                 ),
                                 onPressed: () {
                                   _showDeleteConfirmationDialog(
-                                      requestUser, notification['id']);
+                                      notification['request_user'],
+                                      notification['id']);
                                 },
                                 child: Text(
                                   '削除',
@@ -554,7 +582,7 @@ class _MessesPageState extends State<MessesPage> {
                                 ),
                               ),
                             ),
-                            SizedBox(width: 8), // ボタン間のスペースを追加
+                            SizedBox(width: 8),
                             Container(
                               decoration: BoxDecoration(
                                 border: Border.all(color: Colors.blue),
@@ -568,8 +596,8 @@ class _MessesPageState extends State<MessesPage> {
                                   tapTargetSize:
                                       MaterialTapTargetSize.shrinkWrap,
                                 ),
-                                onPressed: () =>
-                                    _acceptFollowRequest(requestUser),
+                                onPressed: () => _acceptFollowRequest(
+                                    notification['request_user']),
                                 child: Text(
                                   '許可',
                                   style: TextStyle(
@@ -589,22 +617,32 @@ class _MessesPageState extends State<MessesPage> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16.0, vertical: 8.0),
                     child: GestureDetector(
-                      onTap: user != null
-                          ? () {
-                              navigateToPage(
-                                  context,
-                                  notification['request_user'],
-                                  '1',
-                                  false,
-                                  false);
-                            }
-                          : null,
+                      onTap: () async {
+                        navigateToPage(context, notification['request_user'],
+                            '1', false, false);
+
+                        // Firestoreでboldをfalseに更新
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(widget.userId)
+                            .collection('message')
+                            .doc(notification['id'])
+                            .update({'bold': false});
+
+                        // ローカルの通知リストを更新
+                        setState(() {
+                          notification['bold'] = false;
+                        });
+                      },
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          user != null
-                              ? '@${user.userId}さんへのフォローリクエストが許可されました。'
-                              : '表示できません',
+                          '@${user.userId}さんへのフォローリクエストが許可されました。',
+                          style: TextStyle(
+                            fontWeight: isBold
+                                ? FontWeight.bold
+                                : FontWeight.normal, // 太文字を適用
+                          ),
                         ),
                       ),
                     ),
@@ -614,22 +652,32 @@ class _MessesPageState extends State<MessesPage> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16.0, vertical: 8.0),
                     child: GestureDetector(
-                      onTap: user != null
-                          ? () {
-                              navigateToPage(
-                                  context,
-                                  notification['request_user'],
-                                  '1',
-                                  false,
-                                  false);
-                            }
-                          : null,
+                      onTap: () async {
+                        navigateToPage(context, notification['request_user'],
+                            '1', false, false);
+
+                        // Firestoreでboldをfalseに更新
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(widget.userId)
+                            .collection('message')
+                            .doc(notification['id'])
+                            .update({'bold': false});
+
+                        // ローカルの通知リストを更新
+                        setState(() {
+                          notification['bold'] = false;
+                        });
+                      },
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          user != null
-                              ? '@${user.userId}さんからフォローされました。'
-                              : '表示できません',
+                          '@${user.userId}さんからフォローされました。',
+                          style: TextStyle(
+                            fontWeight: isBold
+                                ? FontWeight.bold
+                                : FontWeight.normal, // 太文字を適用
+                          ),
                         ),
                       ),
                     ),
@@ -638,9 +686,26 @@ class _MessesPageState extends State<MessesPage> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: GestureDetector(
-                      onTap: () {
-                        _showAdminMessageDialog(title, content, messageId,
-                            notification['timestamp'], messageRead);
+                      onTap: () async {
+                        _showAdminMessageDialog(
+                            notification['title'],
+                            notification['content'],
+                            notification['id'],
+                            notification['timestamp'],
+                            notification['message_read']);
+
+                        // Firestoreでboldをfalseに更新
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(widget.userId)
+                            .collection('message')
+                            .doc(notification['id'])
+                            .update({'bold': false});
+
+                        // ローカルの通知リストを更新
+                        setState(() {
+                          notification['bold'] = false;
+                        });
                       },
                       child: Row(
                         children: [
@@ -662,9 +727,11 @@ class _MessesPageState extends State<MessesPage> {
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              title,
+                              notification['title'],
                               style: TextStyle(
-                                fontWeight: FontWeight.bold,
+                                fontWeight: isBold
+                                    ? FontWeight.bold
+                                    : FontWeight.normal, // 太文字を適用
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -678,10 +745,24 @@ class _MessesPageState extends State<MessesPage> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16.0, vertical: 8.0),
                     child: GestureDetector(
-                      onTap: () {
+                      onTap: () async {
                         _navigateToPostDetailPage(notification['postID']);
+
+                        // Firestoreでboldをfalseに更新
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(widget.userId)
+                            .collection('message')
+                            .doc(notification['id'])
+                            .update({'bold': false});
+
+                        // ローカルの通知リストを更新
+                        setState(() {
+                          notification['bold'] = false;
+                        });
                       },
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
@@ -690,11 +771,48 @@ class _MessesPageState extends State<MessesPage> {
                                   notification['count'] == 1
                                       ? '投稿に返信が来ています'
                                       : '投稿に${notification['count']}件の返信が来ています',
-                                  style: TextStyle(),
+                                  style: TextStyle(
+                                    fontWeight: isBold
+                                        ? FontWeight.bold
+                                        : FontWeight.normal, // 太文字を適用
+                                  ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
+                          ),
+                          FutureBuilder<DocumentSnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection('posts')
+                                .doc(notification['postID'])
+                                .get(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return SizedBox.shrink(); // ローディング中は何も表示しない
+                              }
+                              if (snapshot.hasError || !snapshot.hasData) {
+                                return SizedBox
+                                    .shrink(); // エラーまたはデータなしの場合も何も表示しない
+                              }
+
+                              final postContent =
+                                  snapshot.data?.get('content') as String?;
+                              if (postContent == null || postContent.isEmpty) {
+                                return SizedBox.shrink(); // contentが空の場合も表示しない
+                              }
+
+                              return Text(
+                                postContent.length > 50
+                                    ? '${postContent.substring(0, 50)}...' // 最大30文字まで表示
+                                    : postContent,
+                                style: TextStyle(
+                                  color: Colors.grey, // グレーの文字色
+                                  fontSize: 12, // 小さい文字サイズ
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -705,9 +823,22 @@ class _MessesPageState extends State<MessesPage> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16.0, vertical: 8.0),
                     child: GestureDetector(
-                      onTap: () {
+                      onTap: () async {
                         navigateToPage(context, notification['request_user'],
                             '1', false, false);
+
+                        // Firestoreでboldをfalseに更新
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(widget.userId)
+                            .collection('message')
+                            .doc(notification['id'])
+                            .update({'bold': false});
+
+                        // ローカルの通知リストを更新
+                        setState(() {
+                          notification['bold'] = false;
+                        });
                       },
                       child: Column(
                         children: [
@@ -715,10 +846,12 @@ class _MessesPageState extends State<MessesPage> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  user != null
-                                      ? '@${user.userId}さんにリクエストを送りました。'
-                                      : '表示できません',
-                                  style: TextStyle(),
+                                  '@${user.userId}さんにリクエストを送りました。',
+                                  style: TextStyle(
+                                    fontWeight: isBold
+                                        ? FontWeight.bold
+                                        : FontWeight.normal, // 太文字を適用
+                                  ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),

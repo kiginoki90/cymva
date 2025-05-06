@@ -1,4 +1,5 @@
 import 'package:cymva/utils/navigation_utils.dart';
+import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -10,12 +11,14 @@ class LinkText extends StatefulWidget {
   final String userId;
   final int textSize;
   final bool tapable;
+  final Color? color;
 
   const LinkText({
     required this.text,
     required this.userId,
     required this.textSize,
     this.tapable = false,
+    this.color,
     Key? key,
   }) : super(key: key);
 
@@ -39,8 +42,6 @@ class _LinkTextState extends State<LinkText> {
   @override
   Widget build(BuildContext context) {
     final urlRegex = RegExp(r'(https?:\/\/[^\s]+)');
-    final hashtagRegex = RegExp(r'#([\wぁ-んァ-ン一-龥々ー]+)');
-    final mentionRegex = RegExp(r'@[\w]+');
 
     final matches = urlRegex.allMatches(widget.text);
     final List<InlineSpan> children = [];
@@ -50,8 +51,6 @@ class _LinkTextState extends State<LinkText> {
       if (match.start > start) {
         children.addAll(_processTextWithHashtagsAndMentions(
           widget.text.substring(start, match.start),
-          hashtagRegex,
-          mentionRegex,
           context,
         ));
       }
@@ -88,8 +87,6 @@ class _LinkTextState extends State<LinkText> {
     if (start < widget.text.length) {
       children.addAll(_processTextWithHashtagsAndMentions(
         widget.text.substring(start),
-        hashtagRegex,
-        mentionRegex,
         context,
       ));
     }
@@ -114,83 +111,83 @@ class _LinkTextState extends State<LinkText> {
 
   List<InlineSpan> _processTextWithHashtagsAndMentions(
     String inputText,
-    RegExp hashtagRegex,
-    RegExp mentionRegex,
     BuildContext context,
   ) {
     final List<InlineSpan> spans = [];
     int textStart = 0;
 
-    final matches = [
-      ...hashtagRegex.allMatches(inputText),
-      ...mentionRegex.allMatches(inputText),
-    ];
-    matches.sort((a, b) => a.start.compareTo(b.start));
+    while (textStart < inputText.length) {
+      final atIndex = inputText.indexOf('@', textStart);
 
-    for (final match in matches) {
-      if (match.start > textStart) {
+      if (atIndex == -1) {
+        // '@'が見つからない場合、残りのテキストを追加
         spans.add(TextSpan(
-          text: inputText.substring(textStart, match.start),
+          text: inputText.substring(textStart),
           style: TextStyle(
             fontFamily: 'CustomFont',
             fontSize: widget.textSize.toDouble(),
+            color: widget.color ?? Colors.black,
+          ),
+        ));
+        break;
+      }
+
+      // '@'の前の通常テキストを追加
+      if (atIndex > textStart) {
+        spans.add(TextSpan(
+          text: inputText.substring(textStart, atIndex),
+          style: TextStyle(
+            fontFamily: 'CustomFont',
+            fontSize: widget.textSize.toDouble(),
+            color: widget.color ?? Colors.black,
           ),
         ));
       }
 
-      final matchedText = match.group(0)!;
-      final recognizer = TapGestureRecognizer();
-      _recognizers.add(recognizer);
+      // '@'以降のテキストをリンクとして追加（改行で制限）
+      final spaceIndex = inputText.indexOf(' ', atIndex);
+      final newlineIndex = inputText.indexOf('\n', atIndex);
+      final endIndex = [
+        spaceIndex == -1 ? inputText.length : spaceIndex,
+        newlineIndex == -1 ? inputText.length : newlineIndex,
+      ].reduce((a, b) => a < b ? a : b); // 最小値を取得
 
-      if (matchedText.startsWith('#')) {
-        recognizer.onTap = () async {
-          await storage.write(key: 'query', value: matchedText);
-          navigateToSearchPage(context, widget.userId, '2', true);
-        };
-        spans.add(TextSpan(
-          text: matchedText,
-          style: TextStyle(
-            fontSize: widget.textSize.toDouble(),
-            color: Colors.blue,
-            fontFamily: 'CustomFont',
-          ),
-          recognizer: recognizer,
-        ));
-      } else if (matchedText.startsWith('@')) {
-        recognizer.onTap = () async {
-          final userId = matchedText.substring(1);
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .where('user_id', isEqualTo: userId)
-              .limit(1)
-              .get();
-          if (userDoc.docs.isNotEmpty) {
-            final postAccountId = userDoc.docs.first.id;
-            navigateToPage(context, postAccountId, '1', true, false);
+      final matchedText = inputText.substring(atIndex, endIndex);
+
+      final recognizer = TapGestureRecognizer()
+        ..onTap = () async {
+          final targetText = matchedText.substring(1); // '@'を除いた部分
+          try {
+            final userDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .where('user_id', isEqualTo: targetText)
+                .limit(1)
+                .get();
+
+            if (userDoc.docs.isNotEmpty) {
+              final postAccountId = userDoc.docs.first.id;
+              navigateToPage(context, postAccountId, '1', true, false);
+            } else {
+              showTopSnackBar(context, 'ユーザーが見つかりませんでした',
+                  backgroundColor: Colors.red);
+            }
+          } catch (e) {
+            showTopSnackBar(context, 'エラーが発生しました: $e',
+                backgroundColor: Colors.red);
           }
         };
-        spans.add(TextSpan(
-          text: matchedText,
-          style: TextStyle(
-            fontSize: widget.textSize.toDouble(),
-            color: Colors.blue,
-            fontFamily: 'CustomFont',
-          ),
-          recognizer: recognizer,
-        ));
-      }
 
-      textStart = match.end;
-    }
-
-    if (textStart < inputText.length) {
       spans.add(TextSpan(
-        text: inputText.substring(textStart),
+        text: matchedText,
         style: TextStyle(
-          fontFamily: 'CustomFont',
           fontSize: widget.textSize.toDouble(),
+          color: Colors.blue,
+          fontFamily: 'CustomFont',
         ),
+        recognizer: recognizer,
       ));
+
+      textStart = endIndex;
     }
 
     return spans;

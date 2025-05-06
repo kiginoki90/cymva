@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
-import 'package:cymva/utils/function_utils.dart';
 import 'package:cymva/utils/widget_utils.dart';
 import 'package:cymva/view/start_up/check_email_page.dart';
 import 'package:flutter/services.dart';
@@ -77,14 +76,16 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                     controller: userIdController,
                     decoration: InputDecoration(
                       labelText: 'ユーザーID',
-                      helperText: '2字以上30字未満、設定後変更できません',
+                      helperText: '2字以上30字未満、空白を含めることはできません',
                       helperStyle: TextStyle(fontSize: 12, color: Colors.grey),
                       errorText: userIdErrorMessage,
                     ),
                     maxLength: 30,
                     onChanged: (value) {
                       setState(() {
-                        if (value.length < 2) {
+                        if (value.contains(' ')) {
+                          userIdErrorMessage = 'ユーザーIDに空白を含めることはできません';
+                        } else if (value.length < 2) {
                           userIdErrorMessage = 'ユーザーIDは最低2文字必要です';
                         } else {
                           userIdErrorMessage = null;

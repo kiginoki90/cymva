@@ -5,6 +5,8 @@ import 'package:cymva/view/account/edit_page/options_page/support_page/privacy_p
     as privacy;
 import 'package:cymva/view/account/edit_page/options_page/support_page/contact_us_page.dart'
     as contact;
+import 'package:cymva/view/account/edit_page/options_page/support_page/rules_page.dart'
+    as rules;
 
 class SupportPage extends StatelessWidget {
   @override
@@ -53,6 +55,19 @@ class SupportPage extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => contact.ContactUsPage(),
+                  ),
+                );
+              },
+            ),
+            _buildOptionItem(
+              context,
+              icon: Icons.rule,
+              label: '都市規則',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => rules.RulesPage(),
                   ),
                 );
               },

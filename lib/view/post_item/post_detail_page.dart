@@ -253,13 +253,30 @@ class _PostDetailPageState extends State<PostDetailPage> {
         final postDocRef =
             _firestoreInstance.collection('posts').doc(widget.post.id);
 
+        // 1. すべての読み取り操作を最初に実行
+        final postSnapshot = await transaction.get(postDocRef);
+        final postData = postSnapshot.data() as Map<String, dynamic>;
+
         // サブコレクション内のすべてのドキュメントを削除する関数
-        Future<void> deleteSubcollection(String subcollectionName) async {
+        Future<List<DocumentSnapshot>> fetchSubcollectionDocs(
+            String subcollectionName) async {
           final subcollectionRef = postDocRef.collection(subcollectionName);
           final snapshot = await subcollectionRef.get();
+          return snapshot.docs;
+        }
 
-          for (var doc in snapshot.docs) {
-            transaction.delete(doc.reference); // トランザクション内で削除
+        final favoriteUsersDocs =
+            await fetchSubcollectionDocs('favorite_users');
+        final repostDocs = await fetchSubcollectionDocs('repost');
+        final replyPostDocs = await fetchSubcollectionDocs('reply_post');
+
+        // media_urlがnull以外の場合、画像を削除
+        if (postData['media_url'] != null) {
+          final List<dynamic> mediaUrls = postData['media_url'];
+          for (String mediaUrl in mediaUrls) {
+            final ref = FirebaseStorage.instance.refFromURL(mediaUrl);
+            await ref.delete(); // Firebase Storageの削除
+            deletedMediaUrls.add(mediaUrl); // 削除したURLを記録
           }
         }
 
@@ -282,23 +299,15 @@ class _PostDetailPageState extends State<PostDetailPage> {
           transaction.delete(repostRef);
         }
 
-        // サブコレクションを削除 (サブコレクション名が固定されている場合)
-        await deleteSubcollection('favorite_users');
-        await deleteSubcollection('repost');
-        await deleteSubcollection('reply_post');
-
-        // メインの投稿ドキュメントを取得
-        final postSnapshot = await transaction.get(postDocRef);
-        final postData = postSnapshot.data() as Map<String, dynamic>;
-
-        // media_urlがnull以外の場合、画像を削除
-        if (postData['media_url'] != null) {
-          final List<dynamic> mediaUrls = postData['media_url'];
-          for (String mediaUrl in mediaUrls) {
-            final ref = FirebaseStorage.instance.refFromURL(mediaUrl);
-            await ref.delete(); // Firebase Storageの削除
-            deletedMediaUrls.add(mediaUrl); // 削除したURLを記録
-          }
+        // 2. 書き込み操作を実行
+        for (var doc in favoriteUsersDocs) {
+          transaction.delete(doc.reference);
+        }
+        for (var doc in repostDocs) {
+          transaction.delete(doc.reference);
+        }
+        for (var doc in replyPostDocs) {
+          transaction.delete(doc.reference);
         }
 
         // メインの投稿ドキュメントを削除
@@ -335,6 +344,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
         }
       }
 
+      print('投稿の削除に失敗しました: $e');
       showTopSnackBar(context, '投稿の削除に失敗しました: $e', backgroundColor: Colors.red);
     }
   }

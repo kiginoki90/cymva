@@ -210,92 +210,102 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: pageList.isNotEmpty
-          ? pageList[selectedIndex]
-          : const Center(child: CircularProgressIndicator()),
-      bottomNavigationBar: BottomNavigationBar(
-        items: [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined), label: 'ホーム'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.perm_identity_outlined), label: 'アカウント'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: '検索'),
-          BottomNavigationBarItem(
-            icon: Stack(
-              children: [
-                const Icon(Icons.notifications),
-                if (_hasUnreadNotifications())
-                  Positioned(
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(1),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 12,
-                        minHeight: 12,
-                      ),
-                      child: const Text(
-                        '',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
+    return PopScope<Object?>(
+      canPop: selectedIndex == 0,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (!didPop && selectedIndex != 0) {
+          setState(() {
+            selectedIndex = 0;
+          });
+        }
+      },
+      child: Scaffold(
+        body: pageList.isNotEmpty
+            ? pageList[selectedIndex]
+            : const Center(child: CircularProgressIndicator()),
+        bottomNavigationBar: BottomNavigationBar(
+          items: [
+            BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined), label: 'ホーム'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.perm_identity_outlined), label: 'アカウント'),
+            BottomNavigationBarItem(icon: Icon(Icons.search), label: '検索'),
+            BottomNavigationBarItem(
+              icon: Stack(
+                children: [
+                  const Icon(Icons.notifications),
+                  if (_hasUnreadNotifications())
+                    Positioned(
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(1),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                        textAlign: TextAlign.center,
+                        constraints: const BoxConstraints(
+                          minWidth: 12,
+                          minHeight: 12,
+                        ),
+                        child: const Text(
+                          '',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
+              label: 'メッセージ',
             ),
-            label: 'メッセージ',
-          ),
-          if (showChatIcon)
-            BottomNavigationBarItem(
-                icon: Icon(Icons.chat_bubble_outline), label: '投稿'),
-        ],
-        currentIndex: selectedIndex,
-        selectedItemColor: Colors.blue, // 選択されたアイテムの色
-        unselectedItemColor: Colors.grey, // 選択されていないアイテムの色
-        onTap: (index) async {
-          if (index == 1) {
-            // 非同期処理でアカウントIDを取得
-            String? myUserId = await storage.read(key: 'account_id') ??
-                FirebaseAuth.instance.currentUser?.uid;
+            if (showChatIcon)
+              BottomNavigationBarItem(
+                  icon: Icon(Icons.chat_bubble_outline), label: '投稿'),
+          ],
+          currentIndex: selectedIndex,
+          selectedItemColor: Colors.blue, // 選択されたアイテムの色
+          unselectedItemColor: Colors.grey, // 選択されていないアイテムの色
+          onTap: (index) async {
+            if (index == 1) {
+              // 非同期処理でアカウントIDを取得
+              String? myUserId = await storage.read(key: 'account_id') ??
+                  FirebaseAuth.instance.currentUser?.uid;
 
-            if (myUserId != null) {
-              // navigateToPageを置き換え処理に変更
-              Navigator.pushReplacement(
-                context,
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) =>
-                      NavigationBarPage(
-                    userId: myUserId,
-                    showChatIcon: true,
-                    firstIndex: 1,
-                    withDelay: true,
+              if (myUserId != null) {
+                // navigateToPageを置き換え処理に変更
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) =>
+                        NavigationBarPage(
+                      userId: myUserId,
+                      showChatIcon: true,
+                      firstIndex: 1,
+                      withDelay: true,
+                    ),
+                    transitionsBuilder:
+                        (context, animation, secondaryAnimation, child) {
+                      // アニメーションを無効化
+                      return child;
+                    },
                   ),
-                  transitionsBuilder:
-                      (context, animation, secondaryAnimation, child) {
-                    // アニメーションを無効化
-                    return child;
-                  },
-                ),
-              );
+                );
+              } else {
+                // 必要に応じてエラーメッセージを表示
+                print('アカウントIDが取得できませんでした');
+              }
             } else {
-              // 必要に応じてエラーメッセージを表示
-              print('アカウントIDが取得できませんでした');
+              setState(() {
+                selectedIndex = index;
+              });
+              // 通知をロード
+              _loadNotifications();
             }
-          } else {
-            setState(() {
-              selectedIndex = index;
-            });
-            // 通知をロード
-            _loadNotifications();
-          }
-        },
+          },
+        ),
       ),
     );
   }

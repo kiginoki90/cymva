@@ -194,6 +194,7 @@ class _ReplyPageState extends State<ReplyPage> {
         'postID': widget.post.id,
         'isRead': false,
         'count': 1,
+        'bold': true,
       };
       await userMessageRef.add(messageData);
     }

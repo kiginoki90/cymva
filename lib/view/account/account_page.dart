@@ -205,42 +205,52 @@ class _AccountPageState extends State<AccountPage> {
 
                 // 通常の表示
                 return Scaffold(
-                  body: SafeArea(
-                    child: Column(
-                      children: [
-                        AccountHeader(
-                          postUserId: widget.postUserId,
-                          pageController: _pageController,
-                          value: 1,
-                        ),
-                        if (isPosting)
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            color: Colors.yellow[100],
-                            child: const Text(
-                              '処理中...お待ちください。',
-                              style: TextStyle(fontSize: 16),
+                  body: Dismissible(
+                    key: const Key('SafeAreaWrapper'),
+                    direction: account != null && account!.id == myAccount.id
+                        ? DismissDirection.none // 自分のアカウントの場合はスワイプ無効
+                        : DismissDirection.startToEnd, // 他のアカウントの場合は左スワイプで戻る
+                    onDismissed: (direction) {
+                      Navigator.of(context).pop(); // 前のページに戻る
+                    },
+                    child: SafeArea(
+                      child: Column(
+                        children: [
+                          AccountHeader(
+                            postUserId: widget.postUserId,
+                            pageController: _pageController,
+                            value: 1,
+                          ),
+                          if (isPosting)
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              color: Colors.yellow[100],
+                              child: const Text(
+                                '処理中...お待ちください。',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          Expanded(
+                            child: PageView(
+                              controller: _pageController,
+                              children: [
+                                PostList(
+                                  postAccount: account!,
+                                  myAccount: myAccount,
+                                  withDelay: widget.withDelay,
+                                ),
+                                ImagePostList(myAccount: account!),
+                                FavoriteList(
+                                    myAccount: account!, userId: userId),
+                                GroupPostsPage(
+                                  postAccount: account!,
+                                  userId: userId,
+                                ),
+                              ],
                             ),
                           ),
-                        Expanded(
-                          child: PageView(
-                            controller: _pageController,
-                            children: [
-                              PostList(
-                                postAccount: account!,
-                                myAccount: myAccount,
-                                withDelay: widget.withDelay,
-                              ),
-                              ImagePostList(myAccount: account!),
-                              FavoriteList(myAccount: account!, userId: userId),
-                              GroupPostsPage(
-                                  // postAccount: postAccount!,
-                                  postAccount: account!,
-                                  userId: userId),
-                            ],
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   // bottomNavigationBar: NavigationBarPage(selectedIndex: 1),

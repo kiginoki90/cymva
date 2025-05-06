@@ -135,6 +135,36 @@ class _PostItemWidgetState extends State<PostItemWidget> {
     }
   }
 
+  Future<String?> _fetchReplyUserId(String replyPostId) async {
+    try {
+      // Firestoreから返信先の投稿データを取得
+      final replyPostDoc = await FirebaseFirestore.instance
+          .collection('posts')
+          .doc(replyPostId)
+          .get();
+
+      if (replyPostDoc.exists) {
+        // 返信先の投稿データからpostAccountIdを取得
+        final postAccountId = replyPostDoc.data()?['post_account_id'];
+
+        if (postAccountId != null) {
+          // Firestoreからユーザーのuser_idを取得
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(postAccountId)
+              .get();
+
+          if (userDoc.exists) {
+            return userDoc.data()?['user_id'];
+          }
+        }
+      }
+    } catch (e) {
+      print('返信先のuser_id取得中にエラーが発生しました: $e');
+    }
+    return null; // エラーやデータが存在しない場合はnullを返す
+  }
+
   String _formatDate(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
@@ -379,6 +409,37 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                 ),
                               ],
                             ),
+                            if (widget.post.reply != null)
+                              FutureBuilder<String?>(
+                                future: _fetchReplyUserId(widget.post.reply!),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Text(
+                                      '返信先を取得中...',
+                                      style: TextStyle(color: Colors.grey),
+                                    );
+                                  } else if (snapshot.hasError) {
+                                    return const Text(
+                                      '返信先の取得に失敗しました',
+                                      style: TextStyle(color: Colors.red),
+                                    );
+                                  } else if (snapshot.hasData &&
+                                      snapshot.data != null) {
+                                    return LinkText(
+                                      text: '返信先: @${snapshot.data}',
+                                      userId: widget.userId,
+                                      textSize: 14,
+                                      color: Colors.grey,
+                                    );
+                                  } else {
+                                    return const Text(
+                                      '返信先が見つかりませんでした',
+                                      style: TextStyle(color: Colors.grey),
+                                    );
+                                  }
+                                },
+                              ),
                             const SizedBox(height: 5),
                             Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,

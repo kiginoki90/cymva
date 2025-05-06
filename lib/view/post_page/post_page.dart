@@ -176,7 +176,20 @@ class _PostPageState extends State<PostPage> {
   @override
   void dispose() {
     _videoController?.dispose();
+    contentController.dispose(); // テキストフィールドのコントローラーを破棄
     super.dispose();
+  }
+
+  void _resetFields() {
+    setState(() {
+      contentController.clear(); // テキストフィールドをクリア
+      images.clear(); // 画像リストをクリア
+      _mediaFile = null; // 動画ファイルをクリア
+      _videoController?.dispose(); // 動画コントローラーを破棄
+      _videoController = null;
+      isVideo = false; // 動画フラグをリセット
+      selectedCategory = null; // カテゴリーをリセット
+    });
   }
 
   // キーボードを閉じるメソッド
@@ -650,6 +663,9 @@ class _PostPageState extends State<PostPage> {
 
                                       showTopSnackBar(context, '投稿が完了しました',
                                           backgroundColor: Colors.green);
+
+                                      // フィールドをリセット
+                                      _resetFields();
                                     } else {
                                       showTopSnackBar(context, '投稿に失敗しました',
                                           backgroundColor: Colors.red);

@@ -174,6 +174,12 @@ class _AddAccountPageState extends State<AddAccountPage> {
     if (nameController.text.isNotEmpty &&
         userIdController.text.isNotEmpty &&
         selfIntroductionController.text.isNotEmpty) {
+      if (userIdController.text.contains(' ')) {
+        setState(() {
+          errorMessage = 'ユーザーIDに空白を含めることはできません';
+        });
+        return;
+      }
       bool isUnique = await isUserIdUnique(userIdController.text);
       if (userIdController.text.length < 2) {
         setState(() {

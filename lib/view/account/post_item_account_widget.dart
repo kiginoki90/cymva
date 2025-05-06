@@ -106,6 +106,36 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
     }
   }
 
+  Future<String?> _fetchReplyUserId(String replyPostId) async {
+    try {
+      // Firestoreから返信先の投稿データを取得
+      final replyPostDoc = await FirebaseFirestore.instance
+          .collection('posts')
+          .doc(replyPostId)
+          .get();
+
+      if (replyPostDoc.exists) {
+        // 返信先の投稿データからpostAccountIdを取得
+        final postAccountId = replyPostDoc.data()?['post_account_id'];
+
+        if (postAccountId != null) {
+          // Firestoreからユーザーのuser_idを取得
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(postAccountId)
+              .get();
+
+          if (userDoc.exists) {
+            return userDoc.data()?['user_id'];
+          }
+        }
+      }
+    } catch (e) {
+      print('返信先のuser_id取得中にエラーが発生しました: $e');
+    }
+    return null; // エラーやデータが存在しない場合はnullを返す
+  }
+
   Future<void> _checkAdminLevel() async {
     try {
       final userDoc = await FirebaseFirestore.instance
@@ -255,10 +285,16 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Row(
                                   children: [
+                                    if (widget.post.clip)
+                                      Icon(
+                                        Icons.push_pin,
+                                        size: 16, // アイコンのサイズ
+                                        color: Colors.grey, // アイコンの色
+                                      ),
                                     if (widget.post.category != null &&
                                         widget.post.category!.isNotEmpty)
                                       Padding(
@@ -284,24 +320,61 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                                           ),
                                         ),
                                       ),
-                                    SizedBox(width: 10),
-                                    Text(_formatDate(
-                                        widget.post.createdTime!.toDate())),
+                                    if (widget.post.reply != null)
+                                      FutureBuilder<String?>(
+                                        future: _fetchReplyUserId(
+                                            widget.post.reply!),
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState ==
+                                              ConnectionState.waiting) {
+                                            return const Padding(
+                                              padding: EdgeInsets.only(left: 3),
+                                              child: Text(
+                                                '返信先を取得中...',
+                                                style: TextStyle(
+                                                    color: Colors.grey),
+                                              ),
+                                            );
+                                          } else if (snapshot.hasError) {
+                                            return const Padding(
+                                              padding: EdgeInsets.only(left: 3),
+                                              child: Text(
+                                                '返信先の取得に失敗しました',
+                                                style: TextStyle(
+                                                    color: Colors.red),
+                                              ),
+                                            );
+                                          } else if (snapshot.hasData &&
+                                              snapshot.data != null) {
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                  left: 3),
+                                              child: LinkText(
+                                                text: '返信先: @${snapshot.data}',
+                                                userId: widget.userId,
+                                                textSize: 14,
+                                                color: Colors.grey,
+                                              ),
+                                            );
+                                          } else {
+                                            return const Padding(
+                                              padding: EdgeInsets.only(left: 3),
+                                              child: Text(
+                                                '返信先が見つかりませんでした',
+                                                style: TextStyle(
+                                                    color: Colors.grey),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                      ),
                                   ],
                                 ),
+                                Text(_formatDate(
+                                    widget.post.createdTime!.toDate())),
                               ],
                             ),
-                            if (widget.post.clip)
-                              Column(
-                                children: [
-                                  Icon(
-                                    Icons.push_pin,
-                                    size: 16, // アイコンのサイズ
-                                    color: Colors.grey, // アイコンの色
-                                  ),
-                                ],
-                              ),
-                            const SizedBox(height: 5),
+                            const SizedBox(height: 10),
                             Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [

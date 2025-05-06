@@ -82,6 +82,7 @@ class FollowService {
               'message_type': 3,
               'request_user': userId,
               'timestamp': Timestamp.now(),
+              'bold': true,
             });
           }
         }
@@ -130,6 +131,7 @@ class FollowService {
           'request_user': myAccount.id,
           'request_userId': myAccount.userId,
           'isRead': false,
+          'bold': true,
         });
       }
     } catch (e) {
@@ -155,6 +157,7 @@ class FollowService {
         'request_user': postUserId,
         'request_userId': requestUserId,
         'isRead': false,
+        'bold': true,
       });
     } catch (e) {
       print('メッセージの送信に失敗しました: $e');

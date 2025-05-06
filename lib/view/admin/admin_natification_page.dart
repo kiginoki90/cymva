@@ -43,6 +43,7 @@ class _AdminNotificationPageState extends State<AdminNotificationPage> {
           'timestamp': timestamp,
           'title': title,
           'content': content,
+          'bold': true,
         });
       }
 
