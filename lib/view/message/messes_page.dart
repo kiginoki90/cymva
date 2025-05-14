@@ -861,6 +861,162 @@ class _MessesPageState extends State<MessesPage> {
                       ),
                     ),
                   ),
+                if (notification['message_type'] == 7)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
+                    child: GestureDetector(
+                      onTap: () async {
+                        _navigateToPostDetailPage(notification['postID']);
+
+                        // Firestoreでboldをfalseに更新
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(widget.userId)
+                            .collection('message')
+                            .doc(notification['id'])
+                            .update({'bold': false});
+
+                        // ローカルの通知リストを更新
+                        setState(() {
+                          notification['bold'] = false;
+                        });
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  notification['count'] == 1
+                                      ? '投稿が引用されています'
+                                      : '投稿に${notification['count']}件の引用がされています',
+                                  style: TextStyle(
+                                    fontWeight: isBold
+                                        ? FontWeight.bold
+                                        : FontWeight.normal, // 太文字を適用
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          FutureBuilder<DocumentSnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection('posts')
+                                .doc(notification['postID'])
+                                .get(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return SizedBox.shrink(); // ローディング中は何も表示しない
+                              }
+                              if (snapshot.hasError || !snapshot.hasData) {
+                                return SizedBox
+                                    .shrink(); // エラーまたはデータなしの場合も何も表示しない
+                              }
+
+                              final postContent =
+                                  snapshot.data?.get('content') as String?;
+                              if (postContent == null || postContent.isEmpty) {
+                                return SizedBox.shrink(); // contentが空の場合も表示しない
+                              }
+
+                              return Text(
+                                postContent.length > 50
+                                    ? '${postContent.substring(0, 50)}...' // 最大30文字まで表示
+                                    : postContent,
+                                style: TextStyle(
+                                  color: Colors.grey, // グレーの文字色
+                                  fontSize: 12, // 小さい文字サイズ
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (notification['message_type'] == 8)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
+                    child: GestureDetector(
+                      onTap: () async {
+                        _navigateToPostDetailPage(notification['postID']);
+
+                        // Firestoreでboldをfalseに更新
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(widget.userId)
+                            .collection('message')
+                            .doc(notification['id'])
+                            .update({'bold': false});
+
+                        // ローカルの通知リストを更新
+                        setState(() {
+                          notification['bold'] = false;
+                        });
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  notification['count'] == 1
+                                      ? '投稿にスターが送られました'
+                                      : '投稿に${notification['count']}件のスターが送られています',
+                                  style: TextStyle(
+                                    fontWeight: isBold
+                                        ? FontWeight.bold
+                                        : FontWeight.normal, // 太文字を適用
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          FutureBuilder<DocumentSnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection('posts')
+                                .doc(notification['postID'])
+                                .get(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return SizedBox.shrink(); // ローディング中は何も表示しない
+                              }
+                              if (snapshot.hasError || !snapshot.hasData) {
+                                return SizedBox
+                                    .shrink(); // エラーまたはデータなしの場合も何も表示しない
+                              }
+
+                              final postContent =
+                                  snapshot.data?.get('content') as String?;
+                              if (postContent == null || postContent.isEmpty) {
+                                return SizedBox.shrink(); // contentが空の場合も表示しない
+                              }
+
+                              return Text(
+                                postContent.length > 50
+                                    ? '${postContent.substring(0, 50)}...' // 最大50文字まで表示
+                                    : postContent,
+                                style: TextStyle(
+                                  color: Colors.grey, // グレーの文字色
+                                  fontSize: 12, // 小さい文字サイズ
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 Divider(
                   color: Colors.grey,
                   thickness: 0.5,

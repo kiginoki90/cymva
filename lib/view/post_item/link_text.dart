@@ -8,14 +8,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LinkText extends StatefulWidget {
   final String text;
-  final String userId;
   final int textSize;
   final bool tapable;
   final Color? color;
 
   const LinkText({
     required this.text,
-    required this.userId,
     required this.textSize,
     this.tapable = false,
     this.color,

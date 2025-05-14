@@ -710,7 +710,6 @@ class _AccountTopPageState extends State<AccountTopPage> {
         text: postAccount!.selfIntroduction.isNotEmpty
             ? postAccount!.selfIntroduction
             : '',
-        userId: followService.userId!,
         textSize: 13,
         tapable: true,
       ),

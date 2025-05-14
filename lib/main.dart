@@ -8,8 +8,16 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io' show Platform;
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'maintenance_page.dart';
 import 'view/start_up/login_page.dart';
+import 'package:flutter/services.dart';
+
+// バックグラウンドで通知を受信した際のハンドラー
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  print('バックグラウンドで通知を受信: ${message.messageId}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +37,9 @@ void main() async {
     return; // アプリを起動しない
   }
 
+  // バックグラウンドメッセージハンドラーを設定
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
   // MobileAdsの初期化を非同期で実行
   MobileAds.instance.initialize();
 
@@ -37,7 +48,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  static const String currentVersion = '1.2.4'; // 現在のバージョンを直接記述
+  static const String currentVersion = '1.2.5'; // 現在のバージョンを直接記述
 
   @override
   Widget build(BuildContext context) {
@@ -207,5 +218,51 @@ class _InitialScreenState extends State<InitialScreen> {
         }
       },
     );
+  }
+}
+
+class NotificationService {
+  late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
+
+  NotificationService() {
+    flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
+    flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      RemoteNotification? notification = message.notification;
+      AndroidNotification? android = message.notification?.android;
+
+      if (notification != null && android != null) {
+        flutterLocalNotificationsPlugin.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'default_channel_id',
+              'Default Channel',
+              importance: Importance.high,
+              priority: Priority.high,
+            ),
+          ),
+        );
+      }
+    });
+  }
+}
+
+Future<int> _getVideoRotation(String videoUrl) async {
+  const MethodChannel channel = MethodChannel('video_rotation'); // ネイティブコードと一致
+  try {
+    final int rotation =
+        await channel.invokeMethod('getVideoRotation', videoUrl);
+    return rotation;
+  } catch (e) {
+    print('Error retrieving video rotation: $e');
+    return 0; // デフォルトで回転なし
   }
 }

@@ -34,11 +34,14 @@ class _PostPageState extends State<PostPage> {
 
   String? selectedCategory;
   final List<String> categories = [
+    '',
     '動物',
     'AI',
     '漫画',
     'イラスト',
+    '音楽',
     '写真',
+    '動画',
     'グルメ',
     '俳句・短歌',
     '憲章宣誓',
@@ -282,29 +285,29 @@ class _PostPageState extends State<PostPage> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  selectedCategory = null;
-                                });
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blueAccent,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8.0),
-                                ),
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                              ),
-                              child: Text(
-                                'クリア',
-                                style: TextStyle(
-                                    fontSize: 12, color: Colors.white),
-                              ),
-                            ),
+                            // ElevatedButton(
+                            //   onPressed: () {
+                            //     setState(() {
+                            //       selectedCategory = null;
+                            //     });
+                            //   },
+                            //   style: ElevatedButton.styleFrom(
+                            //     backgroundColor: Colors.blueAccent,
+                            //     shape: RoundedRectangleBorder(
+                            //       borderRadius: BorderRadius.circular(8.0),
+                            //     ),
+                            //     padding: EdgeInsets.symmetric(
+                            //         horizontal: 8, vertical: 4),
+                            //   ),
+                            //   child: Text(
+                            //     'クリア',
+                            //     style: TextStyle(
+                            //         fontSize: 12, color: Colors.white),
+                            //   ),
+                            // ),
                             SizedBox(width: 8),
                             SizedBox(
-                              width: 120,
+                              width: 135,
                               child: DropdownButtonFormField<String>(
                                 value: selectedCategory,
                                 decoration: InputDecoration(
@@ -324,22 +327,51 @@ class _PostPageState extends State<PostPage> {
                                     ? categories.map((category) {
                                         return DropdownMenuItem(
                                           value: category,
-                                          child: Padding(
+                                          child: Container(
+                                            constraints: BoxConstraints(
+                                              minWidth: 90, // 最小幅を指定
+                                              minHeight: 37, // 最小高さを指定
+                                            ),
                                             padding: const EdgeInsets.symmetric(
-                                                vertical: 0),
-                                            child: Text(category,
-                                                style: TextStyle(fontSize: 12)),
+                                                vertical: 4, horizontal: 8),
+                                            decoration: BoxDecoration(
+                                              color: const Color.fromARGB(
+                                                  255, 250, 253, 255), // 背景色
+                                              border: Border.all(
+                                                color: Colors.blueAccent,
+                                                width: 1.0, // 枠線の太さ
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      8.0), // 角丸
+                                            ),
+                                            child: Text(
+                                              category,
+                                              style: TextStyle(fontSize: 12),
+                                            ),
                                           ),
                                         );
                                       }).toList()
                                     : adminCategories.map((category) {
                                         return DropdownMenuItem(
                                           value: category,
-                                          child: Padding(
+                                          child: Container(
                                             padding: const EdgeInsets.symmetric(
-                                                vertical: 0),
-                                            child: Text(category,
-                                                style: TextStyle(fontSize: 12)),
+                                                vertical: 4, horizontal: 8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue[50], // 背景色
+                                              border: Border.all(
+                                                color: Colors.blueAccent,
+                                                width: 1.0, // 枠線の太さ
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      8.0), // 角丸
+                                            ),
+                                            child: Text(
+                                              category,
+                                              style: TextStyle(fontSize: 12),
+                                            ),
                                           ),
                                         );
                                       }).toList(),

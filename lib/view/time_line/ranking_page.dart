@@ -171,7 +171,7 @@ class _RankingPageState extends ConsumerState<RankingPage> {
               builder: (context, value, child) {
                 return value
                     ? GestureDetector(
-                        onDoubleTap: () {
+                        onTap: () {
                           _scrollController.animateTo(
                             0,
                             duration: Duration(milliseconds: 500),

@@ -988,7 +988,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
               else
                 LinkText(
                   text: widget.post.content,
-                  userId: widget.userId,
                   textSize: 18,
                   tapable: true,
                 ),

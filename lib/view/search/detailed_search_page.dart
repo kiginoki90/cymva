@@ -26,15 +26,18 @@ class _DetailedSearchPageState extends State<DetailedSearchPage> {
   String? _imageUrl;
 
   final List<String> categories = [
+    '',
     '動物',
     'AI',
     '漫画',
     'イラスト',
+    '音楽',
     '写真',
+    '動画',
     'グルメ',
     '俳句・短歌',
-    '改修要望/バグ',
     '憲章宣誓',
+    '改修要望/バグ'
   ];
 
   final storage = FlutterSecureStorage();

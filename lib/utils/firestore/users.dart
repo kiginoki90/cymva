@@ -53,6 +53,8 @@ class UserFirestore {
         'follow_message': true,
         'first_login': true,
         'replyMessage': true,
+        'quoteMessage': true,
+        'starMessage': true,
       });
 
       print('ユーザー作成が完了しました');
@@ -83,6 +85,8 @@ class UserFirestore {
           lockAccount: data['lock_account'] ?? '',
           followMessage: data['follow_message'] ?? true,
           replyMessage: data['replyMessage'] ?? true,
+          quoteMessage: data['quoteMessage'] ?? true,
+          starMessage: data['starMessage'] ?? true,
         );
         // 作成したオブジェクトをmyAccountに保存
         Authentication.myAccount = myAccount;
@@ -136,6 +140,8 @@ class UserFirestore {
             parents_id: dataMap['parents_id'],
             followMessage: data['follow_message'] ?? true,
             replyMessage: data['replyMessage'] ?? true,
+            quoteMessage: data['quoteMessage'] ?? true,
+            starMessage: data['starMessage'] ?? true,
           );
           map[accountId] = postAccount;
         }
@@ -212,6 +218,8 @@ class UserFirestore {
             lockAccount: data['lock_account'] ?? '',
             followMessage: data['follow_message'] ?? '',
             replyMessage: data['replyMessage'] ?? true,
+            quoteMessage: data['quoteMessage'] ?? true,
+            starMessage: data['starMessage'] ?? true,
           );
           accounts[id] = account; // IDをキーとしてマップに追加
         }
@@ -254,6 +262,29 @@ class UserFirestore {
       print('lock_account updated successfully');
     } catch (e) {
       print('Error updating lock_account: $e');
+    }
+  }
+
+  static Future<void> updateQuoteMessage(
+      String userId, bool quoteMessage) async {
+    try {
+      await _users.doc(userId).update({
+        'quoteMessage': quoteMessage, // Firestore の quoteMessage フィールドを更新
+      });
+      print('quoteMessage updated successfully');
+    } catch (e) {
+      print('Error updating quoteMessage: $e');
+    }
+  }
+
+  static Future<void> updateStarMessage(String userId, bool starMessage) async {
+    try {
+      await _users.doc(userId).update({
+        'starMessage': starMessage, // Firestore の starMessage フィールドを更新
+      });
+      print('starMessage updated successfully');
+    } catch (e) {
+      print('Error updating starMessage: $e');
     }
   }
 }

@@ -20,6 +20,8 @@ class _EditAccountPageState extends State<EditAccountPage> {
   bool isPrivate = false;
   bool followPrivate = true;
   bool replyMessage = true;
+  bool quoteMessage = true; // 引用メッセージの初期値
+  bool starMessage = true; // スターメッセージの初期値
   int _nameCharCount = 0;
   int _introCharCount = 0;
 
@@ -48,6 +50,8 @@ class _EditAccountPageState extends State<EditAccountPage> {
         isPrivate = myAccount!.lockAccount;
         followPrivate = myAccount!.followMessage;
         replyMessage = myAccount!.replyMessage;
+        quoteMessage = myAccount!.quoteMessage;
+        starMessage = myAccount!.starMessage;
         _nameCharCount = nameController.text.length;
         _introCharCount = selfIntroductionController.text.length;
       });
@@ -312,6 +316,46 @@ class _EditAccountPageState extends State<EditAccountPage> {
                     });
                     await UserFirestore.replyMessage(
                         myAccount!.id, replyMessage);
+                  },
+                  activeColor: Colors.blue,
+                ),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '引用メッセージON/OFF',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                Switch(
+                  value: quoteMessage,
+                  onChanged: (bool value) async {
+                    setState(() {
+                      quoteMessage = value;
+                    });
+                    await UserFirestore.updateQuoteMessage(
+                        myAccount!.id, quoteMessage);
+                  },
+                  activeColor: Colors.blue,
+                ),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'スターメッセージON/OFF',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                Switch(
+                  value: starMessage,
+                  onChanged: (bool value) async {
+                    setState(() {
+                      starMessage = value;
+                    });
+                    await UserFirestore.updateStarMessage(
+                        myAccount!.id, starMessage);
                   },
                   activeColor: Colors.blue,
                 ),

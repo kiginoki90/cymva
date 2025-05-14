@@ -351,7 +351,6 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                                                   left: 3),
                                               child: LinkText(
                                                 text: '返信先: @${snapshot.data}',
-                                                userId: widget.userId,
                                                 textSize: 14,
                                                 color: Colors.grey,
                                               ),
@@ -383,7 +382,6 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                                   else
                                     LinkText(
                                       text: widget.post.content,
-                                      userId: widget.userId,
                                       textSize: 15,
                                     ),
                                 ]),
@@ -452,6 +450,7 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                                   ],
                                 ),
                               ),
+                            const SizedBox(height: 10),
                             if (isHidden == false)
                               IconsActionsWidget(
                                 post: widget.post,

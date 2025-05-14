@@ -46,15 +46,38 @@ class FavoritePost {
     final timestamp = Timestamp.now(); // 現在の時間を取得
 
     try {
+      // `post_account_id` を取得
+      final postSnapshot = await FirebaseFirestore.instance
+          .collection('posts')
+          .doc(postId)
+          .get();
+
+      if (!postSnapshot.exists) {
+        print('Error: Post not found');
+        return;
+      }
+
+      final postAccountId = postSnapshot.data()?['post_account_id'];
+      if (postAccountId == null) {
+        print('Error: post_account_id is null');
+        return;
+      }
+
       if (isFavorite) {
         // お気に入りから削除
         await favoriteUsersCollection.doc(userId).delete();
+
+        // メッセージのカウントを減らす
+        await _updateMessageCount(postId, postAccountId, decrement: true);
       } else {
         // お気に入りに追加
         await favoriteUsersCollection.doc(userId).set({
           'added_at': timestamp, // ユーザーが投稿をお気に入りにした時間を記録
           'user_id': userId,
         });
+
+        // メッセージを追加または更新
+        await _addOrUpdateMessage(postId, postAccountId);
       }
 
       // お気に入りの状態を更新
@@ -70,6 +93,69 @@ class FavoritePost {
       await updateFavoriteUsersCount(postId);
     } catch (e) {
       print('Error toggling favorite: $e'); // エラーログを表示
+    }
+  }
+
+  Future<void> _addOrUpdateMessage(String postId, String postAccountId) async {
+    final userMessageRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(postAccountId) // `post_account_id` を使用
+        .collection('message');
+
+    final querySnapshot = await userMessageRef
+        .where('message_type', isEqualTo: 8)
+        .where('postID', isEqualTo: postId)
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      // 既存のメッセージがある場合、そのcountを1増やす
+      final docRef = querySnapshot.docs.first.reference;
+      await docRef.update({'count': FieldValue.increment(1)});
+    } else {
+      // 新しいメッセージを追加
+      final messageData = {
+        'message_type': 8,
+        'timestamp': FieldValue.serverTimestamp(),
+        'postID': postId,
+        'isRead': false,
+        'count': 1,
+        'bold': true,
+      };
+      await userMessageRef.add(messageData);
+    }
+  }
+
+  Future<void> _updateMessageCount(String postId, String postAccountId,
+      {bool decrement = false}) async {
+    final userMessageRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(postAccountId) // `post_account_id` を使用
+        .collection('message');
+
+    final querySnapshot = await userMessageRef
+        .where('message_type', isEqualTo: 8)
+        .where('postID', isEqualTo: postId)
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      final docRef = querySnapshot.docs.first.reference;
+
+      if (decrement) {
+        // count を減らす
+        await docRef.update({'count': FieldValue.increment(-1)});
+
+        // count が 0 以下になった場合、メッセージを削除
+        final updatedDoc = await docRef.get();
+        final updatedCount = updatedDoc.data()?['count'] ?? 0;
+        if (updatedCount <= 0) {
+          await docRef.delete();
+        }
+      } else {
+        // count を増やす
+        await docRef.update({'count': FieldValue.increment(1)});
+      }
     }
   }
 

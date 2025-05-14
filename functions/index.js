@@ -2,15 +2,18 @@ const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {setGlobalOptions} = require("firebase-functions/v2");
 const {defineSecret} = require("firebase-functions/params");
 const axios = require("axios");
-const {initializeApp} = require("firebase-admin/app");
-const {getFirestore} = require("firebase-admin/firestore");
+const admin = require("firebase-admin");
 
 const openAiApiKey = defineSecret("OPENAI_API_KEY");
 
 setGlobalOptions({region: "us-central1"});
 
-initializeApp();
-const db = getFirestore();
+// 初期化がまだ行われていない場合のみ initializeApp を呼び出す
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+const db = admin.firestore();
 
 exports.generateAndAddPost = onSchedule(
     {
@@ -78,7 +81,7 @@ exports.generateAndAddPost = onSchedule(
     },
 );
 
-exports.updateRanking = onSchedule("0 0,12 * * *", async (event) => {
+exports.updateRanking = onSchedule("0 0,6,12,18 * * *", async (event) => {
   try {
     // 今日を起点に2週間前の日時を計算
     const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
@@ -175,3 +178,42 @@ exports.updateRanking = onSchedule("0 0,12 * * *", async (event) => {
     console.error("Error updating ranking:", error);
   }
 });
+
+// exports.sendFollowNotification = functions.firestore
+//   .document("users/{userId}/followers/{followerId}")
+//   .onCreate(async (snapshot, context) => {
+//     const userId = context.params.userId;
+//     const followerId = context.params.followerId;
+
+//     // フォロワーの情報を取得
+//     const followerDoc = await admin.firestore().collection("users").doc(followerId).get();
+//     const followerName = followerDoc.data().user_id || "誰か";
+
+//     // 通知を送信するユーザーのデバイストークンを取得
+//     const userDoc = await admin.firestore().collection("users").doc(userId).get();
+//     const fcmToken = userDoc.data().fcmToken;
+
+//     if (!fcmToken) {
+//       console.log("デバイストークンがありません");
+//       return null;
+//     }
+
+//     // 通知メッセージを作成
+//     const message = {
+//       notification: {
+//         title: "新しいフォロワーがいます",
+//         body: `@${followerName} さんがあなたをフォローしました。`,
+//       },
+//       token: fcmToken,
+//     };
+
+//     // 通知を送信
+//     try {
+//       await admin.messaging().send(message);
+//       console.log("通知を送信しました:", message);
+//     } catch (error) {
+//       console.error("通知の送信に失敗しました:", error);
+//     }
+
+//     return null;
+//   });

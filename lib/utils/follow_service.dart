@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/firestore/users.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class FollowService {
   final FirebaseFirestore firestore;
@@ -161,6 +162,21 @@ class FollowService {
       });
     } catch (e) {
       print('メッセージの送信に失敗しました: $e');
+    }
+  }
+
+  Future<void> saveDeviceToken() async {
+    if (userId == null) return;
+
+    try {
+      // デバイストークンを取得
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null) {
+        // Firestoreにトークンを保存
+        await UserFirestore.users.doc(userId).update({'fcmToken': fcmToken});
+      }
+    } catch (e) {
+      print('デバイストークンの保存に失敗しました: $e');
     }
   }
 }

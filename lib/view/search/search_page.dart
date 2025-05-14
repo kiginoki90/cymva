@@ -45,11 +45,13 @@ class _SearchPageState extends State<SearchPage> {
     'AI',
     '漫画',
     'イラスト',
+    '音楽',
     '写真',
+    '動画',
     'グルメ',
     '俳句・短歌',
-    '改修要望/バグ',
     '憲章宣誓',
+    '改修要望/バグ'
   ];
   final Map<String, int> _postFavoriteCounts = {};
   final storage = FlutterSecureStorage();
@@ -974,49 +976,52 @@ class _SearchPageState extends State<SearchPage> {
               )
             ],
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              children: categories.map((category) {
-                return ListTile(
-                  title: Text(category),
-                  onTap: () async {
-                    await storage.write(
-                        key: 'selectedCategory', value: category);
-                    await storage.delete(key: 'searchUserId');
-                    await storage.delete(key: 'isExactMatch');
-                    await storage.delete(key: 'isFollowing');
-                    await storage.delete(key: 'star');
-                    await storage.delete(key: 'startDate');
-                    await storage.delete(key: 'endDate');
+          content: Scrollbar(
+            thumbVisibility: true, // スクロールバーを常に表示
+            child: SingleChildScrollView(
+              child: Column(
+                children: categories.map((category) {
+                  return ListTile(
+                    title: Text(category),
+                    onTap: () async {
+                      await storage.write(
+                          key: 'selectedCategory', value: category);
+                      await storage.delete(key: 'searchUserId');
+                      await storage.delete(key: 'isExactMatch');
+                      await storage.delete(key: 'isFollowing');
+                      await storage.delete(key: 'star');
+                      await storage.delete(key: 'startDate');
+                      await storage.delete(key: 'endDate');
 
-                    setState(() {
-                      _selectedCategory = category;
-                      _searchItem.searchPosts(_searchController.text,
-                          widget.userId, _selectedCategory, null, (results) {
-                        setState(() {
-                          _postSearchResults = results;
+                      setState(() {
+                        _selectedCategory = category;
+                        _searchItem.searchPosts(_searchController.text,
+                            widget.userId, _selectedCategory, null, (results) {
+                          setState(() {
+                            _postSearchResults = results;
+                          });
                         });
-                      });
-                      _searchItem.fetchRecentFavorites(
-                          _lastQuery,
-                          widget.userId,
-                          _selectedCategory,
-                          _postFavoriteCounts, (results) {
-                        setState(() {
-                          _recentFavoritesResults = results;
+                        _searchItem.fetchRecentFavorites(
+                            _lastQuery,
+                            widget.userId,
+                            _selectedCategory,
+                            _postFavoriteCounts, (results) {
+                          setState(() {
+                            _recentFavoritesResults = results;
+                          });
                         });
-                      });
-                      _searchItem.searchImagePosts(_searchController.text,
-                          widget.userId, _selectedCategory, (results) {
-                        setState(() {
-                          _recentImageResults = results;
+                        _searchItem.searchImagePosts(_searchController.text,
+                            widget.userId, _selectedCategory, (results) {
+                          setState(() {
+                            _recentImageResults = results;
+                          });
                         });
+                        Navigator.of(context).pop();
                       });
-                      Navigator.of(context).pop();
-                    });
-                  },
-                );
-              }).toList(),
+                    },
+                  );
+                }).toList(),
+              ),
             ),
           ),
         );

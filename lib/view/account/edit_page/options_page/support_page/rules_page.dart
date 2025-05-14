@@ -63,17 +63,6 @@ class RulesPage extends StatelessWidget {
                 SizedBox(height: 16),
 
                 // 小見出し
-                _buildSmallHeading('・クリアボタン'),
-
-                SizedBox(height: 4),
-
-                // 本文
-                _buildBodyText(
-                  'クリアボタンはカテゴリーを選択した際にカテゴリーをクリアするためのボタンです。',
-                ),
-                SizedBox(height: 16),
-
-                // 小見出し
                 _buildSmallHeading('・保存ボタン'),
 
                 SizedBox(height: 4),

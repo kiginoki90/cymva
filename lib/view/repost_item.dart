@@ -1,5 +1,7 @@
 import 'package:cymva/model/account.dart';
 import 'package:cymva/model/post.dart';
+import 'package:cymva/utils/post_item_utils.dart';
+import 'package:cymva/view/post_item/link_text.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:flutter/material.dart';
 
@@ -27,7 +29,13 @@ class RepostItem extends StatelessWidget {
         children: [
           _buildUserInfo(),
           const SizedBox(height: 5),
-          Text(repostPost.content),
+          if (repostPost.category == '俳句・短歌')
+            buildVerticalText(repostPost.content)
+          else
+            LinkText(
+              text: repostPost.content,
+              textSize: 15,
+            ),
           const SizedBox(height: 10),
           if (repostPost.mediaUrl != null && repostPost.mediaUrl!.isNotEmpty)
             MediaDisplayWidget(

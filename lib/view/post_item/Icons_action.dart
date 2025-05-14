@@ -50,122 +50,112 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
       children: [
         Row(
           children: [
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('posts')
-                  .doc(widget.post.id)
-                  .collection('favorite_users')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return Text(
-                    '0',
-                    key: ValueKey<int>(0),
-                  );
-                }
+            GestureDetector(
+              onTap: () async {
+                if (_isProcessingFavorite) return;
 
-                final favoriteCount = snapshot.data!.docs.length;
+                setState(() {
+                  _isProcessingFavorite = true;
+                });
 
-                return AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  transitionBuilder:
-                      (Widget child, Animation<double> animation) {
-                    return ScaleTransition(scale: animation, child: child);
-                  },
-                  child: Text(
-                    '$favoriteCount',
-                    key: ValueKey<int>(favoriteCount),
-                  ),
-                );
+                // Firestoreのドキュメントを確認
+                final docSnapshot = await FirebaseFirestore.instance
+                    .collection('posts')
+                    .doc(widget.post.id)
+                    .collection('favorite_users')
+                    .doc(widget.userId)
+                    .get();
+
+                final snackBarMessage =
+                    docSnapshot.exists ? 'スターを返して貰いました' : 'スターを送りました';
+
+                await _favoritePost.toggleFavorite(
+                    widget.post.id, docSnapshot.exists);
+
+                // スナックバーを表示
+                showTopSnackBar(context, snackBarMessage,
+                    backgroundColor: const Color.fromARGB(255, 255, 183, 59));
+
+                // タップした感覚を提供
+                HapticFeedback.lightImpact();
+
+                setState(() {
+                  _isProcessingFavorite = false;
+                });
               },
-            ),
-            const SizedBox(width: 5),
-            StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('posts')
-                  .doc(widget.post.id)
-                  .collection('favorite_users')
-                  .doc(widget.userId)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return Icon(
-                    Icons.star_outline,
-                    color: Colors.grey,
-                  );
-                }
-                final isFavorite = snapshot.data!.exists;
+              child: Row(
+                children: [
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('posts')
+                        .doc(widget.post.id)
+                        .collection('favorite_users')
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return Text(
+                          '0',
+                          key: ValueKey<int>(0),
+                        );
+                      }
 
-                return GestureDetector(
-                  onTap: () async {
-                    if (_isProcessingFavorite) return;
+                      final favoriteCount = snapshot.data!.docs.length;
 
-                    setState(() {
-                      _isProcessingFavorite = true;
-                    });
-
-                    // Firestoreのドキュメントを確認
-                    final docSnapshot = await FirebaseFirestore.instance
+                      return AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 400),
+                        transitionBuilder:
+                            (Widget child, Animation<double> animation) {
+                          return ScaleTransition(
+                              scale: animation, child: child);
+                        },
+                        child: Text(
+                          '$favoriteCount',
+                          key: ValueKey<int>(favoriteCount),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 5),
+                  StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance
                         .collection('posts')
                         .doc(widget.post.id)
                         .collection('favorite_users')
                         .doc(widget.userId)
-                        .get();
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return Icon(
+                          Icons.star_outline,
+                          color: Colors.grey,
+                        );
+                      }
+                      final isFavorite = snapshot.data!.exists;
 
-                    final snackBarMessage =
-                        docSnapshot.exists ? 'スターを返して貰いました' : 'スターを送りました';
-
-                    await _favoritePost.toggleFavorite(
-                        widget.post.id, docSnapshot.exists);
-
-                    // スナックバーを表示
-                    showTopSnackBar(context, snackBarMessage,
-                        backgroundColor:
-                            const Color.fromARGB(255, 255, 183, 59));
-
-                    // タップした感覚を提供
-                    HapticFeedback.lightImpact();
-
-                    setState(() {
-                      _isProcessingFavorite = false;
-                    });
-                  },
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 400),
-                    transitionBuilder:
-                        (Widget child, Animation<double> animation) {
-                      return ScaleTransition(scale: animation, child: child);
+                      return AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 400),
+                        transitionBuilder:
+                            (Widget child, Animation<double> animation) {
+                          return ScaleTransition(
+                              scale: animation, child: child);
+                        },
+                        child: Icon(
+                          isFavorite ? Icons.star : Icons.star_outline,
+                          key: ValueKey<bool>(isFavorite),
+                          color: isFavorite
+                              ? const Color.fromARGB(255, 255, 183, 59)
+                              : Colors.grey,
+                        ),
+                      );
                     },
-                    child: Icon(
-                      isFavorite ? Icons.star : Icons.star_outline,
-                      key: ValueKey<bool>(isFavorite),
-                      color: isFavorite
-                          ? const Color.fromARGB(255, 255, 183, 59)
-                          : Colors.grey,
-                    ),
                   ),
-                );
-              },
+                ],
+              ),
             ),
           ],
         ),
         Row(
           children: [
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('posts')
-                  .doc(widget.post.id)
-                  .collection('repost')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return Text('0');
-                }
-                final repostCount = snapshot.data!.docs.length;
-                return Text(repostCount.toString());
-              },
-            ),
-            const SizedBox(width: 5),
             GestureDetector(
               onTap: () {
                 Navigator.push(
@@ -178,9 +168,28 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
                   ),
                 );
               },
-              child: Icon(
-                Icons.repeat_outlined,
-                color: Colors.grey,
+              child: Row(
+                children: [
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('posts')
+                        .doc(widget.post.id)
+                        .collection('repost')
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return Text('0');
+                      }
+                      final repostCount = snapshot.data!.docs.length;
+                      return Text(repostCount.toString());
+                    },
+                  ),
+                  const SizedBox(width: 5),
+                  Icon(
+                    Icons.repeat_outlined,
+                    color: Colors.grey,
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 5),
@@ -189,31 +198,32 @@ class _IconsActionsWidgetState extends State<IconsActionsWidget> {
         ValueListenableBuilder<int>(
           valueListenable: widget.replyCountNotifier,
           builder: (context, replyCount, child) {
-            return Row(
-              children: [
-                Text(replyCount.toString()),
-                IconButton(
-                  onPressed: widget.post.closeComment
-                      ? null
-                      : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ReplyPage(
-                                post: widget.post,
-                                userId: widget.userId,
-                                postAccount: widget.postAccount,
-                              ),
-                            ),
-                          );
-                        },
-                  icon: Icon(
+            return GestureDetector(
+              onTap: widget.post.closeComment
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ReplyPage(
+                            post: widget.post,
+                            userId: widget.userId,
+                            postAccount: widget.postAccount,
+                          ),
+                        ),
+                      );
+                    },
+              child: Row(
+                children: [
+                  Text(replyCount.toString()),
+                  const SizedBox(width: 5),
+                  Icon(
                     Icons.comment,
                     color:
                         widget.post.closeComment ? Colors.grey : Colors.black,
                   ),
-                ),
-              ],
+                ],
+              ),
             );
           },
         ),

@@ -428,7 +428,6 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                       snapshot.data != null) {
                                     return LinkText(
                                       text: '返信先: @${snapshot.data}',
-                                      userId: widget.userId,
                                       textSize: 14,
                                       color: Colors.grey,
                                     );
@@ -449,7 +448,6 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                   else
                                     LinkText(
                                       text: widget.post.content,
-                                      userId: widget.userId,
                                       textSize: 15,
                                     ),
                                 ]),

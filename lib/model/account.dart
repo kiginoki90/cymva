@@ -14,6 +14,8 @@ class Account {
   bool lockAccount;
   bool followMessage;
   bool replyMessage;
+  bool quoteMessage; // 引用メッセージの設定
+  bool starMessage; // スターメッセージの設定
 
   Account({
     this.admin = 3,
@@ -29,6 +31,8 @@ class Account {
     this.lockAccount = false,
     this.followMessage = true,
     this.replyMessage = true,
+    this.quoteMessage = true,
+    this.starMessage = true,
   });
 
   factory Account.fromDocument(DocumentSnapshot doc) {
@@ -46,6 +50,8 @@ class Account {
       updatedTime: data['updated_time'],
       lockAccount: data['lock_account'] ?? true,
       replyMessage: data['replyMessage'] ?? true,
+      quoteMessage: data['quoteMessage'] ?? true,
+      starMessage: data['starMessage'] ?? true,
     );
   }
 
@@ -64,6 +70,8 @@ class Account {
       'lock_account': lockAccount,
       'follow_message': followMessage,
       'replyMessage': replyMessage,
+      'quoteMessage': quoteMessage,
+      'starMessage': starMessage,
     };
   }
 

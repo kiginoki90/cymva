@@ -156,6 +156,11 @@ class _RepostPageState extends State<RepostPage> {
 
     String? rePostId = await PostFirestore.addPost(rePost);
 
+    // 返信先の投稿の返信数を更新
+    if (widget.userId != widget.post.postAccountId) {
+      _addOrUpdateMessage(widget.post.id);
+    }
+
     if (rePostId != null) {
       await _updateRepost(rePostId);
       if (mounted) {
@@ -432,5 +437,35 @@ class _RepostPageState extends State<RepostPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _addOrUpdateMessage(String replyPostId) async {
+    final userMessageRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.post.postAccountId)
+        .collection('message');
+
+    final querySnapshot = await userMessageRef
+        .where('message_type', isEqualTo: 7)
+        .where('postID', isEqualTo: widget.post.id)
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      // 既存のメッセージがある場合、そのcountを1増やす
+      final docRef = querySnapshot.docs.first.reference;
+      await docRef.update({'count': FieldValue.increment(1)});
+    } else {
+      // 新しいメッセージを追加
+      final messageData = {
+        'message_type': 7,
+        'timestamp': FieldValue.serverTimestamp(),
+        'postID': widget.post.id,
+        'isRead': false,
+        'count': 1,
+        'bold': true,
+      };
+      await userMessageRef.add(messageData);
+    }
   }
 }
