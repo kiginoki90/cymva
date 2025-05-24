@@ -811,6 +811,7 @@ class _MessesPageState extends State<MessesPage> {
                                   fontSize: 12, // 小さい文字サイズ
                                 ),
                                 overflow: TextOverflow.ellipsis,
+                                maxLines: 2,
                               );
                             },
                           ),
@@ -932,6 +933,7 @@ class _MessesPageState extends State<MessesPage> {
                                   fontSize: 12, // 小さい文字サイズ
                                 ),
                                 overflow: TextOverflow.ellipsis,
+                                maxLines: 2,
                               );
                             },
                           ),
@@ -1010,6 +1012,7 @@ class _MessesPageState extends State<MessesPage> {
                                   fontSize: 12, // 小さい文字サイズ
                                 ),
                                 overflow: TextOverflow.ellipsis,
+                                maxLines: 2, // 最大2行まで表示
                               );
                             },
                           ),

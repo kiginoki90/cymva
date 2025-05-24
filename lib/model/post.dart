@@ -17,6 +17,8 @@ class Post {
   Timestamp? clipTime;
   DocumentSnapshot? documentSnapshot;
   bool closeComment;
+  int? imageHeight;
+  int? imageWidth;
 
   Post({
     this.id = '',
@@ -35,6 +37,8 @@ class Post {
     this.clipTime,
     this.documentSnapshot,
     this.closeComment = false,
+    this.imageHeight,
+    this.imageWidth,
   });
 
   Map<String, dynamic> toMap() {
@@ -54,6 +58,8 @@ class Post {
       'clip': clip,
       'clip_time': clipTime,
       'closeComment': closeComment,
+      'imageHeight': imageHeight,
+      'imageWidth': imageWidth,
     };
   }
 
@@ -82,6 +88,8 @@ class Post {
       clipTime: data['clip_time'] as Timestamp?,
       documentSnapshot: doc,
       closeComment: data['closeComment'] ?? false,
+      imageHeight: data['imageHeight'] as int?,
+      imageWidth: data['imageWidth'] as int?,
     );
   }
 

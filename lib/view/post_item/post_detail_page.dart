@@ -1000,6 +1000,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     mediaUrl: widget.post.mediaUrl,
                     category: widget.post.category ?? '',
                     fullVideo: true,
+                    post: widget.post,
                   ),
                 ],
               ),
@@ -1212,6 +1213,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   }
                 },
               ),
+              SizedBox(height: 30),
             ],
           ),
         ),

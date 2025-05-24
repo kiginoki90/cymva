@@ -48,7 +48,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  static const String currentVersion = '1.2.5'; // 現在のバージョンを直接記述
+  static const String currentVersion = '1.2.7'; // 現在のバージョンを直接記述
 
   @override
   Widget build(BuildContext context) {

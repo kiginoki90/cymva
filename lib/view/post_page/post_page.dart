@@ -31,6 +31,8 @@ class _PostPageState extends State<PostPage> {
       GlobalKey<ScaffoldMessengerState>();
   Map<String, dynamic>? accountData;
   String? _imageUrl;
+  int? imageHeight;
+  int? imageWidth;
 
   String? selectedCategory;
   final List<String> categories = [
@@ -645,27 +647,51 @@ class _PostPageState extends State<PostPage> {
                                         i < images.length && i < maxImageLimit;
                                         i++) {
                                       File file = File(images[i].path);
-                                      String? mediaUrl =
+
+                                      Map<String, dynamic>? uploadResult =
                                           await FunctionUtils.uploadImage(
                                         widget.userId,
                                         file,
                                         context,
+                                        shouldGetHeight: images.length ==
+                                            1, // 画像が1枚の場合のみ高さを取得
                                       );
-                                      if (mediaUrl != null) {
-                                        mediaUrls.add(mediaUrl);
+
+                                      if (uploadResult != null) {
+                                        mediaUrls.add(uploadResult[
+                                            'downloadUrl']); // ダウンロードURLを追加
+
+                                        // 高さを取得する場合のみ処理
+                                        if (images.length == 1 &&
+                                            uploadResult
+                                                .containsKey('height') &&
+                                            uploadResult.containsKey('width')) {
+                                          imageHeight = uploadResult['height'];
+                                          imageWidth = uploadResult['width'];
+                                        }
                                       }
                                     }
 
                                     // 動画ファイルのアップロード処理
                                     String? videoUrl;
                                     if (_mediaFile != null && isVideo) {
-                                      videoUrl =
+                                      // 動画ファイルのアップロード処理
+                                      Map<String, dynamic>? uploadResult =
                                           await FunctionUtils.uploadVideo(
-                                              widget.userId,
-                                              _mediaFile!,
-                                              context);
-                                      if (videoUrl != null) {
+                                        widget.userId,
+                                        _mediaFile!,
+                                        context,
+                                      );
+
+                                      if (uploadResult != null) {
+                                        // ダウンロードURLを取得
+                                        String videoUrl =
+                                            uploadResult['downloadUrl'];
                                         mediaUrls.add(videoUrl);
+
+                                        // 動画の幅と高さを取得してクラス変数に格納
+                                        imageWidth = uploadResult['width'];
+                                        imageHeight = uploadResult['height'];
                                       }
                                     }
 
@@ -679,6 +705,8 @@ class _PostPageState extends State<PostPage> {
                                       mediaUrl: mediaUrls,
                                       isVideo: isVideo,
                                       category: selectedCategory,
+                                      imageWidth: imageWidth,
+                                      imageHeight: imageHeight,
                                     );
 
                                     // Firestoreへ投稿データを保存

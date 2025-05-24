@@ -221,10 +221,16 @@ class _AddAccountPageState extends State<AddAccountPage> {
           String parentsId = userData?['parents_id'] ?? currentUser.uid;
 
           // 画像をアップロード
-          String? imagePath = image != null
+          Map<String, dynamic>? uploadResult = image != null
               ? await FunctionUtils.uploadImage(
-                  currentUser.uid, image!, context)
+                  currentUser.uid,
+                  image!,
+                  context,
+                  shouldGetHeight: false, // 必要に応じて高さを取得
+                )
               : null;
+
+          String? imagePath = uploadResult?['downloadUrl']; // ダウンロードURLを取得
 
           // Firestoreに新しいアカウント情報を保存（自動生成されたIDを使用）
           Account newAccount = Account(

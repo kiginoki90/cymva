@@ -42,6 +42,7 @@ class RepostItem extends StatelessWidget {
               mediaUrl: repostPost.mediaUrl,
               category: repostPost.category ?? '',
               atStart: true,
+              post: repostPost,
             ),
         ],
       ),

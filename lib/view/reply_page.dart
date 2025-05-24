@@ -40,6 +40,25 @@ class _ReplyPageState extends State<ReplyPage> {
   String? _imageUrl;
   String? userProfileImageUrl;
   String? postUserId;
+  int? imageHeight;
+  int? imageWidth;
+
+  // カテゴリー選択用の変数
+  String? _selectedCategory = ''; // 初期値を空欄に設定
+  final List<String> _categories = [
+    '',
+    '動物',
+    'AI',
+    '漫画',
+    'イラスト',
+    '音楽',
+    '写真',
+    '動画',
+    'グルメ',
+    '俳句・短歌',
+    '憲章宣誓',
+    '改修要望/バグ'
+  ]; // 空欄を選択肢に追加
 
   @override
   void initState() {
@@ -108,25 +127,32 @@ class _ReplyPageState extends State<ReplyPage> {
         return;
       }
 
-      // if (_mediaFiles.any((file) => file.path.endsWith('.mp4')) &&
-      //     _mediaFiles.length > 1) {
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     const SnackBar(content: Text('動画は最大1つまで選択できます。')),
-      //   );
-      //   return;
-      // }
-
       List<String>? mediaUrls;
 
       if (_mediaFiles.isNotEmpty) {
         mediaUrls = [];
 
-        for (var file in _mediaFiles) {
-          String? uploadedMediaUrl =
-              await FunctionUtils.uploadImage(widget.userId, file, context);
+        for (var i = 0; i < _mediaFiles.length; i++) {
+          File file = _mediaFiles[i];
 
-          if (uploadedMediaUrl != null) {
-            mediaUrls.add(uploadedMediaUrl);
+          // 画像が1枚の場合のみ高さを取得
+          bool shouldGetHeight = _mediaFiles.length == 1;
+
+          Map<String, dynamic>? uploadResult = await FunctionUtils.uploadImage(
+            widget.userId,
+            file,
+            context,
+            shouldGetHeight: shouldGetHeight,
+          );
+
+          if (uploadResult != null) {
+            mediaUrls.add(uploadResult['downloadUrl']); // ダウンロードURLを追加
+
+            // 画像が1枚の場合のみ幅と高さを取得
+            if (shouldGetHeight) {
+              imageWidth = uploadResult['width'];
+              imageHeight = uploadResult['height'];
+            }
           }
         }
       }
@@ -138,6 +164,10 @@ class _ReplyPageState extends State<ReplyPage> {
         postAccountId: widget.userId,
         mediaUrl: mediaUrls,
         reply: widget.post.id,
+        imageHeight: imageHeight,
+        imageWidth: imageWidth,
+        category:
+            _selectedCategory?.isNotEmpty == true ? _selectedCategory : null,
       );
 
       String? replyPostId = await PostFirestore.addPost(replyPost);
@@ -347,7 +377,39 @@ class _ReplyPageState extends State<ReplyPage> {
                           mediaUrl: widget.post.mediaUrl,
                           category: widget.post.category ?? '',
                           atStart: true,
+                          post: widget.post,
                         ),
+                      const SizedBox(height: 20),
+                      // カテゴリー選択用のドロップダウンメニュー
+                      Align(
+                        alignment: Alignment.centerRight, // 右寄せに設定
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: DropdownButton<String>(
+                            value: _selectedCategory,
+                            hint: const Text('カテゴリーを選択'),
+                            underline: SizedBox(), // 下線を非表示
+                            items: _categories.map((String category) {
+                              return DropdownMenuItem<String>(
+                                value: category,
+                                child: Text(category.isEmpty
+                                    ? '未選択'
+                                    : category), // 空欄の場合は「未選択」と表示
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                _selectedCategory = newValue;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 20),
                       TextField(
                         controller: _replyController,

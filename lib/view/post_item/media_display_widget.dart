@@ -1,5 +1,7 @@
+import 'package:cymva/model/post.dart';
 import 'package:cymva/view/post_item/video_player_screen.dart';
 import 'package:cymva/view/slide_direction_page_route.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,6 +19,7 @@ class MediaDisplayWidget extends StatefulWidget {
   final String category;
   final bool atStart;
   final bool? fullVideo;
+  final Post? post;
 
   const MediaDisplayWidget({
     Key? key,
@@ -24,6 +27,7 @@ class MediaDisplayWidget extends StatefulWidget {
     required this.category,
     this.fullVideo = false,
     this.atStart = false,
+    required this.post,
   }) : super(key: key);
 
   @override
@@ -35,6 +39,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
   Map<String, VideoPlayerController> _videoControllers = {};
   bool _isMuted = true;
   VideoPlayerController? _currentlyPlayingController;
+  late AndroidDeviceInfo androidInfo;
 
   @override
   void initState() {
@@ -130,29 +135,29 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
     });
   }
 
-  Future<int> _getVideoRotation(String videoUrl) async {
-    try {
-      final MethodChannel channel = MethodChannel('video_rotation');
-      final int rotation =
-          await channel.invokeMethod('getVideoRotation', videoUrl);
-      return rotation;
-    } catch (e) {
-      print('ビデオ回転取得エラー: $e');
-      return 0; // デフォルトで回転なし
-    }
-  }
+  // Future<int> _getVideoRotation(String videoUrl) async {
+  //   try {
+  //     final MethodChannel channel = MethodChannel('video_rotation');
+  //     final int rotation =
+  //         await channel.invokeMethod('getVideoRotation', videoUrl);
+  //     return rotation;
+  //   } catch (e) {
+  //     print('ビデオ回転取得エラー: $e');
+  //     return 0; // デフォルトで回転なし
+  //   }
+  // }
 
-  double _getCorrectedAspectRatio(
-      VideoPlayerController controller, int rotation) {
-    final size = controller.value.size;
-    final aspectRatio = controller.value.aspectRatio;
+  // double _getCorrectedAspectRatio(
+  //     VideoPlayerController controller, int rotation) {
+  //   final size = controller.value.size;
+  //   final aspectRatio = controller.value.aspectRatio;
 
-    // 回転情報を考慮して縦横比を補正
-    if (rotation == 90 || rotation == 270) {
-      return 1 / aspectRatio; // 縦横を反転
-    }
-    return aspectRatio;
-  }
+  //   // 回転情報を考慮して縦横比を補正
+  //   if (rotation == 90 || rotation == 270) {
+  //     return 1 / aspectRatio; // 縦横を反転
+  //   }
+  //   return aspectRatio;
+  // }
 
   double _calculateHeightFactor(double originalHeight) {
     if (widget.fullVideo == true || originalHeight <= 700) {
@@ -268,6 +273,8 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
   }
 
   Widget _buildSingleMedia(BuildContext context, String mediaUrl) {
+    const double maxHeightFactor = 1.3; // 縦幅の最大値を縦幅の1.2倍に設定
+
     return FutureBuilder<ImageInfo>(
       future: _loadImageInfo(mediaUrl),
       builder: (context, snapshot) {
@@ -276,6 +283,9 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
           final imageWidth = snapshot.data!.image.width.toDouble();
           final imageHeight = snapshot.data!.image.height.toDouble();
           final aspectRatio = imageWidth / imageHeight;
+
+          // 最大高さを計算
+          final double maxHeight = imageWidth * maxHeightFactor;
 
           return GestureDetector(
             onTap: () {
@@ -299,9 +309,21 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                     width: 0.5,
                   ),
                 ),
-                child: Image.network(
-                  mediaUrl,
-                  fit: BoxFit.cover,
+                child: ClipRect(
+                  child: Align(
+                    alignment: Alignment.center,
+                    heightFactor: imageHeight > maxHeight
+                        ? maxHeight / imageHeight
+                        : 1.0, // 高さをトリミング
+                    child: AspectRatio(
+                      aspectRatio: aspectRatio, // 縦横比を維持
+                      child: Image.network(
+                        mediaUrl,
+                        width: double.infinity, // 横幅を全て表示
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -315,9 +337,46 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
 
   Widget _buildPlaceholder(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
+
+    // アスペクト比を計算して高さを設定
+    double placeholderHeight;
+
+    if (widget.post?.imageWidth != null && widget.post?.imageHeight != null) {
+      // アスペクト比を計算
+      double aspectRatio = widget.post!.imageWidth! / widget.post!.imageHeight!;
+      double originalHeight = screenWidth / aspectRatio;
+
+      // 動画かどうかを判定
+      if (widget.mediaUrl != null &&
+          widget.mediaUrl!.isNotEmpty &&
+          _isVideoCache[widget.mediaUrl!.first] == true) {
+        // アスペクト比を計算
+        double aspectRatio =
+            widget.post!.imageWidth! / widget.post!.imageHeight!;
+
+        // widget.post?.imageHeight を _calculateHeightFactor で調整
+        double adjustedHeight = widget.post!.imageHeight! *
+            _calculateHeightFactor(widget.post!.imageHeight!.toDouble());
+
+        // 調整後の高さからアスペクト比を考慮して placeholderHeight を計算
+        placeholderHeight = screenWidth /
+            aspectRatio *
+            (adjustedHeight / widget.post!.imageHeight!);
+      } else {
+        // 画像の場合はそのままの高さ
+        placeholderHeight = originalHeight;
+      }
+    } else {
+      // デフォルトの高さ
+      placeholderHeight = min(screenWidth, 300);
+    }
+    // 縦幅の最大値を横幅の1.2倍に制限
+    double maxHeight = screenWidth * 1.2;
+    placeholderHeight = min(placeholderHeight, maxHeight);
+
     return Container(
       width: screenWidth,
-      height: min(screenWidth, 500),
+      height: placeholderHeight,
       color: Colors.grey[300],
     );
   }
@@ -345,103 +404,100 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
       return _buildPlaceholder(context);
     }
 
-    return FutureBuilder<int>(
-      future: _getVideoRotation(mediaUrl),
-      builder: (context, snapshot) {
-        final rotation = snapshot.data ?? 0; // 回転情報を取得
-        final correctedAspectRatio =
-            _getCorrectedAspectRatio(controller, rotation);
+    // 高さと幅を取得
+    final double adjustedHeight =
+        (widget.post?.imageHeight != null && widget.post?.imageWidth != null)
+            ? widget.post!.imageHeight!.toDouble() // imageHeightが存在する場合はそれを使用
+            : controller.value.size.height; // デフォルトはcontrollerの高さ
 
-        // 高さ制限を計算
-        final adjustedHeight = (rotation == 90 || rotation == 270)
-            ? controller.value.size.width // 回転している場合は幅を高さとして使用
-            : controller.value.size.height; // 通常の高さを使用
+    final double adjustedWidth =
+        (widget.post?.imageHeight != null && widget.post?.imageWidth != null)
+            ? widget.post!.imageWidth!.toDouble() // imageWidthが存在する場合はそれを使用
+            : controller.value.size.width; // デフォルトはcontrollerの幅
 
-        final heightFactor =
-            _calculateHeightFactor(adjustedHeight); // 調整された高さを渡す
+    // 高さ制限を計算
+    final heightFactor = _calculateHeightFactor(adjustedHeight); // 調整された高さを渡す
 
-        return GestureDetector(
-          onTap: () {
-            if (controller.value.isPlaying) {
-              controller.pause();
-            }
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VideoPlayerScreen(
-                  videoUrl: mediaUrl,
-                  isMuted: _isMuted,
-                  aspectRatio: correctedAspectRatio, // 縦横比を渡す
-                ),
-              ),
-            );
-          },
-          child: VisibilityDetector(
-            key: Key(mediaUrl),
-            onVisibilityChanged: (info) {
-              if (widget.atStart == false) {
-                if (info.visibleFraction > 0.8) {
-                  if (_currentlyPlayingController == null ||
-                      !_currentlyPlayingController!.value.isPlaying) {
-                    if (!controller.value.isPlaying) {
-                      controller.play();
-                      _currentlyPlayingController = controller;
-                    }
-                  }
-                } else {
-                  if (controller.value.isInitialized &&
-                      controller.value.isPlaying) {
-                    controller.pause();
-                    if (_currentlyPlayingController == controller) {
-                      _currentlyPlayingController = null;
-                    }
-                  }
-                }
-              }
-            },
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                ClipRect(
-                  child: Align(
-                    alignment: Alignment.center,
-                    heightFactor: heightFactor, // 高さ制限を適用
-                    child: AspectRatio(
-                      aspectRatio: correctedAspectRatio, // 補正された縦横比を使用
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Colors.grey.shade300,
-                            width: 0.5,
-                          ),
-                        ),
-                        child: controller.value.isInitialized
-                            ? VideoPlayer(controller)
-                            : const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 10,
-                  right: 10,
-                  child: IconButton(
-                    icon: Icon(
-                      _isMuted ? Icons.volume_off : Icons.volume_up,
-                      color: Colors.white,
-                    ),
-                    onPressed: () {
-                      _toggleVolume(controller);
-                    },
-                  ),
-                ),
-              ],
+    return GestureDetector(
+      onTap: () {
+        if (controller.value.isPlaying) {
+          controller.pause();
+        }
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VideoPlayerScreen(
+              videoUrl: mediaUrl,
+              isMuted: _isMuted,
+              aspectRatio: adjustedWidth / adjustedHeight, // 縦横比を計算して渡す
             ),
           ),
         );
       },
+      child: VisibilityDetector(
+        key: Key(mediaUrl),
+        onVisibilityChanged: (info) {
+          if (widget.atStart == false) {
+            if (info.visibleFraction > 0.8) {
+              if (_currentlyPlayingController == null ||
+                  !_currentlyPlayingController!.value.isPlaying) {
+                if (!controller.value.isPlaying) {
+                  controller.play();
+                  _currentlyPlayingController = controller;
+                }
+              }
+            } else {
+              if (controller.value.isInitialized &&
+                  controller.value.isPlaying) {
+                controller.pause();
+                if (_currentlyPlayingController == controller) {
+                  _currentlyPlayingController = null;
+                }
+              }
+            }
+          }
+        },
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            ClipRect(
+              child: Align(
+                alignment: Alignment.center,
+                heightFactor: heightFactor, // 高さ制限を適用
+                child: AspectRatio(
+                  aspectRatio: adjustedWidth / adjustedHeight, // 縦横比を使用
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                        width: 0.5,
+                      ),
+                    ),
+                    child: controller.value.isInitialized
+                        ? VideoPlayer(controller)
+                        : const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 10,
+              right: 10,
+              child: IconButton(
+                icon: Icon(
+                  _isMuted ? Icons.volume_off : Icons.volume_up,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  _toggleVolume(controller);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

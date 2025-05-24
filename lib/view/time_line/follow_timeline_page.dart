@@ -50,7 +50,8 @@ class _FollowTimelinePageState extends ConsumerState<FollowTimelinePage> {
     if (_scrollController.offset >=
             _scrollController.position.maxScrollExtent - 200 &&
         !_scrollController.position.outOfRange &&
-        !_isLoadingMore) {
+        !_isLoadingMore &&
+        ref.read(viewModelProvider).hasMorePosts) {
       setState(() {
         _isLoadingMore = true;
       });
@@ -222,9 +223,11 @@ class ViewModel extends ChangeNotifier {
   Map<String, Account> postUserMap = {};
   bool isLoading = false; // データ取得中の状態を管理
   bool isFirstLoad = true; // 初回データ取得中の状態を管理
+  bool hasMorePosts = true; // 全ての投稿を取得済みかどうかを管理するフラグ
 
   Future<void> getFollowedPosts(String userId) async {
     isLoading = true; // データ取得開始
+    hasMorePosts = true; // 初期化時にフラグをリセット
     notifyListeners();
 
     followedPostList = [];
@@ -256,6 +259,8 @@ class ViewModel extends ChangeNotifier {
   }
 
   Future<void> getFollowedPostsNext(String userId) async {
+    if (!hasMorePosts) return; // 全ての投稿を取得済みの場合は処理を中断
+
     isLoading = true; // データ取得開始
     notifyListeners();
 
@@ -271,6 +276,8 @@ class ViewModel extends ChangeNotifier {
           ) ??
           {};
       postUserMap.addAll(newPostUserMap);
+    } else {
+      hasMorePosts = false; // 追加の投稿がない場合はフラグを更新
     }
 
     isLoading = false; // データ取得完了

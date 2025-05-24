@@ -223,12 +223,32 @@ class _EditAccountPageState extends State<EditAccountPage> {
                 if (image == null) {
                   imagePath = myAccount!.imagePath;
                 } else {
-                  String? result = await FunctionUtils.uploadImage(
-                      myAccount!.id, image!, context);
-                  if (result != null) {
-                    imagePath = result;
+                  Map<String, dynamic>? uploadResult = image != null
+                      ? await FunctionUtils.uploadImage(
+                          myAccount!.userId,
+                          image!,
+                          context,
+                          shouldGetHeight: false, // 必要に応じて高さを取得
+                        )
+                      : null;
+
+                  String? imagePath;
+
+                  if (image == null) {
+                    // 画像が選択されていない場合は既存の画像パスを使用
+                    imagePath = myAccount!.imagePath;
                   } else {
-                    imagePath =
+                    // 画像が選択されている場合はアップロード処理を実行
+                    Map<String, dynamic>? uploadResult =
+                        await FunctionUtils.uploadImage(
+                      myAccount!.userId,
+                      image!,
+                      context,
+                      shouldGetHeight: false, // 必要に応じて高さを取得
+                    );
+
+                    // アップロード結果からダウンロードURLを取得
+                    imagePath = uploadResult?['downloadUrl'] ??
                         'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7';
                   }
                 }

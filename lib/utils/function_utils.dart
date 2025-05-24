@@ -57,9 +57,9 @@ class FunctionUtils {
     }
   }
 
-  // 画像をアップロードするメソッド
-  static Future<String?> uploadImage(
-      String uid, File image, BuildContext context) async {
+  static Future<Map<String, dynamic>?> uploadImage(
+      String uid, File image, BuildContext context,
+      {bool shouldGetHeight = false}) async {
     try {
       final FirebaseStorage storageInstance = FirebaseStorage.instance;
 
@@ -69,35 +69,41 @@ class FunctionUtils {
       // Firebase Storage でのファイルパスを設定
       final Reference ref = storageInstance.ref().child('$uid/$shortFileName');
 
-      print('Uploading to: ${ref.fullPath}'); // パス確認用のログ
-
       // File を Uint8List に変換
       Uint8List imageBytes = await image.readAsBytes();
+
+      int? imageWidth;
+      int? imageHeight;
+      if (shouldGetHeight) {
+        // 画像の幅と高さを取得
+        final decodedImage = await decodeImageFromList(imageBytes);
+        imageWidth = decodedImage.width;
+        imageHeight = decodedImage.height;
+      }
 
       // メタデータを追加してファイルをアップロード
       await ref.putData(
         imageBytes,
-        SettableMetadata(contentType: 'image/jpeg'), // contentTypeを設定
+        SettableMetadata(contentType: 'image/jpeg'),
       );
 
       // ダウンロードURLを取得
       String downloadUrl = await ref.getDownloadURL();
-      return downloadUrl; // 正常にアップロードされた場合はURLを返す
+
+      // ダウンロードURLと画像の幅・高さを返す
+      return {
+        'downloadUrl': downloadUrl,
+        'width': imageWidth,
+        'height': imageHeight,
+      };
     } catch (e) {
       print('画像のアップロード中にエラーが発生しました: $e');
-
-      // contextが有効な時のみエラーメッセージを表示
-      if (context.mounted) {
-        showTopSnackBar(context, '画像のアップロード中にエラーが発生しました',
-            backgroundColor: Colors.red);
-      }
-
-      return null; // エラー時はnullを返す
+      return null;
     }
   }
 
-  // 動画をアップロードするメソッド
-  static Future<String?> uploadVideo(
+// 動画をアップロードするメソッド
+  static Future<Map<String, dynamic>?> uploadVideo(
       String uid, File video, BuildContext context) async {
     try {
       final FirebaseStorage storageInstance = FirebaseStorage.instance;
@@ -113,12 +119,29 @@ class FunctionUtils {
       // File を Uint8List に変換
       Uint8List videoBytes = await video.readAsBytes();
 
+      int? imageWidth;
+      int? imageHeight;
+
+      // 動画の幅と高さを取得
+      final VideoPlayerController controller =
+          VideoPlayerController.file(video);
+      await controller.initialize();
+      imageWidth = controller.value.size.width.toInt();
+      imageHeight = controller.value.size.height.toInt();
+      await controller.dispose(); // 使用後はコントローラーを破棄
+
       // ファイルをアップロード
       await ref.putData(videoBytes, SettableMetadata(contentType: 'video/mp4'));
 
       // ダウンロードURLを取得
       String downloadUrl = await ref.getDownloadURL();
-      return downloadUrl; // 正常にアップロードされた場合はURLを返す
+
+      // ダウンロードURLと動画の幅・高さを返す
+      return {
+        'downloadUrl': downloadUrl,
+        'width': imageWidth,
+        'height': imageHeight,
+      };
     } catch (e) {
       print('動画のアップロード中にエラーが発生しました: $e');
       showTopSnackBar(context, '動画のアップロード中にエラーが発生しました',

@@ -67,8 +67,15 @@ class FavoritePost {
         // お気に入りから削除
         await favoriteUsersCollection.doc(userId).delete();
 
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(postAccountId)
+            .get();
+
         // メッセージのカウントを減らす
-        await _updateMessageCount(postId, postAccountId, decrement: true);
+        if (userDoc.exists && userDoc.data()?['starMessage'] != false) {
+          await _updateMessageCount(postId, postAccountId, decrement: true);
+        }
       } else {
         // お気に入りに追加
         await favoriteUsersCollection.doc(userId).set({
@@ -76,8 +83,14 @@ class FavoritePost {
           'user_id': userId,
         });
 
-        // メッセージを追加または更新
-        await _addOrUpdateMessage(postId, postAccountId);
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(postAccountId)
+            .get();
+
+        if (userDoc.exists && userDoc.data()?['starMessage'] != false) {
+          _addOrUpdateMessage(postId, postAccountId);
+        }
       }
 
       // お気に入りの状態を更新

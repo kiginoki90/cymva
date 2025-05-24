@@ -254,6 +254,7 @@ class _RepostListPageState extends State<RepostListPage> {
                                                                 'category'] ??
                                                             '',
                                                         atStart: true,
+                                                        post: post,
                                                       ),
                                                     ],
                                                   ),

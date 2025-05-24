@@ -458,6 +458,7 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                 MediaDisplayWidget(
                                   mediaUrl: widget.post.mediaUrl,
                                   category: widget.post.category ?? '',
+                                  post: widget.post,
                                 ),
                               ],
                             ),

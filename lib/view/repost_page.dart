@@ -34,6 +34,25 @@ class _RepostPageState extends State<RepostPage> {
   String? _imageUrl;
   String? userProfileImageUrl;
   String? postUserId;
+  int? imageHeight;
+  int? imageWidth;
+
+  // カテゴリー選択用の変数
+  String? _selectedCategory = ''; // 初期値を空欄に設定
+  final List<String> _categories = [
+    '',
+    '動物',
+    'AI',
+    '漫画',
+    'イラスト',
+    '音楽',
+    '写真',
+    '動画',
+    'グルメ',
+    '俳句・短歌',
+    '憲章宣誓',
+    '改修要望/バグ'
+  ];
 
   @override
   void initState() {
@@ -131,7 +150,12 @@ class _RepostPageState extends State<RepostPage> {
   }
 
   Future<void> _sendRepost() async {
-    if (_retweetController.text.isEmpty && _mediaFiles.isEmpty) return;
+    if (_retweetController.text.isEmpty && _mediaFiles.isEmpty) {
+      if (mounted) {
+        showTopSnackBar(context, '投稿内容を入力してください。', backgroundColor: Colors.red);
+      }
+      return;
+    }
 
     if (_mediaFiles.length > 4) {
       if (mounted) {
@@ -141,9 +165,13 @@ class _RepostPageState extends State<RepostPage> {
       return;
     }
 
-    List<String>? mediaUrls = await _uploadMediaFiles();
+    // メディアファイルをアップロードして結果を取得
+    Map<String, dynamic>? uploadResult =
+        _mediaFiles.isNotEmpty ? await _uploadMediaFiles() : null;
 
-    if (!mounted) return; // Stateが破棄されている場合は処理を中断
+    List<String>? mediaUrls = uploadResult?['mediaUrls'];
+    int? imageWidth = uploadResult?['imageWidth'];
+    int? imageHeight = uploadResult?['imageHeight'];
 
     Navigator.of(context).pop();
 
@@ -152,13 +180,23 @@ class _RepostPageState extends State<RepostPage> {
       postAccountId: widget.userId,
       mediaUrl: mediaUrls,
       repost: widget.post.id,
+      imageWidth: imageWidth,
+      imageHeight: imageHeight,
+      category: _selectedCategory?.isNotEmpty == true
+          ? _selectedCategory
+          : null, // カテゴリーを追加
     );
 
     String? rePostId = await PostFirestore.addPost(rePost);
 
-    // 返信先の投稿の返信数を更新
-    if (widget.userId != widget.post.postAccountId) {
-      _addOrUpdateMessage(widget.post.id);
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.post.postAccountId)
+        .get();
+
+    // quoteMessageがfalse以外の場合に処理を実行
+    if (userDoc.exists && userDoc.data()?['quoteMessage'] != false) {
+      _addOrUpdateMessage();
     }
 
     if (rePostId != null) {
@@ -173,18 +211,43 @@ class _RepostPageState extends State<RepostPage> {
     }
   }
 
-  Future<List<String>?> _uploadMediaFiles() async {
+  Future<Map<String, dynamic>?> _uploadMediaFiles() async {
     if (_mediaFiles.isEmpty) return null;
 
     List<String> mediaUrls = [];
-    for (var file in _mediaFiles) {
-      String? uploadedMediaUrl =
-          await FunctionUtils.uploadImage(widget.userId, file, context);
-      if (uploadedMediaUrl != null) {
-        mediaUrls.add(uploadedMediaUrl);
+    int? imageWidth;
+    int? imageHeight;
+
+    for (var i = 0; i < _mediaFiles.length; i++) {
+      File file = _mediaFiles[i];
+
+      // 画像が1枚の場合のみ高さを取得
+      bool shouldGetHeight = _mediaFiles.length == 1;
+
+      Map<String, dynamic>? uploadResult = await FunctionUtils.uploadImage(
+        widget.userId,
+        file,
+        context,
+        shouldGetHeight: shouldGetHeight,
+      );
+
+      if (uploadResult != null) {
+        mediaUrls.add(uploadResult['downloadUrl']); // ダウンロードURLを追加
+
+        // 画像が1枚の場合のみ幅と高さを取得
+        if (shouldGetHeight) {
+          imageWidth = uploadResult['width'];
+          imageHeight = uploadResult['height'];
+        }
       }
     }
-    return mediaUrls;
+
+    // 3つの値をMapで返す
+    return {
+      'mediaUrls': mediaUrls,
+      'imageWidth': imageWidth,
+      'imageHeight': imageHeight,
+    };
   }
 
   Future<void> _updateRepost(String rePostId) async {
@@ -248,10 +311,10 @@ class _RepostPageState extends State<RepostPage> {
       body: Stack(
         children: [
           Align(
-            alignment: Alignment.topCenter, // 上寄せに設定
+            alignment: Alignment.topCenter,
             child: SingleChildScrollView(
               child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 500), // 横幅を最大500に制限
+                constraints: BoxConstraints(maxWidth: 500),
                 child: Padding(
                   padding: const EdgeInsets.all(10.0),
                   child: Column(
@@ -338,9 +401,41 @@ class _RepostPageState extends State<RepostPage> {
                                   mediaUrl: widget.post.mediaUrl,
                                   category: widget.post.category ?? '',
                                   atStart: true,
+                                  post: widget.post,
                                 ),
                               ],
                             ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // カテゴリー選択用のドロップダウンメニュー
+                      Align(
+                        alignment: Alignment.centerRight, // 右寄せに設定
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: DropdownButton<String>(
+                            value: _selectedCategory,
+                            hint: const Text('カテゴリーを選択'),
+                            underline: SizedBox(), // 下線を非表示
+                            items: _categories.map((String category) {
+                              return DropdownMenuItem<String>(
+                                value: category,
+                                child: Text(category.isEmpty
+                                    ? '未選択'
+                                    : category), // 空欄の場合は「未選択」と表示
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                _selectedCategory = newValue;
+                              });
+                            },
                           ),
                         ),
                       ),
@@ -377,6 +472,7 @@ class _RepostPageState extends State<RepostPage> {
                         },
                       ),
                       const SizedBox(height: 20),
+
                       if (_mediaFiles.isNotEmpty)
                         SizedBox(
                           height: 150,
@@ -439,7 +535,7 @@ class _RepostPageState extends State<RepostPage> {
     );
   }
 
-  Future<void> _addOrUpdateMessage(String replyPostId) async {
+  Future<void> _addOrUpdateMessage() async {
     final userMessageRef = FirebaseFirestore.instance
         .collection('users')
         .doc(widget.post.postAccountId)

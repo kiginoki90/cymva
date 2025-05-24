@@ -25,6 +25,8 @@ class PostFirestore {
         'clip': false,
         'clipTime': null,
         'hide': false,
+        'imageHeight': newPost.imageHeight,
+        'imageWidth': newPost.imageWidth,
       };
 
       // Firestoreに投稿を追加し、その結果からドキュメントIDを取得
@@ -70,6 +72,8 @@ class PostFirestore {
           hide: data['hide'] ?? false,
           clip: data['clip'] ?? false,
           clipTime: data['clipTime'] ?? null,
+          imageHeight: data['imageHeight'] ?? null,
+          imageWidth: data['imageWidth'] ?? null,
         );
         postList.add(post);
       }

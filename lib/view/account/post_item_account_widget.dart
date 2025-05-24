@@ -392,6 +392,7 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                                 MediaDisplayWidget(
                                   mediaUrl: widget.post.mediaUrl,
                                   category: widget.post.category ?? '',
+                                  post: widget.post,
                                 ),
                               ],
                             ),

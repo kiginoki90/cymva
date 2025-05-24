@@ -47,7 +47,8 @@ class _RankingPageState extends ConsumerState<RankingPage> {
     if (_scrollController.offset >=
             _scrollController.position.maxScrollExtent - 200 &&
         !_scrollController.position.outOfRange &&
-        !_isLoadingMore) {
+        !_isLoadingMore &&
+        ref.read(rankingViewModelProvider).hasMorePosts) {
       setState(() {
         _isLoadingMore = true;
       });
@@ -315,10 +316,12 @@ class RankingViewModel extends ChangeNotifier {
   Map<String, Account> postUserMap = {};
   bool isLoading = false; // データ取得中の状態を管理
   bool isFirstLoad = true; // 初回データ取得中の状態を管理
+  bool hasMorePosts = true; // 全ての投稿を取得済みかどうかを管理するフラグ
 
   Future<void> getRankingPosts(String userId) async {
     try {
       isLoading = true; // データ取得開始
+      hasMorePosts = true; // 初期化時にフラグをリセット
       notifyListeners();
 
       rankingPostList =
@@ -342,6 +345,8 @@ class RankingViewModel extends ChangeNotifier {
   }
 
   Future<void> getRankingPostsNext(String userId) async {
+    if (!hasMorePosts) return; // 全ての投稿を取得済みの場合は処理を中断
+
     try {
       final nextPosts =
           await ref.read(dbManagerProvider).getRankingPostsNext(userId);
@@ -357,9 +362,11 @@ class RankingViewModel extends ChangeNotifier {
             ) ??
             {};
         postUserMap.addAll(newPostUserMap);
-
-        notifyListeners();
+      } else {
+        hasMorePosts = false; // 追加の投稿がない場合はフラグを更新
       }
+
+      notifyListeners();
     } catch (e) {
       print('Error fetching next ranking posts: $e');
     }

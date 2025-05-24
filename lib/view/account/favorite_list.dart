@@ -46,7 +46,8 @@ class _FavoriteListState extends ConsumerState<FavoriteList> {
     if (_scrollController.offset >=
             _scrollController.position.maxScrollExtent - 200 &&
         !_scrollController.position.outOfRange &&
-        !_isLoadingMore) {
+        !_isLoadingMore &&
+        ref.read(viewModelProvider).hasMorePosts) {
       setState(() {
         _isLoadingMore = true;
       });
@@ -272,9 +273,11 @@ class ViewModel extends ChangeNotifier {
   final Ref ref;
   List<Post> postList = [];
   List<Post> currentPostList = [];
+  bool hasMorePosts = true; // 全ての投稿を取得済みかどうかを管理するフラグ
 
   Future<void> getFavoritePosts(String userId) async {
     postList = [];
+    hasMorePosts = true; // 初期化時にフラグをリセット
     final dbManager = ref.read(dbManagerProvider);
 
     currentPostList = await dbManager.getFavoritePosts(userId);
@@ -283,10 +286,14 @@ class ViewModel extends ChangeNotifier {
   }
 
   Future<void> getFavoritePostsNext(String userId) async {
+    if (!hasMorePosts) return; // 全ての投稿を取得済みの場合は処理を中断
+
     currentPostList =
         await ref.read(dbManagerProvider).getFavoritePostsNext(userId);
     if (currentPostList.isNotEmpty) {
       postList.addAll(currentPostList);
+    } else {
+      hasMorePosts = false; // 追加の投稿がない場合はフラグを更新
     }
     notifyListeners();
   }
