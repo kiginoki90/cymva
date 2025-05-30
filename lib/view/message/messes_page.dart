@@ -5,6 +5,7 @@ import 'package:cymva/utils/book_mark.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/snackbar_utils.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/post_item/post_detail_page.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -36,7 +37,7 @@ class _MessesPageState extends State<MessesPage> {
     _deleteOldMessages(); // 古いメッセージを削除
     _fetchNotifications();
     _getImageUrl();
-    _markNotificationsAsRead();
+    // _markNotificationsAsRead();
     _scrollController.addListener(_scrollListener);
   }
 
@@ -52,28 +53,6 @@ class _MessesPageState extends State<MessesPage> {
             _scrollController.position.maxScrollExtent &&
         !_isLoading) {
       await _fetchNotifications();
-    }
-  }
-
-//通知を既読にする
-  Future<void> _markNotificationsAsRead() async {
-    final firestore = FirebaseFirestore.instance;
-
-    if (widget.userId != null) {
-      QuerySnapshot messageSnapshot = await firestore
-          .collection('users')
-          .doc(widget.userId)
-          .collection('message')
-          .get();
-
-      for (var doc in messageSnapshot.docs) {
-        await firestore
-            .collection('users')
-            .doc(widget.userId)
-            .collection('message')
-            .doc(doc.id)
-            .update({'isRead': true});
-      }
     }
   }
 
@@ -512,518 +491,603 @@ class _MessesPageState extends State<MessesPage> {
             return Column(
               children: [
                 if (notification['message_type'] == 1)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10.0, vertical: 5.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () async {
-                              navigateToPage(
-                                  context,
-                                  notification['request_user'],
-                                  '1',
-                                  false,
-                                  false);
-
-                              // Firestoreでboldをfalseに更新
-                              await FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(widget.userId)
-                                  .collection('message')
-                                  .doc(notification['id'])
-                                  .update({'bold': false});
-
-                              // ローカルの通知リストを更新
-                              setState(() {
-                                notification['bold'] = false;
-                              });
-                            },
-                            child: Text(
-                              '@${notification['request_userId']}さんからフォロー依頼が届いています',
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: isBold
-                                    ? FontWeight.bold
-                                    : FontWeight.normal, // 太文字を適用
-                              ),
-                            ),
-                          ),
-                        ),
-                        Row(
+                  Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10.0, vertical: 5.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.red),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: TextButton(
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(
-                                      vertical: 8.0, horizontal: 8.0),
-                                  minimumSize: Size(0, 0),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                onPressed: () {
-                                  _showDeleteConfirmationDialog(
-                                      notification['request_user'],
-                                      notification['id']);
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () async {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => AccountPage(
+                                        postUserId:
+                                            notification['request_user'],
+                                        withDelay: false,
+                                      ),
+                                    ),
+                                  );
+
+                                  await FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(widget.userId)
+                                      .collection('message')
+                                      .doc(notification['id'])
+                                      .update({'bold': false});
+
+                                  setState(() {
+                                    notification['bold'] = false;
+                                  });
                                 },
                                 child: Text(
-                                  '削除',
+                                  '@${notification['request_userId']}さんからフォロー依頼が届いています',
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.red,
+                                    fontWeight: isBold
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
                                   ),
                                 ),
                               ),
                             ),
-                            SizedBox(width: 8),
-                            Container(
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.blue),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: TextButton(
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(
-                                      vertical: 8.0, horizontal: 8.0),
-                                  minimumSize: Size(0, 0),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                onPressed: () => _acceptFollowRequest(
-                                    notification['request_user']),
-                                child: Text(
-                                  '許可',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.blue,
+                            Row(
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.red),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: TextButton(
+                                    style: TextButton.styleFrom(
+                                      padding: EdgeInsets.symmetric(
+                                          vertical: 8.0, horizontal: 8.0),
+                                      minimumSize: Size(0, 0),
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    onPressed: () {
+                                      _showDeleteConfirmationDialog(
+                                          notification['request_user'],
+                                          notification['id']);
+                                    },
+                                    child: Text(
+                                      '削除',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.red,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
+                                SizedBox(width: 8),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.blue),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: TextButton(
+                                    style: TextButton.styleFrom(
+                                      padding: EdgeInsets.symmetric(
+                                          vertical: 8.0, horizontal: 8.0),
+                                      minimumSize: Size(0, 0),
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    onPressed: () => _acceptFollowRequest(
+                                        notification['request_user']),
+                                    child: Text(
+                                      '許可',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                      Divider(
+                        color: Colors.grey,
+                        thickness: 0.5,
+                      ),
+                    ],
                   ),
                 if (notification['message_type'] == 2)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
-                    child: GestureDetector(
-                      onTap: () async {
-                        navigateToPage(context, notification['request_user'],
-                            '1', false, false);
-
-                        // Firestoreでboldをfalseに更新
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(widget.userId)
-                            .collection('message')
-                            .doc(notification['id'])
-                            .update({'bold': false});
-
-                        // ローカルの通知リストを更新
-                        setState(() {
-                          notification['bold'] = false;
-                        });
-                      },
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '@${user.userId}さんへのフォローリクエストが許可されました。',
-                          style: TextStyle(
-                            fontWeight: isBold
-                                ? FontWeight.bold
-                                : FontWeight.normal, // 太文字を適用
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (notification['message_type'] == 3)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
-                    child: GestureDetector(
-                      onTap: () async {
-                        navigateToPage(context, notification['request_user'],
-                            '1', false, false);
-
-                        // Firestoreでboldをfalseに更新
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(widget.userId)
-                            .collection('message')
-                            .doc(notification['id'])
-                            .update({'bold': false});
-
-                        // ローカルの通知リストを更新
-                        setState(() {
-                          notification['bold'] = false;
-                        });
-                      },
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '@${user.userId}さんからフォローされました。',
-                          style: TextStyle(
-                            fontWeight: isBold
-                                ? FontWeight.bold
-                                : FontWeight.normal, // 太文字を適用
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (notification['message_type'] == 4)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: GestureDetector(
-                      onTap: () async {
-                        _showAdminMessageDialog(
-                            notification['title'],
-                            notification['content'],
-                            notification['id'],
-                            notification['timestamp'],
-                            notification['message_read']);
-
-                        // Firestoreでboldをfalseに更新
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(widget.userId)
-                            .collection('message')
-                            .doc(notification['id'])
-                            .update({'bold': false});
-
-                        // ローカルの通知リストを更新
-                        setState(() {
-                          notification['bold'] = false;
-                        });
-                      },
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                                vertical: 4.0, horizontal: 8.0),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.blue),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '運営より',
-                              style: TextStyle(
-                                color: Colors.blue,
-                                fontWeight: FontWeight.bold,
+                  Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 8.0),
+                        child: GestureDetector(
+                          onTap: () async {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AccountPage(
+                                  postUserId: notification['request_user'],
+                                  withDelay: false,
+                                ),
                               ),
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Expanded(
+                            );
+
+                            await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(widget.userId)
+                                .collection('message')
+                                .doc(notification['id'])
+                                .update({'bold': false});
+
+                            setState(() {
+                              notification['bold'] = false;
+                            });
+                          },
+                          child: Align(
+                            alignment: Alignment.centerLeft,
                             child: Text(
-                              notification['title'],
+                              '@${user.userId}さんへのフォローリクエストが許可されました。',
                               style: TextStyle(
                                 fontWeight: isBold
                                     ? FontWeight.bold
-                                    : FontWeight.normal, // 太文字を適用
+                                    : FontWeight.normal,
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                      Divider(
+                        color: Colors.grey,
+                        thickness: 0.5,
+                      ),
+                    ],
+                  ),
+                if (notification['message_type'] == 3)
+                  Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 8.0),
+                        child: GestureDetector(
+                          onTap: () async {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AccountPage(
+                                  postUserId: notification['request_user'],
+                                  withDelay: false,
+                                ),
+                              ),
+                            );
+
+                            await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(widget.userId)
+                                .collection('message')
+                                .doc(notification['id'])
+                                .update({'bold': false});
+
+                            setState(() {
+                              notification['bold'] = false;
+                            });
+                          },
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              '@${user.userId}さんからフォローされました。',
+                              style: TextStyle(
+                                fontWeight: isBold
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Divider(
+                        color: Colors.grey,
+                        thickness: 0.5,
+                      ),
+                    ],
+                  ),
+                if (notification['message_type'] == 4)
+                  Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: GestureDetector(
+                          onTap: () async {
+                            _showAdminMessageDialog(
+                                notification['title'],
+                                notification['content'],
+                                notification['id'],
+                                notification['timestamp'],
+                                notification['message_read']);
+
+                            await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(widget.userId)
+                                .collection('message')
+                                .doc(notification['id'])
+                                .update({'bold': false});
+
+                            setState(() {
+                              notification['bold'] = false;
+                            });
+                          },
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                    vertical: 4.0, horizontal: 8.0),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.blue),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '運営より',
+                                  style: TextStyle(
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  notification['title'],
+                                  style: TextStyle(
+                                    fontWeight: isBold
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Divider(
+                        color: Colors.grey,
+                        thickness: 0.5,
+                      ),
+                    ],
                   ),
                 if (notification['message_type'] == 5)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
-                    child: GestureDetector(
-                      onTap: () async {
-                        _navigateToPostDetailPage(notification['postID']);
+                  FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('posts')
+                        .doc(notification['postID'])
+                        .get(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return SizedBox.shrink();
+                      }
+                      if (snapshot.hasError ||
+                          !snapshot.hasData ||
+                          !snapshot.data!.exists) {
+                        return SizedBox.shrink();
+                      }
 
-                        // Firestoreでboldをfalseに更新
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(widget.userId)
-                            .collection('message')
-                            .doc(notification['id'])
-                            .update({'bold': false});
+                      final postContent =
+                          snapshot.data?.get('content') as String?;
+                      if (postContent == null || postContent.isEmpty) {
+                        return SizedBox.shrink();
+                      }
 
-                        // ローカルの通知リストを更新
-                        setState(() {
-                          notification['bold'] = false;
-                        });
-                      },
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      return Column(
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  notification['count'] == 1
-                                      ? '投稿に返信が来ています'
-                                      : '投稿に${notification['count']}件の返信が来ています',
-                                  style: TextStyle(
-                                    fontWeight: isBold
-                                        ? FontWeight.bold
-                                        : FontWeight.normal, // 太文字を適用
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 8.0),
+                            child: GestureDetector(
+                              onTap: () async {
+                                _navigateToPostDetailPage(
+                                    notification['postID']);
+
+                                await FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(widget.userId)
+                                    .collection('message')
+                                    .doc(notification['id'])
+                                    .update({'bold': false});
+
+                                setState(() {
+                                  notification['bold'] = false;
+                                });
+                              },
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          notification['count'] == 1
+                                              ? '投稿に返信が来ています'
+                                              : '投稿に${notification['count']}件の返信が来ています',
+                                          style: TextStyle(
+                                            fontWeight: isBold
+                                                ? FontWeight.bold
+                                                : FontWeight.normal,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                  Text(
+                                    postContent.length > 50
+                                        ? '${postContent.substring(0, 50)}...'
+                                        : postContent,
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 2,
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                          FutureBuilder<DocumentSnapshot>(
-                            future: FirebaseFirestore.instance
-                                .collection('posts')
-                                .doc(notification['postID'])
-                                .get(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return SizedBox.shrink(); // ローディング中は何も表示しない
-                              }
-                              if (snapshot.hasError || !snapshot.hasData) {
-                                return SizedBox
-                                    .shrink(); // エラーまたはデータなしの場合も何も表示しない
-                              }
-
-                              final postContent =
-                                  snapshot.data?.get('content') as String?;
-                              if (postContent == null || postContent.isEmpty) {
-                                return SizedBox.shrink(); // contentが空の場合も表示しない
-                              }
-
-                              return Text(
-                                postContent.length > 50
-                                    ? '${postContent.substring(0, 50)}...' // 最大30文字まで表示
-                                    : postContent,
-                                style: TextStyle(
-                                  color: Colors.grey, // グレーの文字色
-                                  fontSize: 12, // 小さい文字サイズ
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 2,
-                              );
-                            },
+                          Divider(
+                            color: Colors.grey,
+                            thickness: 0.5,
                           ),
                         ],
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 if (notification['message_type'] == 6)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
-                    child: GestureDetector(
-                      onTap: () async {
-                        navigateToPage(context, notification['request_user'],
-                            '1', false, false);
-
-                        // Firestoreでboldをfalseに更新
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(widget.userId)
-                            .collection('message')
-                            .doc(notification['id'])
-                            .update({'bold': false});
-
-                        // ローカルの通知リストを更新
-                        setState(() {
-                          notification['bold'] = false;
-                        });
-                      },
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  '@${user.userId}さんにリクエストを送りました。',
-                                  style: TextStyle(
-                                    fontWeight: isBold
-                                        ? FontWeight.bold
-                                        : FontWeight.normal, // 太文字を適用
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+                  Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 8.0),
+                        child: GestureDetector(
+                          onTap: () async {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AccountPage(
+                                  postUserId: notification['request_user'],
+                                  withDelay: false,
                                 ),
+                              ),
+                            );
+
+                            // Firestoreでboldをfalseに更新
+                            await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(widget.userId)
+                                .collection('message')
+                                .doc(notification['id'])
+                                .update({'bold': false});
+
+                            // ローカルの通知リストを更新
+                            setState(() {
+                              notification['bold'] = false;
+                            });
+                          },
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      '@${user.userId}さんにリクエストを送りました。',
+                                      style: TextStyle(
+                                        fontWeight: isBold
+                                            ? FontWeight.bold
+                                            : FontWeight.normal, // 太文字を適用
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                      Divider(
+                        color: Colors.grey,
+                        thickness: 0.5,
+                      ),
+                    ],
                   ),
                 if (notification['message_type'] == 7)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
-                    child: GestureDetector(
-                      onTap: () async {
-                        _navigateToPostDetailPage(notification['postID']);
+                  Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 8.0),
+                        child: GestureDetector(
+                          onTap: () async {
+                            _navigateToPostDetailPage(notification['postID']);
 
-                        // Firestoreでboldをfalseに更新
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(widget.userId)
-                            .collection('message')
-                            .doc(notification['id'])
-                            .update({'bold': false});
+                            // Firestoreでboldをfalseに更新
+                            await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(widget.userId)
+                                .collection('message')
+                                .doc(notification['id'])
+                                .update({'bold': false});
 
-                        // ローカルの通知リストを更新
-                        setState(() {
-                          notification['bold'] = false;
-                        });
-                      },
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                            // ローカルの通知リストを更新
+                            setState(() {
+                              notification['bold'] = false;
+                            });
+                          },
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: Text(
-                                  notification['count'] == 1
-                                      ? '投稿が引用されています'
-                                      : '投稿に${notification['count']}件の引用がされています',
-                                  style: TextStyle(
-                                    fontWeight: isBold
-                                        ? FontWeight.bold
-                                        : FontWeight.normal, // 太文字を適用
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      notification['count'] == 1
+                                          ? '投稿が引用されています'
+                                          : '投稿に${notification['count']}件の引用がされています',
+                                      style: TextStyle(
+                                        fontWeight: isBold
+                                            ? FontWeight.bold
+                                            : FontWeight.normal, // 太文字を適用
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                ],
+                              ),
+                              FutureBuilder<DocumentSnapshot>(
+                                future: FirebaseFirestore.instance
+                                    .collection('posts')
+                                    .doc(notification['postID'])
+                                    .get(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return SizedBox.shrink(); // ローディング中は何も表示しない
+                                  }
+                                  if (snapshot.hasError ||
+                                      !snapshot.hasData ||
+                                      !snapshot.data!.exists) {
+                                    return SizedBox
+                                        .shrink(); // エラーまたはデータなし、またはドキュメントが存在しない場合も非表示
+                                  }
+
+                                  final postContent =
+                                      snapshot.data?.get('content') as String?;
+                                  if (postContent == null ||
+                                      postContent.isEmpty) {
+                                    return SizedBox
+                                        .shrink(); // contentが空の場合も非表示
+                                  }
+
+                                  return Text(
+                                    postContent.length > 50
+                                        ? '${postContent.substring(0, 50)}...' // 最大50文字まで表示
+                                        : postContent,
+                                    style: TextStyle(
+                                      color: Colors.grey, // グレーの文字色
+                                      fontSize: 12, // 小さい文字サイズ
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 2,
+                                  );
+                                },
                               ),
                             ],
                           ),
-                          FutureBuilder<DocumentSnapshot>(
-                            future: FirebaseFirestore.instance
-                                .collection('posts')
-                                .doc(notification['postID'])
-                                .get(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return SizedBox.shrink(); // ローディング中は何も表示しない
-                              }
-                              if (snapshot.hasError || !snapshot.hasData) {
-                                return SizedBox
-                                    .shrink(); // エラーまたはデータなしの場合も何も表示しない
-                              }
-
-                              final postContent =
-                                  snapshot.data?.get('content') as String?;
-                              if (postContent == null || postContent.isEmpty) {
-                                return SizedBox.shrink(); // contentが空の場合も表示しない
-                              }
-
-                              return Text(
-                                postContent.length > 50
-                                    ? '${postContent.substring(0, 50)}...' // 最大30文字まで表示
-                                    : postContent,
-                                style: TextStyle(
-                                  color: Colors.grey, // グレーの文字色
-                                  fontSize: 12, // 小さい文字サイズ
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 2,
-                              );
-                            },
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      Divider(
+                        color: Colors.grey,
+                        thickness: 0.5,
+                      ),
+                    ],
                   ),
                 if (notification['message_type'] == 8)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
-                    child: GestureDetector(
-                      onTap: () async {
-                        _navigateToPostDetailPage(notification['postID']);
+                  FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('posts')
+                        .doc(notification['postID'])
+                        .get(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return SizedBox.shrink(); // ローディング中は何も表示しない
+                      }
+                      if (snapshot.hasError ||
+                          !snapshot.hasData ||
+                          !snapshot.data!.exists) {
+                        return SizedBox.shrink(); // エラーまたはデータなしの場合も非表示
+                      }
 
-                        // Firestoreでboldをfalseに更新
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(widget.userId)
-                            .collection('message')
-                            .doc(notification['id'])
-                            .update({'bold': false});
+                      final postContent =
+                          snapshot.data?.get('content') as String?;
+                      if (postContent == null || postContent.isEmpty) {
+                        return SizedBox.shrink(); // contentが空の場合も非表示
+                      }
 
-                        // ローカルの通知リストを更新
-                        setState(() {
-                          notification['bold'] = false;
-                        });
-                      },
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      return Column(
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  notification['count'] == 1
-                                      ? '投稿にスターが送られました'
-                                      : '投稿に${notification['count']}件のスターが送られています',
-                                  style: TextStyle(
-                                    fontWeight: isBold
-                                        ? FontWeight.bold
-                                        : FontWeight.normal, // 太文字を適用
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 8.0),
+                            child: GestureDetector(
+                              onTap: () async {
+                                _navigateToPostDetailPage(
+                                    notification['postID']);
+
+                                // Firestoreでboldをfalseに更新
+                                await FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(widget.userId)
+                                    .collection('message')
+                                    .doc(notification['id'])
+                                    .update({'bold': false});
+
+                                // ローカルの通知リストを更新
+                                setState(() {
+                                  notification['bold'] = false;
+                                });
+                              },
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          notification['count'] == 1
+                                              ? '投稿にスターが送られました'
+                                              : '投稿に${notification['count']}件のスターが送られています',
+                                          style: TextStyle(
+                                            fontWeight: isBold
+                                                ? FontWeight.bold
+                                                : FontWeight.normal, // 太文字を適用
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                  Text(
+                                    postContent.length > 50
+                                        ? '${postContent.substring(0, 50)}...' // 最大50文字まで表示
+                                        : postContent,
+                                    style: TextStyle(
+                                      color: Colors.grey, // グレーの文字色
+                                      fontSize: 12, // 小さい文字サイズ
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 2, // 最大2行まで表示
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                          FutureBuilder<DocumentSnapshot>(
-                            future: FirebaseFirestore.instance
-                                .collection('posts')
-                                .doc(notification['postID'])
-                                .get(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return SizedBox.shrink(); // ローディング中は何も表示しない
-                              }
-                              if (snapshot.hasError || !snapshot.hasData) {
-                                return SizedBox
-                                    .shrink(); // エラーまたはデータなしの場合も何も表示しない
-                              }
-
-                              final postContent =
-                                  snapshot.data?.get('content') as String?;
-                              if (postContent == null || postContent.isEmpty) {
-                                return SizedBox.shrink(); // contentが空の場合も表示しない
-                              }
-
-                              return Text(
-                                postContent.length > 50
-                                    ? '${postContent.substring(0, 50)}...' // 最大50文字まで表示
-                                    : postContent,
-                                style: TextStyle(
-                                  color: Colors.grey, // グレーの文字色
-                                  fontSize: 12, // 小さい文字サイズ
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 2, // 最大2行まで表示
-                              );
-                            },
+                          Divider(
+                            color: Colors.grey,
+                            thickness: 0.5,
                           ),
                         ],
-                      ),
-                    ),
+                      );
+                    },
                   ),
-                Divider(
-                  color: Colors.grey,
-                  thickness: 0.5,
-                ),
+                // Divider(
+                //   color: Colors.grey,
+                //   thickness: 0.5,
+                // ),
               ],
             );
           },

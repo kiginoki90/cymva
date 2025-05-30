@@ -77,29 +77,19 @@ class _ImagePostListState extends ConsumerState<ImagePostList> {
                 ? const Center(child: Text("まだ投稿がありません"))
                 : ListView.builder(
                     controller: _scrollController,
-                    itemCount: model.postList.length +
-                        (model.postList.length ~/ 7) +
-                        1,
+                    itemCount: model.postList.length,
                     itemBuilder: (context, index) {
-                      if (index ==
-                          model.postList.length +
-                              (model.postList.length ~/ 7)) {
-                        return _isLoadingMore
-                            ? const Center(child: Text(" Loading..."))
-                            : const Center(child: Text("結果は以上です"));
+                      final post = model.postList[index];
+
+                      // 投稿者と一致しない場合は非表示
+                      if (post.postAccountId != widget.myAccount.id) {
+                        return Container();
                       }
 
-                      if (index % 8 == 7) {
-                        return BannerAdWidget() ??
-                            SizedBox(height: 50); // 広告ウィジェットを表示
+                      // メディアURLが空の場合はスキップ
+                      if (post.mediaUrl == null || post.mediaUrl!.isEmpty) {
+                        return Container();
                       }
-
-                      final postIndex = index - (index ~/ 8);
-                      if (postIndex >= model.postList.length) {
-                        return Container(); // インデックスが範囲外の場合は空のコンテナを返す
-                      }
-
-                      final post = model.postList[postIndex];
 
                       // お気に入りユーザー数の初期化と更新
                       _favoritePost.favoriteUsersNotifiers[post.id] ??=
@@ -152,22 +142,21 @@ class DbManager {
   DocumentSnapshot? _lastDocument;
 
   Future<List<Post>> getPosts(String userId) async {
+    List<Post> posts = [];
+
+    // created_timeで新しい順に投稿を取得
     Query query = _firestore
         .collection('posts')
         .where('post_account_id', isEqualTo: userId)
         .orderBy('created_time', descending: true)
-        .limit(15);
+        .limit(30);
 
     final querySnapshot = await query.get();
-    List<Post> posts = [];
     if (querySnapshot.docs.isNotEmpty) {
       _lastDocument = querySnapshot.docs.last;
-      for (var doc in querySnapshot.docs) {
-        final post = Post.fromDocument(doc);
-        if (post.mediaUrl != null && post.mediaUrl!.isNotEmpty) {
-          posts.add(post);
-        }
-      }
+      posts = querySnapshot.docs.map((doc) {
+        return Post.fromDocument(doc);
+      }).toList();
     } else {
       print("No posts found.");
     }
@@ -176,28 +165,31 @@ class DbManager {
   }
 
   Future<List<Post>> getPostsNext(String userId) async {
-    if (_lastDocument == null) return [];
+    if (_lastDocument == null) {
+      print("No last document available for pagination.");
+      return [];
+    }
 
+    List<Post> posts = [];
+
+    // created_timeで新しい順に次の投稿を取得
     Query query = _firestore
         .collection('posts')
         .where('post_account_id', isEqualTo: userId)
         .orderBy('created_time', descending: true)
         .startAfterDocument(_lastDocument!)
-        .limit(15);
+        .limit(30);
 
     final querySnapshot = await query.get();
-    List<Post> posts = [];
     if (querySnapshot.docs.isNotEmpty) {
-      _lastDocument = querySnapshot.docs.last;
-      for (var doc in querySnapshot.docs) {
-        final post = Post.fromDocument(doc);
-        if (post.mediaUrl != null && post.mediaUrl!.isNotEmpty) {
-          posts.add(post);
-        }
-      }
+      _lastDocument = querySnapshot.docs.last; // 次のページのために更新
+      posts = querySnapshot.docs.map((doc) {
+        return Post.fromDocument(doc);
+      }).toList();
     } else {
       print("No more posts found.");
     }
+
     return posts;
   }
 }

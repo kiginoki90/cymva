@@ -1,4 +1,5 @@
 import 'package:cymva/utils/firestore/users.dart';
+import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/account/favorite_list.dart';
 import 'package:cymva/view/account/group_posts_page.dart';
@@ -211,7 +212,12 @@ class _AccountPageState extends State<AccountPage> {
                         ? DismissDirection.none // 自分のアカウントの場合はスワイプ無効
                         : DismissDirection.startToEnd, // 他のアカウントの場合は左スワイプで戻る
                     onDismissed: (direction) {
-                      Navigator.of(context).pop(); // 前のページに戻る
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop(); // 現在のページを閉じて前のページに戻る
+                      } else {
+                        navigateToPage(
+                            context, myAccount.id, '0', false, false);
+                      }
                     },
                     child: SafeArea(
                       child: Column(

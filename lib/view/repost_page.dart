@@ -3,6 +3,7 @@ import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cymva/utils/function_utils.dart';
 import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/snackbar_utils.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -50,7 +51,6 @@ class _RepostPageState extends State<RepostPage> {
     '動画',
     'グルメ',
     '俳句・短歌',
-    '憲章宣誓',
     '改修要望/バグ'
   ];
 
@@ -70,7 +70,14 @@ class _RepostPageState extends State<RepostPage> {
   }
 
   void _updateTextLength() {
+    final maxLength = _selectedCategory == '俳句・短歌' ? 40 : 200;
     _currentTextLength.value = _retweetController.text.length;
+    if (_retweetController.text.length > maxLength) {
+      _retweetController.text = _retweetController.text.substring(0, maxLength);
+      _retweetController.selection = TextSelection.fromPosition(
+        TextPosition(offset: maxLength),
+      );
+    }
   }
 
   Future<void> _pickMedia() async {
@@ -285,7 +292,15 @@ class _RepostPageState extends State<RepostPage> {
               padding: const EdgeInsets.only(right: 35.0),
               child: GestureDetector(
                 onTap: () {
-                  navigateToPage(context, widget.userId, '1', false, false);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AccountPage(
+                        postUserId: widget.userId,
+                        withDelay: false,
+                      ),
+                    ),
+                  );
                 },
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8.0),
@@ -453,18 +468,22 @@ class _RepostPageState extends State<RepostPage> {
                       ValueListenableBuilder<int>(
                         valueListenable: _currentTextLength,
                         builder: (context, value, child) {
+                          final maxLength =
+                              _selectedCategory == '俳句・短歌' ? 40 : 200;
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '$value / 200',
+                                '$value / $maxLength',
                                 style: TextStyle(
-                                  color: value > 200 ? Colors.red : Colors.grey,
+                                  color: value > maxLength
+                                      ? Colors.red
+                                      : Colors.grey,
                                 ),
                               ),
-                              if (value > 200)
-                                const Text(
-                                  '引用コメントは200文字以内で入力してください。',
+                              if (value > maxLength)
+                                Text(
+                                  '引用コメントは${maxLength}文字以内で入力してください。',
                                   style: TextStyle(color: Colors.red),
                                 ),
                             ],
@@ -522,8 +541,11 @@ class _RepostPageState extends State<RepostPage> {
                     icon: const Icon(Icons.image),
                   ),
                   ElevatedButton(
-                    onPressed:
-                        _currentTextLength.value > 200 ? null : _sendRepost,
+                    onPressed: (_selectedCategory == '俳句・短歌' &&
+                                _currentTextLength.value > 40) ||
+                            _currentTextLength.value > 200
+                        ? null
+                        : _sendRepost,
                     child: const Text('引用を送信'),
                   ),
                 ],

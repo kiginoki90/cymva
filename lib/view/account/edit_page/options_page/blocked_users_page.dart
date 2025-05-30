@@ -67,7 +67,15 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                 return ListTile(
                   leading: InkWell(
                     onTap: () {
-                      navigateToPage(context, account.id, '1', true, false);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AccountPage(
+                            postUserId: account.id,
+                            withDelay: false,
+                          ),
+                        ),
+                      );
                     },
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8.0),

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/utils/follow_service.dart';
 import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/snackbar_utils.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/account/edit_page/account_options_page.dart';
 import 'package:cymva/view/account/follow_page.dart';
 import 'package:cymva/view/account/follower_page.dart';
@@ -843,7 +844,15 @@ class _AccountTopPageState extends State<AccountTopPage> {
       print('アカウントが切り替えられました: ${newAccount.name}');
 
       // 必要に応じて新しいアカウントページに遷移
-      navigateToPage(context, newAccount.id, '1', false, true);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AccountPage(
+            postUserId: newAccount.id,
+            withDelay: false,
+          ),
+        ),
+      );
     } catch (e) {
       print('アカウント切り替えに失敗しました: $e');
     }

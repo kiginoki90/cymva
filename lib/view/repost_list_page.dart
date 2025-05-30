@@ -151,8 +151,15 @@ class _RepostListPageState extends State<RepostListPage> {
                                       // プロフィール画像をタップでアカウントページに遷移
                                       GestureDetector(
                                         onTap: () {
-                                          navigateToPage(context, postAccountId,
-                                              '1', true, false);
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => AccountPage(
+                                                postUserId: postAccount.id,
+                                                withDelay: false,
+                                              ),
+                                            ),
+                                          );
                                         },
                                         child: ClipRRect(
                                           borderRadius:

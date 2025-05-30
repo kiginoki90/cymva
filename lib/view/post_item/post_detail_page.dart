@@ -6,6 +6,7 @@ import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/post_item_utils.dart';
 import 'package:cymva/utils/snackbar_utils.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/account/group_deatail_page.dart';
 import 'package:cymva/view/post_item/Icons_action.dart';
 import 'package:cymva/view/post_item/delete_group_dialog.dart';
@@ -749,8 +750,15 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         children: [
                           GestureDetector(
                             onTap: () {
-                              navigateToPage(context, widget.post.postAccountId,
-                                  '1', true, false);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AccountPage(
+                                    postUserId: widget.post.postAccountId,
+                                    withDelay: false,
+                                  ),
+                                ),
+                              );
                             },
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8.0),

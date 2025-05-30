@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'package:cymva/utils/navigation_utils.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/authentication.dart';
 import 'package:cymva/utils/firestore/users.dart';
 import 'package:cymva/utils/function_utils.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class EditAccountPage extends StatefulWidget {
   @override
@@ -24,6 +26,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
   bool starMessage = true; // スターメッセージの初期値
   int _nameCharCount = 0;
   int _introCharCount = 0;
+  final FlutterSecureStorage storage = FlutterSecureStorage();
 
   ImageProvider getImage() {
     if (image == null) {
@@ -40,7 +43,8 @@ class _EditAccountPageState extends State<EditAccountPage> {
   }
 
   Future<void> _fetchAccountData() async {
-    final account = await UserFirestore.getUser(Authentication.myAccount!.id);
+    var userId = await storage.read(key: 'account_id');
+    final account = await UserFirestore.getUser(userId!);
     if (account != null) {
       setState(() {
         myAccount = account;
@@ -221,7 +225,7 @@ class _EditAccountPageState extends State<EditAccountPage> {
                 String? imagePath = '';
 
                 if (image == null) {
-                  imagePath = myAccount!.imagePath;
+                  imagePath = myAccount?.imagePath ?? ''; // デフォルト値を設定
                 } else {
                   Map<String, dynamic>? uploadResult = image != null
                       ? await FunctionUtils.uploadImage(
@@ -232,24 +236,14 @@ class _EditAccountPageState extends State<EditAccountPage> {
                         )
                       : null;
 
-                  String? imagePath;
-
-                  if (image == null) {
-                    // 画像が選択されていない場合は既存の画像パスを使用
-                    imagePath = myAccount!.imagePath;
+                  if (uploadResult != null &&
+                      uploadResult['downloadUrl'] != null) {
+                    imagePath = uploadResult['downloadUrl'];
+                    print(
+                        'Image uploaded successfully: $imagePath'); // アップロード成功ログ
                   } else {
-                    // 画像が選択されている場合はアップロード処理を実行
-                    Map<String, dynamic>? uploadResult =
-                        await FunctionUtils.uploadImage(
-                      myAccount!.userId,
-                      image!,
-                      context,
-                      shouldGetHeight: false, // 必要に応じて高さを取得
-                    );
-
-                    // アップロード結果からダウンロードURLを取得
-                    imagePath = uploadResult?['downloadUrl'] ??
-                        'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7';
+                    print('Image upload failed'); // アップロード失敗ログ
+                    return;
                   }
                 }
 
@@ -258,16 +252,29 @@ class _EditAccountPageState extends State<EditAccountPage> {
                   name: nameController.text,
                   userId: userIdController.text,
                   selfIntroduction: selfIntroductionController.text,
-                  imagePath: imagePath,
+                  imagePath: imagePath ?? '', // デフォルト値を設定
                   lockAccount: isPrivate,
                   followMessage: followPrivate,
                   replyMessage: replyMessage,
                 );
 
-                Authentication.myAccount = updateAccount;
                 var result = await UserFirestore.updataUser(updateAccount);
                 if (result == true) {
-                  navigateToPage(context, myAccount!.id, '1', false, false);
+                  print('Firestore updated successfully'); // Firestore更新成功ログ
+                  setState(() {
+                    myAccount = updateAccount;
+                  });
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AccountPage(
+                        postUserId: myAccount!.id,
+                        withDelay: false,
+                      ),
+                    ),
+                  );
+                } else {
+                  print('Firestore update failed'); // Firestore更新失敗ログ
                 }
               },
               style: ElevatedButton.styleFrom(

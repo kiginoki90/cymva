@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:flutter/material.dart';
 
@@ -145,8 +146,9 @@ class _FollowPageState extends State<FollowPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => NavigationBarPage(
-                                  userId: followId, firstIndex: 1),
+                              builder: (context) => AccountPage(
+                                postUserId: followId,
+                              ),
                             ),
                           );
                         },
@@ -177,8 +179,9 @@ class _FollowPageState extends State<FollowPage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => NavigationBarPage(
-                                    userId: followId, firstIndex: 1),
+                                builder: (context) => AccountPage(
+                                  postUserId: followId,
+                                ),
                               ),
                             );
                           },

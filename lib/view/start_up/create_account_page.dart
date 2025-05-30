@@ -83,8 +83,12 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                     maxLength: 30,
                     onChanged: (value) {
                       setState(() {
-                        if (value.contains(' ')) {
-                          userIdErrorMessage = 'ユーザーIDに空白を含めることはできません';
+                        final validCharacters =
+                            RegExp(r'^[a-zA-Z0-9!#\$&*~\-_+=.,?]+$');
+                        if (value.contains(' ') || value.contains('\n')) {
+                          userIdErrorMessage = 'ユーザーIDに空白や改行を含めることはできません';
+                        } else if (!validCharacters.hasMatch(value)) {
+                          userIdErrorMessage = 'ユーザーIDに使用できるのは英数字と記号のみです';
                         } else if (value.length < 2) {
                           userIdErrorMessage = 'ユーザーIDは最低2文字必要です';
                         } else {

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/snackbar_utils.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -56,7 +57,6 @@ class _ReplyPageState extends State<ReplyPage> {
     '動画',
     'グルメ',
     '俳句・短歌',
-    '憲章宣誓',
     '改修要望/バグ'
   ]; // 空欄を選択肢に追加
 
@@ -88,7 +88,14 @@ class _ReplyPageState extends State<ReplyPage> {
   }
 
   void _updateTextLength() {
+    final maxLength = _selectedCategory == '俳句・短歌' ? 40 : 200;
     _currentTextLength.value = _replyController.text.length;
+    if (_replyController.text.length > maxLength) {
+      _replyController.text = _replyController.text.substring(0, maxLength);
+      _replyController.selection = TextSelection.fromPosition(
+        TextPosition(offset: maxLength),
+      );
+    }
   }
 
   Future<void> _pickMedia() async {
@@ -284,7 +291,15 @@ class _ReplyPageState extends State<ReplyPage> {
               padding: const EdgeInsets.only(right: 35.0),
               child: GestureDetector(
                 onTap: () {
-                  navigateToPage(context, widget.userId, '1', false, false);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AccountPage(
+                        postUserId: widget.post.postAccountId,
+                        withDelay: false,
+                      ),
+                    ),
+                  );
                 },
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8.0),
@@ -423,10 +438,13 @@ class _ReplyPageState extends State<ReplyPage> {
                       ValueListenableBuilder<int>(
                         valueListenable: _currentTextLength,
                         builder: (context, value, child) {
+                          final maxLength =
+                              _selectedCategory == '俳句・短歌' ? 40 : 200;
                           return Text(
-                            '$value / 200',
+                            '$value / $maxLength',
                             style: TextStyle(
-                              color: value > 200 ? Colors.red : Colors.grey,
+                              color:
+                                  value > maxLength ? Colors.red : Colors.grey,
                             ),
                           );
                         },
@@ -435,9 +453,11 @@ class _ReplyPageState extends State<ReplyPage> {
                       ValueListenableBuilder<int>(
                         valueListenable: _currentTextLength,
                         builder: (context, value, child) {
-                          if (value > 200) {
-                            return const Text(
-                              '返信は200文字以内で入力してください。',
+                          final maxLength =
+                              _selectedCategory == '俳句・短歌' ? 40 : 200;
+                          if (value > maxLength) {
+                            return Text(
+                              '返信は${maxLength}文字以内で入力してください。',
                               style: TextStyle(color: Colors.red),
                             );
                           } else {
@@ -493,8 +513,11 @@ class _ReplyPageState extends State<ReplyPage> {
                     icon: const Icon(Icons.image),
                   ),
                   ElevatedButton(
-                    onPressed:
-                        _currentTextLength.value > 200 ? null : _sendReply,
+                    onPressed: (_selectedCategory == '俳句・短歌' &&
+                                _currentTextLength.value > 40) ||
+                            _currentTextLength.value > 200
+                        ? null
+                        : _sendReply,
                     child: const Text('返信を送信'),
                   ),
                 ],

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/model/account.dart';
+import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/navigation_bar.dart';
 import 'package:cymva/view/time_line/timeline_body.dart';
@@ -265,14 +266,8 @@ class _LoginPageState extends State<LoginPage> {
 
                             await _resetFailedAttempts(); // 成功時に失敗回数をリセット
 
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => NavigationBarPage(
-                                      userId: result.user!.uid,
-                                      showChatIcon: true,
-                                      fromLogin: true)),
-                            );
+                            navigateToPage(context, result.user!.uid, '0',
+                                false, true, true);
                           } else {
                             setState(() {
                               errorMessage = 'ユーザー情報が取得できません';

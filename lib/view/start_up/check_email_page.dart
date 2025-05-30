@@ -1,4 +1,5 @@
 import 'package:cymva/utils/navigation_utils.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/time_line/timeline_body.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -33,8 +34,16 @@ class _CheckEmailPageState extends State<CheckEmailPage> {
                         Navigator.pop(context);
                       }
                       await UserFirestore.getUser(result.user!.uid);
-                      navigateToPage(
-                          context, result.user!.uid, '0', false, false);
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AccountPage(
+                            postUserId: result.user!.uid,
+                            withDelay: false,
+                          ),
+                        ),
+                      );
                     } else {
                       print('メール認証は終わっていません');
                     }

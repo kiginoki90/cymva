@@ -273,7 +273,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
   }
 
   Widget _buildSingleMedia(BuildContext context, String mediaUrl) {
-    const double maxHeightFactor = 1.3; // 縦幅の最大値を縦幅の1.2倍に設定
+    const double maxHeightFactor = 1.3;
 
     return FutureBuilder<ImageInfo>(
       future: _loadImageInfo(mediaUrl),

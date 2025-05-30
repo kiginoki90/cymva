@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/ad_widget.dart';
 import 'package:cymva/utils/book_mark.dart';
 import 'package:cymva/utils/navigation_utils.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/search/detailed_search_page.dart';
 import 'package:cymva/view/search/search_item.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -449,7 +450,15 @@ class _SearchPageState extends State<SearchPage> {
                 children: [
                   InkWell(
                     onTap: () {
-                      navigateToPage(context, account.id, '1', false, false);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AccountPage(
+                            postUserId: account.id,
+                            withDelay: false,
+                          ),
+                        ),
+                      );
                     },
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8.0),
@@ -475,7 +484,15 @@ class _SearchPageState extends State<SearchPage> {
                   Expanded(
                     child: InkWell(
                       onTap: () {
-                        navigateToPage(context, account.id, '1', false, false);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AccountPage(
+                              postUserId: account.id,
+                              withDelay: false,
+                            ),
+                          ),
+                        );
                       },
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

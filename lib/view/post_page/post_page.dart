@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/snackbar_utils.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
@@ -246,7 +246,15 @@ class _PostPageState extends State<PostPage> {
               padding: const EdgeInsets.only(right: 35.0),
               child: GestureDetector(
                 onTap: () {
-                  navigateToPage(context, widget.userId, '1', false, false);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AccountPage(
+                        postUserId: widget.userId,
+                        withDelay: false,
+                      ),
+                    ),
+                  );
                 },
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8.0),
@@ -631,8 +639,15 @@ class _PostPageState extends State<PostPage> {
                                   });
 
                                   // タイムラインページへ遷移してから投稿処理を実行
-                                  navigateToPage(context, widget.userId, '1',
-                                      false, false);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => AccountPage(
+                                        postUserId: widget.userId,
+                                        withDelay: false,
+                                      ),
+                                    ),
+                                  );
 
                                   // 投稿処理を非同期で実行
                                   WidgetsBinding.instance

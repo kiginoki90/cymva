@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/view/message/messes_page.dart';
 import 'package:cymva/view/post_page/post_page.dart';
 import 'package:cymva/view/search/search_page.dart';
@@ -25,7 +26,7 @@ class NavigationBarPage extends StatefulWidget {
     required this.userId,
     this.showChatIcon = false,
     this.firstIndex = 0,
-    this.rebuildNavigation = false,
+    this.rebuildNavigation = true,
     this.myAccount = false,
     this.notDleteStotage = false,
     this.fromLogin = false,
@@ -45,6 +46,7 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
   Timestamp? lastPasswordChangeToken;
   int selectedIndex = 0;
   List<Widget> pageList = [];
+  List<GlobalKey<NavigatorState>> pageKeys = [];
 
   @override
   void initState() {
@@ -62,24 +64,93 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
     }
   }
 
-  void _initializePageList(bool myAccount) {
+  Future<void> _initializePageList(bool myAccount) async {
+    // 非同期処理でユーザーIDを取得
+    var myUserId = await storage.read(key: 'account_id');
+
+    // 非同期処理が完了した後にUIを更新
     setState(() {
-      if (myAccount)
+      pageKeys = List.generate(5, (_) => GlobalKey<NavigatorState>());
+
+      if (myAccount) {
         pageList = [
-          TimeLineBody(userId: userId!, fromLogin: widget.fromLogin),
-          AccountPage(postUserId: userId!, withDelay: widget.withDelay),
-          SearchPage(userId: userId!, notdDleteStotage: widget.notDleteStotage),
-          MessesPage(userId: userId!),
-          if (showChatIcon) PostPage(userId: userId!),
+          Navigator(
+            key: pageKeys[0],
+            onGenerateRoute: (_) => MaterialPageRoute(
+              builder: (context) =>
+                  TimeLineBody(userId: userId!, fromLogin: widget.fromLogin),
+            ),
+          ),
+          Navigator(
+            key: pageKeys[1],
+            onGenerateRoute: (_) => MaterialPageRoute(
+              builder: (context) => AccountPage(
+                postUserId: myUserId!, // 修正: myUserId を使用
+                withDelay: widget.withDelay,
+              ),
+            ),
+          ),
+          Navigator(
+            key: pageKeys[2],
+            onGenerateRoute: (_) => MaterialPageRoute(
+              builder: (context) => SearchPage(
+                  userId: userId!, notdDleteStotage: widget.notDleteStotage),
+            ),
+          ),
+          Navigator(
+            key: pageKeys[3],
+            onGenerateRoute: (_) => MaterialPageRoute(
+              builder: (context) => MessesPage(userId: userId!),
+            ),
+          ),
+          if (showChatIcon)
+            Navigator(
+              key: pageKeys[4],
+              onGenerateRoute: (_) => MaterialPageRoute(
+                builder: (context) => PostPage(userId: userId!),
+              ),
+            ),
         ];
-      else
+      } else {
         pageList = [
-          TimeLineBody(userId: userId!, fromLogin: widget.fromLogin),
-          AccountPage(postUserId: widget.userId, withDelay: widget.withDelay),
-          SearchPage(userId: userId!, notdDleteStotage: widget.notDleteStotage),
-          MessesPage(userId: userId!),
-          if (showChatIcon) PostPage(userId: userId!),
+          Navigator(
+            key: pageKeys[0],
+            onGenerateRoute: (_) => MaterialPageRoute(
+              builder: (context) =>
+                  TimeLineBody(userId: userId!, fromLogin: widget.fromLogin),
+            ),
+          ),
+          Navigator(
+            key: pageKeys[1],
+            onGenerateRoute: (_) => MaterialPageRoute(
+              builder: (context) => AccountPage(
+                postUserId: widget.userId,
+                withDelay: widget.withDelay,
+              ),
+            ),
+          ),
+          Navigator(
+            key: pageKeys[2],
+            onGenerateRoute: (_) => MaterialPageRoute(
+              builder: (context) => SearchPage(
+                  userId: userId!, notdDleteStotage: widget.notDleteStotage),
+            ),
+          ),
+          Navigator(
+            key: pageKeys[3],
+            onGenerateRoute: (_) => MaterialPageRoute(
+              builder: (context) => MessesPage(userId: userId!),
+            ),
+          ),
+          if (showChatIcon)
+            Navigator(
+              key: pageKeys[4],
+              onGenerateRoute: (_) => MaterialPageRoute(
+                builder: (context) => PostPage(userId: userId!),
+              ),
+            ),
         ];
+      }
     });
   }
 
@@ -220,97 +291,155 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
         }
       },
       child: Scaffold(
-        body: pageList.isNotEmpty
-            ? pageList[selectedIndex]
-            : const Center(child: CircularProgressIndicator()),
-        bottomNavigationBar: BottomNavigationBar(
-          items: [
-            BottomNavigationBarItem(
-                icon: Icon(Icons.home_outlined), label: 'ホーム'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.perm_identity_outlined), label: 'アカウント'),
-            BottomNavigationBarItem(icon: Icon(Icons.search), label: '検索'),
-            BottomNavigationBarItem(
-              icon: Stack(
-                children: [
-                  const Icon(Icons.notifications),
-                  if (_hasUnreadNotifications())
-                    Positioned(
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(1),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 12,
-                          minHeight: 12,
-                        ),
-                        child: const Text(
-                          '',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              label: 'メッセージ',
-            ),
-            if (showChatIcon)
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.chat_bubble_outline), label: '投稿'),
-          ],
-          currentIndex: selectedIndex,
-          selectedItemColor: Colors.blue, // 選択されたアイテムの色
-          unselectedItemColor: Colors.grey, // 選択されていないアイテムの色
-          onTap: (index) async {
-            if (index == 1) {
-              // 非同期処理でアカウントIDを取得
-              String? myUserId = await storage.read(key: 'account_id') ??
-                  FirebaseAuth.instance.currentUser?.uid;
-
-              if (myUserId != null) {
-                // navigateToPageを置き換え処理に変更
-                Navigator.pushReplacement(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) =>
-                        NavigationBarPage(
-                      userId: myUserId,
-                      showChatIcon: true,
-                      firstIndex: 1,
-                      withDelay: true,
-                    ),
-                    transitionsBuilder:
-                        (context, animation, secondaryAnimation, child) {
-                      // アニメーションを無効化
-                      return child;
-                    },
-                  ),
-                );
-              } else {
-                // 必要に応じてエラーメッセージを表示
-                print('アカウントIDが取得できませんでした');
-              }
-            } else {
-              setState(() {
-                selectedIndex = index;
-              });
-              // 通知をロード
-              _loadNotifications();
-            }
-          },
+        backgroundColor: Colors.white,
+        body: IndexedStack(
+          index: selectedIndex,
+          children: pageList,
         ),
+        bottomNavigationBar: _shouldShowNavigationBar()
+            ? BottomNavigationBar(
+                items: [
+                  BottomNavigationBarItem(
+                      icon: Icon(Icons.home_outlined), label: 'ホーム'),
+                  BottomNavigationBarItem(
+                      icon: Icon(Icons.perm_identity_outlined), label: 'アカウント'),
+                  BottomNavigationBarItem(
+                      icon: Icon(Icons.search), label: '検索'),
+                  BottomNavigationBarItem(
+                    icon: StreamBuilder<bool>(
+                      stream: _hasUnreadNotificationsStream(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData && snapshot.data == true) {
+                          return Stack(
+                            children: [
+                              const Icon(Icons.notifications),
+                              Positioned(
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 12,
+                                    minHeight: 12,
+                                  ),
+                                  child: const Text(
+                                    '',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 8,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        } else {
+                          return const Icon(Icons.notifications); // 通知アイコンのみ表示
+                        }
+                      },
+                    ),
+                    label: 'メッセージ',
+                  ),
+                  // if (showChatIcon)
+                  BottomNavigationBarItem(
+                    icon: selectedIndex == 4
+                        ? Icon(Icons.chat_bubble_outline)
+                        : Icon(Icons.chat_bubble_outline), // デフォルトアイコン
+                    label: '投稿',
+                  ),
+                ],
+                currentIndex: selectedIndex,
+                selectedItemColor: Colors.blue, // 選択されたアイテムの色
+                unselectedItemColor: Colors.grey, // 選択されていないアイテムの色
+                onTap: (index) async {
+                  String? myUserId = await storage.read(key: 'account_id');
+                  if (index == 3) {
+                    _markNotificationsAsRead();
+                  }
+                  if (myUserId != userId) {
+                    navigateToPage(context, myUserId!, index.toString(), false);
+                  } else {
+                    if (selectedIndex != index) {
+                      // indexが1の場合のみ画面遷移
+                      if (index == 1) {
+                        // myUserId が null の場合は userId を使用
+                        String targetUserId = myUserId ?? userId!;
+
+                        navigateToPage(context, targetUserId, '1', false);
+                      } else {
+                        setState(() {
+                          selectedIndex = index;
+                        });
+                      }
+                    } else {
+                      // indexが1の場合は処理をスキップ
+                      if (index != 1) {
+                        // 現在のページをリセットする場合
+                        if (pageKeys[index].currentState?.canPop() ?? false) {
+                          pageKeys[index]
+                              .currentState
+                              ?.pop(); // 現在のタブのNavigatorスタックを操作
+                        } else {
+                          navigateToPage(
+                              context, myUserId!, index.toString(), false);
+                        }
+                      } else {
+                        String? myUserId =
+                            await storage.read(key: 'account_id');
+
+                        // myUserId が null の場合は userId を使用
+                        String targetUserId = myUserId ?? userId!;
+                        navigateToPage(context, targetUserId, '1', false);
+                      }
+                    }
+                  }
+                },
+              )
+            : null, // ナビゲーションバーを非表示
       ),
     );
   }
 
-  bool _hasUnreadNotifications() {
-    return notifications.any((notification) => notification['isRead'] == false);
+  /// ナビゲーションバーを表示するかどうかを判定
+  bool _shouldShowNavigationBar() {
+    // FullScreenImagePageに遷移中の場合はナビゲーションバーを非表示
+    return ModalRoute.of(context)?.settings.name != 'FullScreenImagePage';
+  }
+
+  Stream<bool> _hasUnreadNotificationsStream() {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('message')
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.any((doc) => doc['isRead'] == false);
+    });
+  }
+
+  //通知を既読にする
+  Future<void> _markNotificationsAsRead() async {
+    final firestore = FirebaseFirestore.instance;
+
+    if (widget.userId != null) {
+      QuerySnapshot messageSnapshot = await firestore
+          .collection('users')
+          .doc(widget.userId)
+          .collection('message')
+          .get();
+
+      for (var doc in messageSnapshot.docs) {
+        await firestore
+            .collection('users')
+            .doc(widget.userId)
+            .collection('message')
+            .doc(doc.id)
+            .update({'isRead': true});
+      }
+    }
   }
 }

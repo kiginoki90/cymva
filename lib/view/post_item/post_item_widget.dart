@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/post_item_utils.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/post_item/Icons_action.dart';
 import 'package:cymva/view/post_item/link_text.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
@@ -309,8 +310,15 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                     children: [
                       GestureDetector(
                         onTap: () {
-                          navigateToPage(context, widget.post.postAccountId,
-                              '1', true, false);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AccountPage(
+                                postUserId: widget.post.postAccountId,
+                                withDelay: false,
+                              ),
+                            ),
+                          );
                         },
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8.0),
@@ -449,6 +457,7 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                     LinkText(
                                       text: widget.post.content,
                                       textSize: 15,
+                                      maxLines: 15,
                                     ),
                                 ]),
                             Column(

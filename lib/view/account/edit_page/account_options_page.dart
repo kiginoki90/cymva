@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/utils/navigation_utils.dart';
+import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/add_account_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/blocked_users_page.dart';
 import 'package:cymva/view/account/edit_page/options_page/bookmark.dart';
@@ -52,7 +53,15 @@ class _AccountOptionsPageState extends State<AccountOptionsPage> {
         final String? parentsId = userDoc.data()?['parents_id'];
 
         if (parentsId != userId) {
-          navigateToPage(context, userId!, '0', true, true);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AccountPage(
+                postUserId: userId!,
+                withDelay: false,
+              ),
+            ),
+          );
         }
       }
     }

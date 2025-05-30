@@ -18,7 +18,21 @@ Widget buildVerticalText(String content) {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: characters.map((char) {
-                return char == 'ー' || char == 'ｰ' // 全角「ー」または半角「ｰ」の場合のみ回転を適用
+                return [
+                  'ー',
+                  'ｰ',
+                  '(',
+                  ')',
+                  '「',
+                  '」',
+                  '（',
+                  '）',
+                  '［',
+                  '］',
+                  '【',
+                  '】',
+                  '…'
+                ].contains(char) // 回転対象の文字を追加
                     ? Transform.rotate(
                         angle: 90 * 3.1415926535897932 / 180, // 90度をラジアンに変換
                         child: Text(

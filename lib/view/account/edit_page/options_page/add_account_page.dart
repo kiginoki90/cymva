@@ -174,19 +174,31 @@ class _AddAccountPageState extends State<AddAccountPage> {
     if (nameController.text.isNotEmpty &&
         userIdController.text.isNotEmpty &&
         selfIntroductionController.text.isNotEmpty) {
-      if (userIdController.text.contains(' ')) {
+      final validCharacters = RegExp(r'^[a-zA-Z0-9!#\$&*~\-_+=.,?]+$');
+
+      if (userIdController.text.contains(' ') ||
+          userIdController.text.contains('\n')) {
         setState(() {
-          errorMessage = 'ユーザーIDに空白を含めることはできません';
+          errorMessage = 'ユーザーIDに空白や改行を含めることはできません';
         });
         return;
       }
-      bool isUnique = await isUserIdUnique(userIdController.text);
+
+      if (!validCharacters.hasMatch(userIdController.text)) {
+        setState(() {
+          errorMessage = 'ユーザーIDに使用できるのは英数字と記号のみです';
+        });
+        return;
+      }
+
       if (userIdController.text.length < 2) {
         setState(() {
           errorMessage = 'ユーザーIDは2文字以上で入力してください';
         });
         return;
       }
+
+      bool isUnique = await isUserIdUnique(userIdController.text);
       if (!isUnique) {
         setState(() {
           errorMessage = 'そのユーザーIDは既に使われています';
