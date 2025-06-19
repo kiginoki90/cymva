@@ -110,6 +110,15 @@ class FavoritePost {
   }
 
   Future<void> _addOrUpdateMessage(String postId, String postAccountId) async {
+    // userId を取得
+    final userId = await storage.read(key: 'account_id') ??
+        FirebaseAuth.instance.currentUser?.uid;
+
+    // postAccountId と userId が一致している場合は処理を終了
+    if (userId == postAccountId) {
+      return;
+    }
+
     final userMessageRef = FirebaseFirestore.instance
         .collection('users')
         .doc(postAccountId) // `post_account_id` を使用

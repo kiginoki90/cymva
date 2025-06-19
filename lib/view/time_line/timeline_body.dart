@@ -27,10 +27,26 @@ class _TimeLineBodyState extends State<TimeLineBody> {
   final PageController _pageController = PageController();
   bool _hasShownPopups = false; // ポップアップ表示制御フラグ
   final FlutterSecureStorage storage = FlutterSecureStorage();
+  final Map<int, ScrollController> _scrollControllers = {}; // スクロールコントローラー保持
+  int selectedIndex = 0; // 現在のページインデックス
 
   @override
   void initState() {
     super.initState();
+    // 各ページのスクロールコントローラーを初期化
+    for (int i = 0; i < 3; i++) {
+      _scrollControllers[i] = ScrollController();
+    }
+  }
+
+  @override
+  void dispose() {
+    // スクロールコントローラーを破棄
+    for (var controller in _scrollControllers.values) {
+      controller.dispose();
+    }
+    _pageController.dispose();
+    super.dispose();
   }
 
   Future<void> _saveLastPageIndex(int index) async {
@@ -347,16 +363,48 @@ class _TimeLineBodyState extends State<TimeLineBody> {
               child: PageView(
                 controller: _pageController,
                 onPageChanged: (index) {
+                  setState(() {
+                    selectedIndex = index;
+                  });
                   _saveLastPageIndex(index);
                 },
                 children: [
-                  TimeLinePage(userId: widget.userId),
-                  RankingPage(userId: widget.userId),
-                  FollowTimelinePage(userId: widget.userId),
+                  _buildPage(
+                      0,
+                      TimeLinePage(
+                          userId: widget.userId,
+                          key: PageStorageKey('TimeLinePage'))),
+                  _buildPage(
+                      1,
+                      RankingPage(
+                          userId: widget.userId,
+                          key: PageStorageKey('RankingPage'))),
+                  _buildPage(
+                      2,
+                      FollowTimelinePage(
+                          userId: widget.userId,
+                          key: PageStorageKey('FollowTimelinePage'))),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPage(int index, Widget page) {
+    return ScrollConfiguration(
+      behavior: ScrollBehavior().copyWith(overscroll: false),
+      child: SingleChildScrollView(
+        controller: _scrollControllers[index],
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: MediaQuery.of(context).size.height, // 最小高さを画面の高さに設定
+          ),
+          child: IntrinsicHeight(
+            child: page,
+          ),
         ),
       ),
     );

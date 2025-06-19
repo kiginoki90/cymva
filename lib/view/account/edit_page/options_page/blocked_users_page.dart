@@ -115,7 +115,30 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                   ),
                   trailing: OutlinedButton(
                     onPressed: () {
-                      _unblockUser(account.id);
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: Text('ブロック解除'),
+                            content: Text('${account.name} さんのブロックを解除しますか？'),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context); // ダイアログを閉じる
+                                },
+                                child: Text('キャンセル'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context); // ダイアログを閉じる
+                                  _unblockUser(account.id); // ブロック解除処理を実行
+                                },
+                                child: Text('はい'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
                     },
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: Colors.blue), // 枠線の色
@@ -139,44 +162,56 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
 
   // ユーザーのブロックを解除するメソッド
   Future<void> _unblockUser(String blockedUserId) async {
-    final firestore = FirebaseFirestore.instance;
-    final currentUserId = widget.userId;
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final currentUserId = widget.userId;
 
-    // 自分の block サブコレクションの参照
-    final blockCollectionRef =
-        firestore.collection('users').doc(currentUserId).collection('block');
+      // 自分の block サブコレクションの参照
+      final blockCollectionRef =
+          firestore.collection('users').doc(currentUserId).collection('block');
 
-    // 一致するドキュメントを探す
-    final querySnapshot = await blockCollectionRef
-        .where('blocked_user_id', isEqualTo: blockedUserId)
-        .get();
+      // 一致するドキュメントを探す
+      final querySnapshot = await blockCollectionRef
+          .where('blocked_user_id', isEqualTo: blockedUserId)
+          .get();
 
-    // 一致するドキュメントが見つかった場合、削除する
-    if (querySnapshot.docs.isNotEmpty) {
-      for (var doc in querySnapshot.docs) {
-        await blockCollectionRef.doc(doc.id).delete();
+      // 一致するドキュメントが見つかった場合、削除する
+      if (querySnapshot.docs.isNotEmpty) {
+        for (var doc in querySnapshot.docs) {
+          await blockCollectionRef.doc(doc.id).delete();
+        }
       }
-    }
 
-    // ブロックされたユーザーの blockUsers サブコレクションの参照
-    final blockedUserBlockCollectionRef = firestore
-        .collection('users')
-        .doc(blockedUserId)
-        .collection('blockUsers');
+      // ブロックされたユーザーの blockUsers サブコレクションの参照
+      final blockedUserBlockCollectionRef = firestore
+          .collection('users')
+          .doc(blockedUserId)
+          .collection('blockUsers');
 
-    // 一致するドキュメントを探す
-    final blockedUserQuerySnapshot = await blockedUserBlockCollectionRef
-        .where('blocked_user_id', isEqualTo: currentUserId)
-        .get();
+      // 一致するドキュメントを探す
+      final blockedUserQuerySnapshot = await blockedUserBlockCollectionRef
+          .where('blocked_user_id', isEqualTo: currentUserId)
+          .get();
 
-    // 一致するドキュメントが見つかった場合、削除する
-    if (blockedUserQuerySnapshot.docs.isNotEmpty) {
-      for (var doc in blockedUserQuerySnapshot.docs) {
-        await blockedUserBlockCollectionRef.doc(doc.id).delete();
+      // 一致するドキュメントが見つかった場合、削除する
+      if (blockedUserQuerySnapshot.docs.isNotEmpty) {
+        for (var doc in blockedUserQuerySnapshot.docs) {
+          await blockedUserBlockCollectionRef.doc(doc.id).delete();
+        }
       }
-    }
 
-    // ブロック解除後にリストを更新
-    _fetchBlockedUsers();
+      // ブロック解除後にリストを更新
+      await _fetchBlockedUsers();
+
+      // 成功メッセージを表示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ブロックを解除しました')),
+      );
+    } catch (e) {
+      // エラーメッセージを表示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ブロック解除に失敗しました: $e')),
+      );
+    }
   }
 }

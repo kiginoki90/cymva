@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/utils/navigation_utils.dart';
+import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/message/messes_page.dart';
 import 'package:cymva/view/post_page/post_page.dart';
 import 'package:cymva/view/search/search_page.dart';
@@ -10,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:async';
+import 'package:flutter/services.dart';
 
 class NavigationBarPage extends StatefulWidget {
   final String userId;
@@ -103,13 +105,13 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
               builder: (context) => MessesPage(userId: userId!),
             ),
           ),
-          if (showChatIcon)
-            Navigator(
-              key: pageKeys[4],
-              onGenerateRoute: (_) => MaterialPageRoute(
-                builder: (context) => PostPage(userId: userId!),
-              ),
-            ),
+          // if (showChatIcon)
+          //   Navigator(
+          //     key: pageKeys[4],
+          //     onGenerateRoute: (_) => MaterialPageRoute(
+          //       builder: (context) => PostPage(),
+          //     ),
+          //   ),
         ];
       } else {
         pageList = [
@@ -142,13 +144,13 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
               builder: (context) => MessesPage(userId: userId!),
             ),
           ),
-          if (showChatIcon)
-            Navigator(
-              key: pageKeys[4],
-              onGenerateRoute: (_) => MaterialPageRoute(
-                builder: (context) => PostPage(userId: userId!),
-              ),
-            ),
+          // if (showChatIcon)
+          //   Navigator(
+          //     key: pageKeys[4],
+          //     onGenerateRoute: (_) => MaterialPageRoute(
+          //       builder: (context) => PostPage(),
+          //     ),
+          //   ),
         ];
       }
     });
@@ -282,12 +284,22 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
   @override
   Widget build(BuildContext context) {
     return PopScope<Object?>(
-      canPop: selectedIndex == 0,
+      canPop: false, // 戻るボタンのデフォルト動作を無効化
       onPopInvokedWithResult: (bool didPop, Object? result) {
-        if (!didPop && selectedIndex != 0) {
-          setState(() {
-            selectedIndex = 0;
-          });
+        // Navigatorスタックが空でない場合は戻る動作を実行
+        if (pageKeys[selectedIndex].currentState?.canPop() == true) {
+          pageKeys[selectedIndex].currentState?.pop();
+        } else {
+          // Navigatorスタックが空の場合はホームタブに戻る
+          if (selectedIndex != 0) {
+            setState(() {
+              selectedIndex = 0;
+            });
+          } else {
+            // ホームタブにいる場合はアプリを終了
+            print("Exiting the app.");
+            SystemNavigator.pop(); // アプリを終了
+          }
         }
       },
       child: Scaffold(
@@ -344,11 +356,22 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
                     ),
                     label: 'メッセージ',
                   ),
-                  // if (showChatIcon)
                   BottomNavigationBarItem(
-                    icon: selectedIndex == 4
-                        ? Icon(Icons.chat_bubble_outline)
-                        : Icon(Icons.chat_bubble_outline), // デフォルトアイコン
+                    icon: Container(
+                      decoration: BoxDecoration(
+                        color: selectedIndex == 4
+                            ? Colors.blue
+                            : Colors.transparent, // 塗りつぶし
+                        borderRadius: BorderRadius.circular(8), // 角丸
+                      ),
+                      padding: const EdgeInsets.all(8), // アイコン周りの余白
+                      child: Icon(
+                        Icons.chat_bubble_outline,
+                        color: selectedIndex == 4
+                            ? Colors.white
+                            : Colors.grey, // アイコンの色
+                      ),
+                    ),
                     label: '投稿',
                   ),
                 ],
@@ -357,11 +380,31 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
                 unselectedItemColor: Colors.grey, // 選択されていないアイテムの色
                 onTap: (index) async {
                   String? myUserId = await storage.read(key: 'account_id');
-                  if (index == 3) {
-                    _markNotificationsAsRead();
+                  if (index == 4) {
+                    // Firestoreからユーザー情報を取得
+                    final userDocSnapshot = await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(myUserId)
+                        .get();
+
+                    if (userDocSnapshot.exists) {
+                      final userDoc = userDocSnapshot.data();
+
+                      if (userDoc != null &&
+                          (userDoc['admin'] == 4 || userDoc['admin'] == 5)) {
+                        showTopSnackBar(context, '投稿機能が制限されています',
+                            backgroundColor: Colors.red);
+                        return;
+                      }
+                    }
+                    _showPostPage();
                   }
-                  if (myUserId != userId) {
+
+                  if (myUserId != userId && index != 4) {
                     navigateToPage(context, myUserId!, index.toString(), false);
+                    if (index == 3) {
+                      _markNotificationsAsRead();
+                    }
                   } else {
                     if (selectedIndex != index) {
                       // indexが1の場合のみ画面遷移
@@ -370,14 +413,18 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
                         String targetUserId = myUserId ?? userId!;
 
                         navigateToPage(context, targetUserId, '1', false);
-                      } else {
+                      } else if (index != 4) {
                         setState(() {
                           selectedIndex = index;
                         });
+                        if (index == 3) {
+                          _markNotificationsAsRead();
+                        }
                       }
                     } else {
-                      // indexが1の場合は処理をスキップ
-                      if (index != 1) {
+                      if (index == 3) {
+                        _markNotificationsAsRead();
+                      } else if (index != 1) {
                         // 現在のページをリセットする場合
                         if (pageKeys[index].currentState?.canPop() ?? false) {
                           pageKeys[index]
@@ -440,6 +487,26 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
             .doc(doc.id)
             .update({'isRead': true});
       }
+    }
+  }
+
+  void _showPostPage() async {
+    final result = await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return FractionallySizedBox(
+          heightFactor: 0.9,
+          child: PostPage(), // ここで投稿成功時に pop(context, true) を返すようにする
+        );
+      },
+    );
+
+    // 投稿の結果に応じてスナックバーを表示
+    if (result == true) {
+      showTopSnackBar(context, '投稿が完了しました', backgroundColor: Colors.green);
+    } else if (result == false) {
+      showTopSnackBar(context, '投稿に失敗しました', backgroundColor: Colors.red);
     }
   }
 }

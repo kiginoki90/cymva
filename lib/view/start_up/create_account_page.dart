@@ -121,10 +121,26 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                     labelText: 'パスワード',
                     helperText: '6文字以上24文字以内の英数字',
                     helperStyle: TextStyle(fontSize: 12, color: Colors.grey),
+                    errorText: errorMessage, // エラーメッセージを表示
                   ),
                   inputFormatters: [
                     LengthLimitingTextInputFormatter(24),
                   ],
+                  onChanged: (value) {
+                    setState(() {
+                      final validCharacters =
+                          RegExp(r'^[a-zA-Z0-9]+$'); // 英数字のみ許可
+                      if (value.contains(' ') || value.contains('\n')) {
+                        errorMessage = 'パスワードに空白や改行を含めることはできません';
+                      } else if (!validCharacters.hasMatch(value)) {
+                        errorMessage = 'パスワードに使用できるのは英数字のみです';
+                      } else if (value.length < 6) {
+                        errorMessage = 'パスワードは最低6文字必要です';
+                      } else {
+                        errorMessage = null; // エラーなし
+                      }
+                    });
+                  },
                 ),
               ),
               if (errorMessage != null) ...[

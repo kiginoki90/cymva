@@ -60,7 +60,7 @@ class _AccountHeaderState extends State<AccountHeader> {
   }
 
   Future<void> _getAccount() async {
-    myAccount = await UserFirestore.getUser(followService.userId!);
+    myAccount = await UserFirestore.getUser(widget.postUserId);
     setState(() {});
   }
 
@@ -211,7 +211,7 @@ class _AccountHeaderState extends State<AccountHeader> {
               context,
               MaterialPageRoute(
                   builder: (context) => AccountOptionsPage(
-                        loginUserId: myAccount!.id,
+                        loginUserId: widget.postUserId,
                       )),
             );
             if (result == true) {

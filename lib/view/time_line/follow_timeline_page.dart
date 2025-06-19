@@ -21,7 +21,8 @@ class FollowTimelinePage extends ConsumerStatefulWidget {
   _FollowTimelinePageState createState() => _FollowTimelinePageState();
 }
 
-class _FollowTimelinePageState extends ConsumerState<FollowTimelinePage> {
+class _FollowTimelinePageState extends ConsumerState<FollowTimelinePage>
+    with AutomaticKeepAliveClientMixin {
   final FavoritePost _favoritePost = FavoritePost();
   final BookmarkPost _bookmarkPost = BookmarkPost();
   String? loginUserId;
@@ -29,6 +30,9 @@ class _FollowTimelinePageState extends ConsumerState<FollowTimelinePage> {
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<bool> _showScrollToTopButton = ValueNotifier(false);
   bool _isLoadingMore = false;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -81,6 +85,7 @@ class _FollowTimelinePageState extends ConsumerState<FollowTimelinePage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final model = ref.watch(viewModelProvider);
 
     return Scaffold(
@@ -105,8 +110,18 @@ class _FollowTimelinePageState extends ConsumerState<FollowTimelinePage> {
                                   model.followedPostList.length +
                                       (model.followedPostList.length ~/ 7)) {
                                 return _isLoadingMore
-                                    ? const Center(child: Text(" Loading..."))
-                                    : const Center(child: Text("結果は以上です"));
+                                    ? const Center(
+                                        child: SizedBox(
+                                          height: 250, // 高さを指定
+                                          child: Text("Loading..."),
+                                        ),
+                                      )
+                                    : const Center(
+                                        child: SizedBox(
+                                          height: 250, // 高さを指定
+                                          child: Text("結果は以上です"),
+                                        ),
+                                      );
                               }
 
                               if (index % 8 == 7) {
@@ -169,38 +184,30 @@ class _FollowTimelinePageState extends ConsumerState<FollowTimelinePage> {
             ),
           ),
           Positioned(
-            bottom: 30.0,
+            bottom: 230.0,
             right: 16.0,
-            child: ValueListenableBuilder<bool>(
-              valueListenable: _showScrollToTopButton,
-              builder: (context, value, child) {
-                return value
-                    ? GestureDetector(
-                        onTap: () {
-                          _scrollController.animateTo(
-                            0,
-                            duration: Duration(milliseconds: 500),
-                            curve: Curves.easeInOut,
-                          );
-                        },
-                        child: Container(
-                          width: 56.0,
-                          height: 56.0,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border:
-                                Border.all(color: Colors.lightBlue, width: 2.0),
-                            color: Colors.transparent, // 内側を透明にする場合
-                          ),
-                          child: Icon(
-                            Icons.keyboard_double_arrow_up,
-                            color: Colors.lightBlue,
-                            size: 40.0,
-                          ),
-                        ),
-                      )
-                    : Container();
+            child: GestureDetector(
+              onTap: () {
+                _scrollController.animateTo(
+                  0,
+                  duration: Duration(milliseconds: 500),
+                  curve: Curves.easeInOut,
+                );
               },
+              child: Container(
+                width: 56.0,
+                height: 56.0,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.lightBlue, width: 2.0),
+                  color: Colors.transparent, // 内側を透明にする場合
+                ),
+                child: const Icon(
+                  Icons.keyboard_double_arrow_up,
+                  color: Colors.lightBlue,
+                  size: 40.0,
+                ),
+              ),
             ),
           ),
         ],
@@ -244,6 +251,13 @@ class ViewModel extends ChangeNotifier {
     favoritePosts = results[1] as List<String>;
     blockedAccounts = results[2] as List<String>;
 
+    // ブロックされたユーザーの投稿を除外
+    currentPostList.removeWhere((doc) {
+      final postAccountId =
+          (doc.data() as Map<String, dynamic>)['post_account_id'] as String;
+      return blockedAccounts.contains(postAccountId);
+    });
+
     followedPostList.addAll(currentPostList);
     postUserMap = await UserFirestore.getPostUserMap(
           followedPostList
@@ -266,6 +280,14 @@ class ViewModel extends ChangeNotifier {
 
     currentPostList =
         await ref.read(dbManagerProvider).getFollowedPostsNext(userId);
+
+    // ブロックされたユーザーの投稿を除外
+    currentPostList.removeWhere((doc) {
+      final postAccountId =
+          (doc.data() as Map<String, dynamic>)['post_account_id'] as String;
+      return blockedAccounts.contains(postAccountId);
+    });
+
     if (currentPostList.isNotEmpty) {
       followedPostList.addAll(currentPostList);
       final newPostUserMap = await UserFirestore.getPostUserMap(

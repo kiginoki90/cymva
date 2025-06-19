@@ -20,12 +20,16 @@ class RankingPage extends ConsumerStatefulWidget {
   _RankingPageState createState() => _RankingPageState();
 }
 
-class _RankingPageState extends ConsumerState<RankingPage> {
+class _RankingPageState extends ConsumerState<RankingPage>
+    with AutomaticKeepAliveClientMixin {
   final ScrollController _scrollController = ScrollController();
   final FavoritePost _favoritePost = FavoritePost();
   final BookmarkPost _bookmarkPost = BookmarkPost();
   final ValueNotifier<bool> _showScrollToTopButton = ValueNotifier(false);
   bool _isLoadingMore = false;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -69,6 +73,7 @@ class _RankingPageState extends ConsumerState<RankingPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final model = ref.watch(rankingViewModelProvider);
 
     return Scaffold(
@@ -93,8 +98,18 @@ class _RankingPageState extends ConsumerState<RankingPage> {
                                   model.rankingPostList.length +
                                       (model.rankingPostList.length ~/ 7)) {
                                 return _isLoadingMore
-                                    ? const Center(child: Text(" Loading..."))
-                                    : const Center(child: Text("結果は以上です"));
+                                    ? const Center(
+                                        child: SizedBox(
+                                          height: 250, // 高さを指定
+                                          child: Text("Loading..."),
+                                        ),
+                                      )
+                                    : const Center(
+                                        child: SizedBox(
+                                          height: 250, // 高さを指定
+                                          child: Text("結果は以上です"),
+                                        ),
+                                      );
                               }
 
                               if (index % 8 == 7) {
@@ -165,38 +180,30 @@ class _RankingPageState extends ConsumerState<RankingPage> {
             ),
           ),
           Positioned(
-            bottom: 30.0,
+            bottom: 230.0,
             right: 16.0,
-            child: ValueListenableBuilder<bool>(
-              valueListenable: _showScrollToTopButton,
-              builder: (context, value, child) {
-                return value
-                    ? GestureDetector(
-                        onTap: () {
-                          _scrollController.animateTo(
-                            0,
-                            duration: Duration(milliseconds: 500),
-                            curve: Curves.easeInOut,
-                          );
-                        },
-                        child: Container(
-                          width: 56.0,
-                          height: 56.0,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border:
-                                Border.all(color: Colors.lightBlue, width: 2.0),
-                            color: Colors.transparent,
-                          ),
-                          child: Icon(
-                            Icons.keyboard_double_arrow_up,
-                            color: Colors.lightBlue,
-                            size: 40.0,
-                          ),
-                        ),
-                      )
-                    : Container();
+            child: GestureDetector(
+              onTap: () {
+                _scrollController.animateTo(
+                  0,
+                  duration: Duration(milliseconds: 500),
+                  curve: Curves.easeInOut,
+                );
               },
+              child: Container(
+                width: 56.0,
+                height: 56.0,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.lightBlue, width: 2.0),
+                  color: Colors.transparent, // 内側を透明にする場合
+                ),
+                child: const Icon(
+                  Icons.keyboard_double_arrow_up,
+                  color: Colors.lightBlue,
+                  size: 40.0,
+                ),
+              ),
             ),
           ),
         ],

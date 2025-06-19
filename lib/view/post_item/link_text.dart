@@ -168,46 +168,80 @@ class _LinkTextState extends State<LinkText> {
 
       if (matchedText.startsWith('@')) {
         // '@'の処理
-        final recognizer = TapGestureRecognizer()
-          ..onTap = () async {
-            final targetText = matchedText.substring(1); // '@'を除いた部分
-            try {
-              final userDoc = await FirebaseFirestore.instance
-                  .collection('users')
-                  .where('user_id', isEqualTo: targetText)
-                  .limit(1)
-                  .get();
+        final mentionRegex = RegExp(r'^@([a-zA-Z0-9!#\$&*~\-_+=.,?]{1,30})');
+        final match = mentionRegex.firstMatch(matchedText);
 
-              if (userDoc.docs.isNotEmpty) {
-                final postAccountId = userDoc.docs.first.id;
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AccountPage(
-                      postUserId: postAccountId,
-                      withDelay: false,
+        if (match != null) {
+          final targetText = match.group(1)!; // '@'を除いた部分
+          final recognizer = TapGestureRecognizer()
+            ..onTap = () async {
+              try {
+                final userDoc = await FirebaseFirestore.instance
+                    .collection('users')
+                    .where('user_id', isEqualTo: targetText)
+                    .limit(1)
+                    .get();
+
+                if (userDoc.docs.isNotEmpty) {
+                  final postAccountId = userDoc.docs.first.id;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AccountPage(
+                        postUserId: postAccountId,
+                        withDelay: false,
+                      ),
                     ),
-                  ),
-                );
-              } else {
-                showTopSnackBar(context, 'ユーザーが見つかりませんでした',
+                  );
+                } else {
+                  showTopSnackBar(context, 'ユーザーが見つかりませんでした',
+                      backgroundColor: Colors.red);
+                }
+              } catch (e) {
+                showTopSnackBar(context, 'エラーが発生しました: $e',
                     backgroundColor: Colors.red);
               }
-            } catch (e) {
-              showTopSnackBar(context, 'エラーが発生しました: $e',
-                  backgroundColor: Colors.red);
-            }
-          };
-
-        spans.add(TextSpan(
-          text: matchedText,
-          style: TextStyle(
-            fontSize: widget.textSize.toDouble(),
-            color: Colors.blue,
-            fontFamily: 'CustomFont',
-          ),
-          recognizer: recognizer,
-        ));
+            };
+          spans.add(TextSpan(
+            children: [
+              TextSpan(
+                text: '@', // '@'部分を青くする
+                style: TextStyle(
+                  fontSize: widget.textSize.toDouble(),
+                  color: Colors.blue,
+                  fontFamily: 'CustomFont',
+                ),
+              ),
+              TextSpan(
+                text: targetText, // 条件に一致する部分を青くする
+                style: TextStyle(
+                  fontSize: widget.textSize.toDouble(),
+                  color: Colors.blue,
+                  fontFamily: 'CustomFont',
+                ),
+                recognizer: recognizer,
+              ),
+              TextSpan(
+                text: matchedText.substring(match.end), // 条件に一致しない部分を黒くする
+                style: TextStyle(
+                  fontSize: widget.textSize.toDouble(),
+                  color: widget.color ?? Colors.black,
+                  fontFamily: 'CustomFont',
+                ),
+              ),
+            ],
+          ));
+        } else {
+          // 条件に一致しない場合は通常テキストとして追加
+          spans.add(TextSpan(
+            text: matchedText,
+            style: TextStyle(
+              fontFamily: 'CustomFont',
+              fontSize: widget.textSize.toDouble(),
+              color: widget.color ?? Colors.black,
+            ),
+          ));
+        }
       } else if (matchedText.startsWith('#')) {
         // '#'の処理
         spans.add(TextSpan(
@@ -230,13 +264,12 @@ class _LinkTextState extends State<LinkText> {
                   return;
                 }
 
-                // navigateToSearchPageにユーザーIDを渡す
-                navigateToSearchPage(
+                Navigator.push(
                   context,
-                  userId,
-                  '2',
-                  true,
-                  false,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        SearchPage(userId: userId, notdDleteStotage: true),
+                  ),
                 );
               } catch (e) {
                 showTopSnackBar(context, 'エラーが発生しました: $e',

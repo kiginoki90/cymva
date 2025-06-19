@@ -1,10 +1,6 @@
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {setGlobalOptions} = require("firebase-functions/v2");
-const {defineSecret} = require("firebase-functions/params");
-const axios = require("axios");
 const admin = require("firebase-admin");
-
-const openAiApiKey = defineSecret("OPENAI_API_KEY");
 
 setGlobalOptions({region: "us-central1"});
 
@@ -14,72 +10,6 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-
-exports.generateAndAddPost = onSchedule(
-    {
-      schedule: "0 10 * * *",
-      secrets: [openAiApiKey],
-    },
-    async (event) => {
-      try {
-        const postsSnapshot = await db
-            .collection("posts")
-            .where("post_account_id", "==", "c1nvtSQSiSOwCrEKEADK")
-            .orderBy("created_time", "desc")
-            .limit(30)
-            .get();
-
-        const contents = postsSnapshot.docs.map((doc) => doc.data().content);
-
-        const prompt = `あなたは30代の男性です。その上で以下の文章を基にこの文章の作成者がSNSに投稿する際に書きそうな文章を、` +
-        `10～100字程度で作成して下さい:\n${contents.join("\n")}`;
-
-        const apiKey = await openAiApiKey.value();
-
-        const aiResponse = await axios.post(
-            "https://api.openai.com/v1/completions",
-            {
-              model: "text-davinci-003",
-              prompt,
-              max_tokens: 150,
-            },
-            {
-              headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-              },
-            },
-        );
-
-        const generatedContent = aiResponse.data.choices[0].text.trim();
-
-        const postId = db.collection("posts").doc().id; // ランダムIDを生成！
-
-        const newPost = {
-          content: generatedContent,
-          post_account_id: "c1nvtSQSiSOwCrEKEADK",
-          post_user_id: "g",
-          created_time: new Date(),
-          media_url: null,
-          is_video: false,
-          post_id: postId,
-          reply: null,
-          reply_limit: false,
-          repost: null,
-          category: null,
-          clip: false,
-          clipTime: null,
-          hide: false,
-        };
-
-        await db.collection("posts").doc(postId).set(newPost);
-
-        console.log("New post added successfully:", newPost);
-      } catch (error) {
-        console.log("Error generating and adding post:", error);
-      }
-    },
-);
 
 exports.updateRanking = onSchedule("0 0,6,12,18 * * *", async (event) => {
   try {
@@ -179,41 +109,58 @@ exports.updateRanking = onSchedule("0 0,6,12,18 * * *", async (event) => {
   }
 });
 
-// exports.sendFollowNotification = functions.firestore
-//   .document("users/{userId}/followers/{followerId}")
-//   .onCreate(async (snapshot, context) => {
-//     const userId = context.params.userId;
-//     const followerId = context.params.followerId;
+exports.updateTrends = onSchedule("0 12 * * *", async (event) => {
+  try {
+    const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
 
-//     // フォロワーの情報を取得
-//     const followerDoc = await admin.firestore().collection("users").doc(followerId).get();
-//     const followerName = followerDoc.data().user_id || "誰か";
+    // 過去24時間の投稿を取得
+    const postsSnapshot = await db
+        .collection("posts")
+        .where("created_time", ">", twoDaysAgo)
+        .get();
 
-//     // 通知を送信するユーザーのデバイストークンを取得
-//     const userDoc = await admin.firestore().collection("users").doc(userId).get();
-//     const fcmToken = userDoc.data().fcmToken;
+    const wordCounts = {};
 
-//     if (!fcmToken) {
-//       console.log("デバイストークンがありません");
-//       return null;
-//     }
+    // 投稿のcontentを単語ごとに分割し、カウント
+    postsSnapshot.docs.forEach((doc) => {
+      const content = doc.data().content || "";
+      const words = content
+          .split(/\W+/) // 単語を分割（非単語文字で分割）
+          .filter((word) => word.length >= 3); // 3文字以上の単語のみ
 
-//     // 通知メッセージを作成
-//     const message = {
-//       notification: {
-//         title: "新しいフォロワーがいます",
-//         body: `@${followerName} さんがあなたをフォローしました。`,
-//       },
-//       token: fcmToken,
-//     };
+      words.forEach((word) => {
+        const lowerWord = word.toLowerCase(); // 小文字に変換して統一
+        wordCounts[lowerWord] = (wordCounts[lowerWord] || 0) + 1;
+      });
+    });
 
-//     // 通知を送信
-//     try {
-//       await admin.messaging().send(message);
-//       console.log("通知を送信しました:", message);
-//     } catch (error) {
-//       console.error("通知の送信に失敗しました:", error);
-//     }
+    // 頻出単語を取得し、ランキング順にソート
+    const sortedWords = Object.entries(wordCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20); // 上位20個を取得
 
-//     return null;
-//   });
+    const trendCollection = db.collection("trend");
+    const batch = db.batch();
+
+    // 既存のtrendコレクションをクリア
+    const existingTrends = await trendCollection.get();
+    existingTrends.docs.forEach((doc) => batch.delete(doc.ref));
+
+    // 新しいトレンドデータを追加
+    sortedWords.forEach(([word, count], index) => {
+      const docRef = trendCollection.doc(word);
+      batch.set(docRef, {
+        word: word,
+        count: count,
+        ranking: index + 1,
+        hide: false,
+      });
+    });
+
+    await batch.commit();
+    console.log("Trends updated successfully.");
+  } catch (error) {
+    console.error("Error updating trends:", error);
+  }
+});
+

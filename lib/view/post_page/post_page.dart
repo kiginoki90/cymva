@@ -2,18 +2,19 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/account/account_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cymva/utils/firestore/posts.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cymva/utils/function_utils.dart';
 import 'package:video_player/video_player.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
 class PostPage extends StatefulWidget {
-  final String userId;
-  const PostPage({super.key, required this.userId});
+  const PostPage({super.key});
 
   @override
   State<PostPage> createState() => _PostPageState();
@@ -33,6 +34,8 @@ class _PostPageState extends State<PostPage> {
   String? _imageUrl;
   int? imageHeight;
   int? imageWidth;
+  final FlutterSecureStorage storage = FlutterSecureStorage();
+  String? userId;
 
   String? selectedCategory;
   final List<String> categories = [
@@ -65,21 +68,35 @@ class _PostPageState extends State<PostPage> {
   String? userProfileImageUrl;
   bool isPosting = false;
   String? postUserId;
+  bool showSuggestions = false;
+  List<Map<String, dynamic>> followingAccounts = [];
+  List<Map<String, dynamic>> filteredAccounts = [];
 
   @override
   void initState() {
     super.initState();
+    initialize();
     fetchUserProfileImage();
     _fetchAccountData();
     _loadDraft();
     _getImageUrl();
+    fetchFollowingAccounts();
+    contentController.addListener(_onTextChanged);
+  }
+
+  Future<void> initialize() async {
+    userId = await storage.read(key: 'account_id') ??
+        FirebaseAuth.instance.currentUser?.uid;
   }
 
   Future<void> fetchUserProfileImage() async {
     try {
+      userId = await storage.read(key: 'account_id') ??
+          FirebaseAuth.instance.currentUser?.uid;
+
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.userId)
+          .doc(userId)
           .get();
 
       if (userDoc.exists) {
@@ -90,6 +107,100 @@ class _PostPageState extends State<PostPage> {
       }
     } catch (e) {
       print('プロフィール画像の取得中にエラーが発生しました: $e');
+    }
+  }
+
+  void _onTextChanged() {
+    final text = contentController.text;
+
+    // 正規表現で @ の後に許可された文字列を取得
+    final regex = RegExp(r'@([a-zA-Z0-9!#\$&*~\-_+=.,?]*)$');
+    final match = regex.firstMatch(text);
+
+    if (match != null) {
+      final query = match.group(1) ?? ''; // @の後の文字列を取得
+      setState(() {
+        showSuggestions = true;
+        filteredAccounts = followingAccounts.where((account) {
+          return account['userId']
+              .toLowerCase()
+              .startsWith(query.toLowerCase()); // ユーザーIDが入力文字列で始まるかチェック
+        }).toList();
+      });
+    } else {
+      setState(() {
+        showSuggestions = false;
+        filteredAccounts = [];
+      });
+    }
+  }
+
+  Future<void> fetchFollowingAccounts() async {
+    try {
+      final userId = await storage.read(key: 'account_id') ??
+          FirebaseAuth.instance.currentUser?.uid;
+
+      // フォローしているユーザーのIDを取得
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('follow')
+          .get();
+
+      List<Map<String, dynamic>> accounts = [];
+
+      for (var doc in snapshot.docs) {
+        String followedUserId = doc.id;
+
+        try {
+          // フォローユーザーの詳細データを取得
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(followedUserId)
+              .get();
+
+          if (userDoc.exists) {
+            accounts.add({
+              'id': followedUserId,
+              'userId': userDoc['user_id'],
+              'name': userDoc['name'],
+              'profileImage': userDoc['image_path'], // プロフィール画像のパス
+            });
+          } else {
+            print('ドキュメントが存在しません: $followedUserId');
+          }
+        } catch (e) {
+          print('ユーザー情報の取得中にエラーが発生しました: $e');
+          // エラーが発生した場合はスルーして次の処理を続行
+        }
+      }
+
+      setState(() {
+        followingAccounts = accounts;
+      });
+    } catch (e) {
+      print('フォローしているアカウントの取得中にエラーが発生しました: $e');
+    }
+  }
+
+  void _insertUserId(String userId) {
+    final text = contentController.text;
+    final cursorPosition = contentController.selection.baseOffset;
+
+    // @ の位置を取得
+    final atIndex = text.lastIndexOf('@', cursorPosition);
+
+    if (atIndex != -1) {
+      // @ の後の文字列を削除して新しいテキストを作成
+      final newText = text.substring(0, atIndex + 1) + userId + ' ';
+
+      setState(() {
+        contentController.text = newText;
+        contentController.selection = TextSelection.fromPosition(
+          TextPosition(offset: newText.length),
+        );
+        showSuggestions = false;
+      });
     }
   }
 
@@ -115,10 +226,8 @@ class _PostPageState extends State<PostPage> {
   }
 
   Future<void> _fetchAccountData() async {
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.userId)
-        .get();
+    final doc =
+        await FirebaseFirestore.instance.collection('users').doc(userId).get();
     if (doc.exists) {
       setState(() {
         accountData = doc.data();
@@ -145,10 +254,11 @@ class _PostPageState extends State<PostPage> {
   }
 
   Future<void> _loadDraft() async {
-    DocumentSnapshot userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.userId)
-        .get();
+    userId = await storage.read(key: 'account_id') ??
+        FirebaseAuth.instance.currentUser?.uid;
+
+    DocumentSnapshot userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(userId).get();
 
     if (userDoc.exists && userDoc.data() != null) {
       Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
@@ -250,7 +360,7 @@ class _PostPageState extends State<PostPage> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => AccountPage(
-                        postUserId: widget.userId,
+                        postUserId: userId!,
                         withDelay: false,
                       ),
                     ),
@@ -295,26 +405,18 @@ class _PostPageState extends State<PostPage> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // ElevatedButton(
-                            //   onPressed: () {
-                            //     setState(() {
-                            //       selectedCategory = null;
-                            //     });
-                            //   },
-                            //   style: ElevatedButton.styleFrom(
-                            //     backgroundColor: Colors.blueAccent,
-                            //     shape: RoundedRectangleBorder(
-                            //       borderRadius: BorderRadius.circular(8.0),
-                            //     ),
-                            //     padding: EdgeInsets.symmetric(
-                            //         horizontal: 8, vertical: 4),
-                            //   ),
-                            //   child: Text(
-                            //     'クリア',
-                            //     style: TextStyle(
-                            //         fontSize: 12, color: Colors.white),
-                            //   ),
-                            // ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop(); // ダイアログを閉じる
+                              },
+                              child: Text(
+                                'close',
+                                style: TextStyle(
+                                  color: Colors.blue, // テキストの色を赤に設定
+                                  fontSize: 18, // テキストのサイズを設定
+                                ),
+                              ),
+                            ),
                             SizedBox(width: 8),
                             SizedBox(
                               width: 135,
@@ -404,7 +506,7 @@ class _PostPageState extends State<PostPage> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 10),
                       // コンテンツ入力欄
                       TextField(
                         controller: contentController,
@@ -554,8 +656,54 @@ class _PostPageState extends State<PostPage> {
               ),
             ),
           ),
-          const SizedBox(height: 60),
+
           // キーボードの上にボタンを配置する
+          const SizedBox(height: 20),
+          if (showSuggestions && filteredAccounts.isNotEmpty)
+            Positioned(
+              bottom: 80,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.all(4.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(4.0),
+                ),
+                child: SizedBox(
+                  height: 90, // リストの高さを制限
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: filteredAccounts.length,
+                    itemBuilder: (context, index) {
+                      final account = filteredAccounts[index];
+                      return ListTile(
+                        leading: account['profileImage'] != null
+                            ? CircleAvatar(
+                                backgroundImage:
+                                    NetworkImage(account['profileImage']),
+                              )
+                            : const CircleAvatar(
+                                backgroundColor: Colors.grey,
+                                child: Icon(Icons.person),
+                              ),
+                        title: Text(
+                          account['name'].length > 15
+                              ? '${account['name'].substring(0, 15)}...'
+                              : account['name'],
+                        ),
+                        subtitle: Text(
+                          '@${account['userId'].length > 15 ? '${account['userId'].substring(0, 15)}...' : account['userId']}',
+                        ),
+                        onTap: () => _insertUserId(account['userId']),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          const SizedBox(height: 60),
           Positioned(
             bottom: keyboardHeight > 0 ? 10 : 10,
             left: 0,
@@ -578,7 +726,7 @@ class _PostPageState extends State<PostPage> {
                               // Firestoreに保存
                               await FirebaseFirestore.instance
                                   .collection('users')
-                                  .doc(widget.userId)
+                                  .doc(userId)
                                   .update({'draft': draftText});
 
                               // メッセージを表示
@@ -638,16 +786,7 @@ class _PostPageState extends State<PostPage> {
                                     isPosting = true;
                                   });
 
-                                  // タイムラインページへ遷移してから投稿処理を実行
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => AccountPage(
-                                        postUserId: widget.userId,
-                                        withDelay: false,
-                                      ),
-                                    ),
-                                  );
+                                  Navigator.of(context).pop(true); // ダイアログを閉じる
 
                                   // 投稿処理を非同期で実行
                                   WidgetsBinding.instance
@@ -665,7 +804,7 @@ class _PostPageState extends State<PostPage> {
 
                                       Map<String, dynamic>? uploadResult =
                                           await FunctionUtils.uploadImage(
-                                        widget.userId,
+                                        userId!,
                                         file,
                                         context,
                                         shouldGetHeight: images.length ==
@@ -693,7 +832,7 @@ class _PostPageState extends State<PostPage> {
                                       // 動画ファイルのアップロード処理
                                       Map<String, dynamic>? uploadResult =
                                           await FunctionUtils.uploadVideo(
-                                        widget.userId,
+                                        userId!,
                                         _mediaFile!,
                                         context,
                                       );
@@ -715,7 +854,7 @@ class _PostPageState extends State<PostPage> {
                                       content: selectedCategory == '憲章宣誓'
                                           ? '私は市民国家Cymvaの一員として、この国及び全ての機構生命の繁栄と平和のためにその責務を全うすることを誓います。'
                                           : contentController.text,
-                                      postAccountId: widget.userId,
+                                      postAccountId: userId!,
                                       postUserId: postUserId!,
                                       mediaUrl: mediaUrls,
                                       isVideo: isVideo,
@@ -728,23 +867,51 @@ class _PostPageState extends State<PostPage> {
                                     var result =
                                         await PostFirestore.addPost(newPost);
 
-                                    // 投稿完了後の処理
-                                    if (result != null) {
-                                      // Firestoreのdraftフィールドを空にする
-                                      await FirebaseFirestore.instance
-                                          .collection('users')
-                                          .doc(widget.userId)
-                                          .update({'draft': ''});
+                                    // @以降の文字列を抽出
+                                    RegExp mentionRegex = RegExp(
+                                        r'@([a-zA-Z0-9!#\$&*~\-_+=.,?]{1,30})');
+                                    Iterable<Match> mentions = mentionRegex
+                                        .allMatches(contentController.text);
 
-                                      showTopSnackBar(context, '投稿が完了しました',
-                                          backgroundColor: Colors.green);
+                                    for (var mention in mentions) {
+                                      String mentionedUserId =
+                                          mention.group(1)!;
 
-                                      // フィールドをリセット
-                                      _resetFields();
-                                    } else {
-                                      showTopSnackBar(context, '投稿に失敗しました',
-                                          backgroundColor: Colors.red);
+                                      // 該当するユーザーのmessageコレクションにデータを追加
+                                      final userQuerySnapshot =
+                                          await FirebaseFirestore.instance
+                                              .collection('users')
+                                              .where('user_id',
+                                                  isEqualTo: mentionedUserId)
+                                              .get();
+
+                                      if (userQuerySnapshot.docs.isNotEmpty) {
+                                        final userDoc =
+                                            userQuerySnapshot.docs.first;
+
+                                        final userMessageRef = FirebaseFirestore
+                                            .instance
+                                            .collection('users')
+                                            .doc(
+                                                userDoc.id) // ドキュメントIDを使用してアクセス
+                                            .collection('message');
+
+                                        await userMessageRef.add({
+                                          'message_type': 9,
+                                          'timestamp':
+                                              FieldValue.serverTimestamp(),
+                                          'postID': result, // 投稿IDを保存
+                                          'request_user': userId,
+                                          'isRead': false,
+                                          'bold': true,
+                                        });
+                                      }
                                     }
+
+                                    await FirebaseFirestore.instance
+                                        .collection('users')
+                                        .doc(userId)
+                                        .update({'draft': ''});
 
                                     // 投稿が完了した後に投稿中フラグをリセット
                                     if (mounted) {

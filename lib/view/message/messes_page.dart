@@ -28,7 +28,7 @@ class _MessesPageState extends State<MessesPage> {
   DocumentSnapshot? _lastDocument;
   bool _isLoading = false;
   bool _hasMore = true;
-  final int _limit = 15;
+  final int _limit = 30;
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -356,11 +356,12 @@ class _MessesPageState extends State<MessesPage> {
       if (!postSnapshot.exists) {
         showTopSnackBar(context, '投稿が見つかりませんでした', backgroundColor: Colors.red);
       }
+      final postAccountId = postSnapshot.data()?['post_account_id'];
 
       // usersコレクションからユーザーの情報を取得
       final userSnapshot = await FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.userId)
+          .doc(postAccountId)
           .get();
       final userData = userSnapshot.data();
 
@@ -1071,6 +1072,88 @@ class _MessesPageState extends State<MessesPage> {
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                     maxLines: 2, // 最大2行まで表示
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Divider(
+                            color: Colors.grey,
+                            thickness: 0.5,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                if (notification['message_type'] == 9)
+                  FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('posts')
+                        .doc(notification['postID'])
+                        .get(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return SizedBox.shrink(); // ローディング中は何も表示しない
+                      }
+                      if (snapshot.hasError ||
+                          !snapshot.hasData ||
+                          !snapshot.data!.exists) {
+                        return SizedBox.shrink(); // エラーまたはデータなしの場合も非表示
+                      }
+
+                      final postContent =
+                          snapshot.data?.get('content') as String?;
+                      if (postContent == null || postContent.isEmpty) {
+                        return SizedBox.shrink(); // contentが空の場合も非表示
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 8.0),
+                            child: GestureDetector(
+                              onTap: () async {
+                                _navigateToPostDetailPage(
+                                    notification['postID']);
+
+                                // Firestoreでboldをfalseに更新
+                                await FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(widget.userId)
+                                    .collection('message')
+                                    .doc(notification['id'])
+                                    .update({'bold': false});
+
+                                // ローカルの通知リストを更新
+                                setState(() {
+                                  notification['bold'] = false;
+                                });
+                              },
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '@${user.userId}',
+                                    style: TextStyle(
+                                      fontWeight: isBold
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                      color: Colors.blue, // ユーザー名を青色に
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    postContent.length > 50
+                                        ? '${postContent.substring(0, 70)}...' // 最大50文字まで表示
+                                        : postContent,
+                                    style: TextStyle(
+                                      color: Colors.grey, // グレーの文字色
+                                      fontSize: 12, // 小さい文字サイズ
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 3, // 最大2行まで表示
                                   ),
                                 ],
                               ),

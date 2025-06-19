@@ -195,6 +195,38 @@ class _ReplyPageState extends State<ReplyPage> {
             widget.postAccount.replyMessage == true) {
           _addOrUpdateMessage(replyPostId);
         }
+        // @メンションを検出して処理
+        RegExp mentionRegex = RegExp(r'@([a-zA-Z0-9!#\$&*~\-_+=.,?]{1,30})');
+        Iterable<Match> mentions =
+            mentionRegex.allMatches(_replyController.text);
+
+        for (var mention in mentions) {
+          String mentionedUserId = mention.group(1)!;
+
+          // 該当するユーザーのmessageコレクションにデータを追加
+          final userQuerySnapshot = await FirebaseFirestore.instance
+              .collection('users')
+              .where('user_id', isEqualTo: mentionedUserId)
+              .get();
+
+          if (userQuerySnapshot.docs.isNotEmpty) {
+            final userDoc = userQuerySnapshot.docs.first;
+
+            final userMessageRef = FirebaseFirestore.instance
+                .collection('users')
+                .doc(userDoc.id) // ドキュメントIDを使用してアクセス
+                .collection('message');
+
+            await userMessageRef.add({
+              'message_type': 9,
+              'timestamp': FieldValue.serverTimestamp(),
+              'postID': replyPostId, // 返信投稿IDを保存
+              'request_user': widget.userId,
+              'isRead': false,
+              'bold': true,
+            });
+          }
+        }
 
         if (mounted) {
           showTopSnackBar(context, '返信が完了しました', backgroundColor: Colors.green);

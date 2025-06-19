@@ -1,14 +1,15 @@
 import 'dart:io';
 import 'package:cymva/utils/firestore/posts.dart';
 import 'package:cymva/utils/function_utils.dart';
-import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
 class RepostPage extends StatefulWidget {
@@ -37,6 +38,7 @@ class _RepostPageState extends State<RepostPage> {
   String? postUserId;
   int? imageHeight;
   int? imageWidth;
+  final FlutterSecureStorage storage = FlutterSecureStorage();
 
   // カテゴリー選択用の変数
   String? _selectedCategory = ''; // 初期値を空欄に設定
@@ -204,6 +206,38 @@ class _RepostPageState extends State<RepostPage> {
     // quoteMessageがfalse以外の場合に処理を実行
     if (userDoc.exists && userDoc.data()?['quoteMessage'] != false) {
       _addOrUpdateMessage();
+    }
+
+    // @メンションを検出して処理
+    RegExp mentionRegex = RegExp(r'@([a-zA-Z0-9!#\$&*~\-_+=.,?]{1,30})');
+    Iterable<Match> mentions = mentionRegex.allMatches(_retweetController.text);
+
+    for (var mention in mentions) {
+      String mentionedUserId = mention.group(1)!;
+
+      // 該当するユーザーのmessageコレクションにデータを追加
+      final userQuerySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('user_id', isEqualTo: mentionedUserId)
+          .get();
+
+      if (userQuerySnapshot.docs.isNotEmpty) {
+        final userDoc = userQuerySnapshot.docs.first;
+
+        final userMessageRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(userDoc.id) // ドキュメントIDを使用してアクセス
+            .collection('message');
+
+        await userMessageRef.add({
+          'message_type': 9,
+          'timestamp': FieldValue.serverTimestamp(),
+          'postID': rePostId, // 引用投稿IDを保存
+          'request_user': widget.userId,
+          'isRead': false,
+          'bold': true,
+        });
+      }
     }
 
     if (rePostId != null) {
@@ -558,6 +592,14 @@ class _RepostPageState extends State<RepostPage> {
   }
 
   Future<void> _addOrUpdateMessage() async {
+    // userId を取得
+    final userId = await storage.read(key: 'account_id') ??
+        FirebaseAuth.instance.currentUser?.uid;
+
+    if (userId == widget.post.postAccountId) {
+      return;
+    }
+
     final userMessageRef = FirebaseFirestore.instance
         .collection('users')
         .doc(widget.post.postAccountId)

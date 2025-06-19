@@ -1,9 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/ad_widget.dart';
 import 'package:cymva/utils/book_mark.dart';
-import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/search/detailed_search_page.dart';
+import 'package:cymva/view/search/search_by_text_page.dart';
+import 'package:cymva/view/search/search_contents/recent_favorites_page.dart';
+import 'package:cymva/view/search/search_contents/search_image_page.dart';
+import 'package:cymva/view/search/search_contents/search_name_page.dart';
+import 'package:cymva/view/search/search_contents/search_text_page.dart';
 import 'package:cymva/view/search/search_item.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -28,7 +32,8 @@ class SearchPage extends StatefulWidget {
   State<SearchPage> createState() => _SearchPageState();
 }
 
-class _SearchPageState extends State<SearchPage> {
+class _SearchPageState extends State<SearchPage>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   final SearchItem _searchItem = SearchItem(FirebaseFirestore.instance);
   final PageController _pageController = PageController();
@@ -56,6 +61,9 @@ class _SearchPageState extends State<SearchPage> {
   ];
   final Map<String, int> _postFavoriteCounts = {};
   final storage = FlutterSecureStorage();
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -160,8 +168,42 @@ class _SearchPageState extends State<SearchPage> {
     // _favoritePost.getFavoritePosts();
   }
 
+  Future<void> _performSearch(String query) async {
+    await storage.write(key: 'query', value: query);
+    _searchItem.searchPosts(query, widget.userId, _selectedCategory, null,
+        (results) {
+      setState(() {
+        _postSearchResults = results;
+      });
+    });
+    _searchItem.searchAccounts(query, (results) {
+      setState(() {
+        _accountSearchResults = results;
+      });
+    });
+    _searchItem.fetchRecentFavorites(
+        query, widget.userId, _selectedCategory, {}, (results) {
+      setState(() {
+        _recentFavoritesResults = results;
+      });
+    });
+    _searchItem.searchImagePosts(query, widget.userId, _selectedCategory,
+        (results) {
+      setState(() {
+        _recentImageResults = results;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -192,32 +234,7 @@ class _SearchPageState extends State<SearchPage> {
                   await storage.delete(key: 'startDate');
                   await storage.delete(key: 'endDate');
 
-                  _searchItem.searchPosts(
-                      query, widget.userId, _selectedCategory, null, (results) {
-                    setState(() {
-                      _postSearchResults = results;
-                    });
-                  });
-
-                  _searchItem.searchAccounts(query, (results) {
-                    setState(() {
-                      _accountSearchResults = results;
-                    });
-                  });
-
-                  _searchItem.fetchRecentFavorites(query, widget.userId,
-                      _selectedCategory, _postFavoriteCounts, (results) {
-                    setState(() {
-                      _recentFavoritesResults = results;
-                    });
-                  });
-
-                  _searchItem.searchImagePosts(
-                      query, widget.userId, _selectedCategory, (results) {
-                    setState(() {
-                      _recentImageResults = results;
-                    });
-                  });
+                  await _performSearch(query);
                 },
               ),
             ),
@@ -257,16 +274,64 @@ class _SearchPageState extends State<SearchPage> {
                 _onPageChanged();
               },
               children: [
-                _buildSearchByTextPage(),
-                _buildSearchByAccountNamePage(),
-                _buildRecentFavoritesPage(),
-                _buildSearchByImagePage(),
+                _buildPage(
+                  0,
+                  SearchTextPage(
+                    key: PageStorageKey('SearchTextPage'),
+                    postSearchResults: _postSearchResults,
+                    fetchBlockedUserIds: _fetchBlockedUserIds,
+                    refreshSearchResults: _refreshSearchResults,
+                    userId: widget.userId,
+                    favoritePost: _favoritePost,
+                    bookmarkPost: _bookmarkPost,
+                    getPostAccount: (postAccountId) =>
+                        _searchItem.getPostAccount(postAccountId),
+                  ),
+                ),
+                _buildPage(
+                  1,
+                  SearchByAccountNamePage(
+                    accountSearchResults: _accountSearchResults,
+                  ),
+                ),
+                _buildPage(
+                  2,
+                  RecentFavoritesPage(
+                    recentFavoritesResults: _recentFavoritesResults,
+                    fetchBlockedUserIds: _fetchBlockedUserIds,
+                    refreshRecentFavorites: _refreshRecentFavorites,
+                    userId: widget.userId,
+                    favoritePost: _favoritePost,
+                    bookmarkPost: _bookmarkPost,
+                    getPostAccount: (postAccountId) =>
+                        _searchItem.getPostAccount(postAccountId),
+                  ),
+                ),
+                _buildPage(
+                  3,
+                  SearchByImagePage(
+                    recentImageResults: _recentImageResults,
+                    fetchBlockedUserIds: _fetchBlockedUserIds,
+                    refreshPosts: _refreshPosts,
+                    userId: widget.userId,
+                    favoritePost: _favoritePost,
+                    bookmarkPost: _bookmarkPost,
+                    getPostAccount: (postAccountId) =>
+                        _searchItem.getPostAccount(postAccountId),
+                  ),
+                ),
               ],
             ),
           ),
         ],
       ),
-      // bottomNavigationBar: NavigationBarPage(selectedIndex: 2),
+    );
+  }
+
+  Widget _buildPage(int index, Widget child) {
+    return Container(
+      key: PageStorageKey('Page_$index'),
+      child: child,
     );
   }
 
@@ -299,128 +364,128 @@ class _SearchPageState extends State<SearchPage> {
   }
 
 //コンテンツの検索結果を表示するWidget
-  Widget _buildSearchByTextPage() {
-    if (_postSearchResults.isEmpty) {
-      return const Center(child: Text('検索結果がありません'));
-    }
+  // Widget _buildSearchByTextPage() {
+  //   if (_postSearchResults.isEmpty) {
+  //     return const Center(child: Text('検索結果がありません'));
+  //   }
 
-    return FutureBuilder<List<String>>(
-      future: _fetchBlockedUserIds(), // ブロックされたユーザーIDを取得するFuture
-      builder: (context, blockedUsersSnapshot) {
-        if (blockedUsersSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (blockedUsersSnapshot.hasError) {
-          return Center(
-              child: Text('エラーが発生しました: ${blockedUsersSnapshot.error}'));
-        } else if (!blockedUsersSnapshot.hasData) {
-          return Container();
-        }
+  //   return FutureBuilder<List<String>>(
+  //     future: _fetchBlockedUserIds(), // ブロックされたユーザーIDを取得するFuture
+  //     builder: (context, blockedUsersSnapshot) {
+  //       if (blockedUsersSnapshot.connectionState == ConnectionState.waiting) {
+  //         return const Center(child: CircularProgressIndicator());
+  //       } else if (blockedUsersSnapshot.hasError) {
+  //         return Center(
+  //             child: Text('エラーが発生しました: ${blockedUsersSnapshot.error}'));
+  //       } else if (!blockedUsersSnapshot.hasData) {
+  //         return Container();
+  //       }
 
-        final blockedUserIds = blockedUsersSnapshot.data!; // ブロックされたユーザーIDのリスト
+  //       final blockedUserIds = blockedUsersSnapshot.data!; // ブロックされたユーザーIDのリスト
 
-        return Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 500), // 最大横幅を500に設定
-            child: RefreshIndicator(
-              onRefresh: _refreshSearchResults,
-              child: ListView.builder(
-                itemCount: _postSearchResults.length +
-                    (_postSearchResults.length ~/ 5) +
-                    1,
-                itemBuilder: (context, index) {
-                  if (index ==
-                      _postSearchResults.length +
-                          (_postSearchResults.length ~/ 5)) {
-                    return const Center(child: Text("結果は以上です"));
-                  }
+  //       return Center(
+  //         child: ConstrainedBox(
+  //           constraints: BoxConstraints(maxWidth: 500), // 最大横幅を500に設定
+  //           child: RefreshIndicator(
+  //             onRefresh: _refreshSearchResults,
+  //             child: ListView.builder(
+  //               itemCount: _postSearchResults.length +
+  //                   (_postSearchResults.length ~/ 5) +
+  //                   1,
+  //               itemBuilder: (context, index) {
+  //                 if (index ==
+  //                     _postSearchResults.length +
+  //                         (_postSearchResults.length ~/ 5)) {
+  //                   return const Center(child: Text("結果は以上です"));
+  //                 }
 
-                  if (index % 6 == 5) {
-                    return BannerAdWidget() ??
-                        SizedBox(height: 50); // 広告ウィジェットを表示
-                  }
+  //                 if (index % 6 == 5) {
+  //                   return BannerAdWidget() ??
+  //                       SizedBox(height: 50); // 広告ウィジェットを表示
+  //                 }
 
-                  final postIndex = index - (index ~/ 6);
-                  if (postIndex >= _postSearchResults.length) {
-                    return Container(); // インデックスが範囲外の場合は空のコンテナを返す
-                  }
+  //                 final postIndex = index - (index ~/ 6);
+  //                 if (postIndex >= _postSearchResults.length) {
+  //                   return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+  //                 }
 
-                  final postDoc = _postSearchResults[postIndex];
-                  final post = Post.fromDocument(postDoc);
+  //                 final postDoc = _postSearchResults[postIndex];
+  //                 final post = Post.fromDocument(postDoc);
 
-                  return FutureBuilder<Account?>(
-                    future: _searchItem.getPostAccount(post.postAccountId),
-                    builder: (context, accountSnapshot) {
-                      if (accountSnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      } else if (accountSnapshot.hasError) {
-                        return Center(
-                            child:
-                                Text('エラーが発生しました: ${accountSnapshot.error}'));
-                      } else if (!accountSnapshot.hasData) {
-                        return Container();
-                      }
+  //                 return FutureBuilder<Account?>(
+  //                   future: _searchItem.getPostAccount(post.postAccountId),
+  //                   builder: (context, accountSnapshot) {
+  //                     if (accountSnapshot.connectionState ==
+  //                         ConnectionState.waiting) {
+  //                       return const Center(child: CircularProgressIndicator());
+  //                     } else if (accountSnapshot.hasError) {
+  //                       return Center(
+  //                           child:
+  //                               Text('エラーが発生しました: ${accountSnapshot.error}'));
+  //                     } else if (!accountSnapshot.hasData) {
+  //                       return Container();
+  //                     }
 
-                      final postAccount = accountSnapshot.data!;
+  //                     final postAccount = accountSnapshot.data!;
 
-                      // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
-                      if (blockedUserIds.contains(postAccount.id)) {
-                        return Container(); // スキップして何も表示しない
-                      }
+  //                     // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
+  //                     if (blockedUserIds.contains(postAccount.id)) {
+  //                       return Container(); // スキップして何も表示しない
+  //                     }
 
-                      // lock_accountがtrueで、自分ではないアカウントならスキップする
-                      if (postAccount.lockAccount &&
-                          postAccount.id != widget.userId) {
-                        return Container(); // スキップして何も表示しない
-                      }
+  //                     // lock_accountがtrueで、自分ではないアカウントならスキップする
+  //                     if (postAccount.lockAccount &&
+  //                         postAccount.id != widget.userId) {
+  //                       return Container(); // スキップして何も表示しない
+  //                     }
 
-                      // フォロワー数の処理
-                      _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      _favoritePost.updateFavoriteUsersCount(post.id);
+  //                     // フォロワー数の処理
+  //                     _favoritePost.favoriteUsersNotifiers[post.id] ??=
+  //                         ValueNotifier<int>(0);
+  //                     _favoritePost.updateFavoriteUsersCount(post.id);
 
-                      _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      _bookmarkPost.updateBookmarkUsersCount(post.id);
+  //                     _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+  //                         ValueNotifier<int>(0);
+  //                     _bookmarkPost.updateBookmarkUsersCount(post.id);
 
-                      return PostItemWidget(
-                        post: post,
-                        postAccount: postAccount,
-                        favoriteUsersNotifier:
-                            _favoritePost.favoriteUsersNotifiers[post.id]!,
-                        isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
-                            .favoritePostsNotifier.value
-                            .contains(post.id)),
-                        onFavoriteToggle: () {
-                          final isFavorite = _favoritePost
-                              .favoritePostsNotifier.value
-                              .contains(post.id);
-                          _favoritePost.toggleFavorite(post.id, isFavorite);
-                        },
-                        bookmarkUsersNotifier:
-                            _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
-                        isBookmarkedNotifier: ValueNotifier<bool>(
-                          _bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
-                          post.id,
-                          _bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        replyFlag: ValueNotifier<bool>(false),
-                        userId: widget.userId,
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
+  //                     return PostItemWidget(
+  //                       post: post,
+  //                       postAccount: postAccount,
+  //                       favoriteUsersNotifier:
+  //                           _favoritePost.favoriteUsersNotifiers[post.id]!,
+  //                       isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
+  //                           .favoritePostsNotifier.value
+  //                           .contains(post.id)),
+  //                       onFavoriteToggle: () {
+  //                         final isFavorite = _favoritePost
+  //                             .favoritePostsNotifier.value
+  //                             .contains(post.id);
+  //                         _favoritePost.toggleFavorite(post.id, isFavorite);
+  //                       },
+  //                       bookmarkUsersNotifier:
+  //                           _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+  //                       isBookmarkedNotifier: ValueNotifier<bool>(
+  //                         _bookmarkPost.bookmarkPostsNotifier.value
+  //                             .contains(post.id),
+  //                       ),
+  //                       onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+  //                         post.id,
+  //                         _bookmarkPost.bookmarkPostsNotifier.value
+  //                             .contains(post.id),
+  //                       ),
+  //                       replyFlag: ValueNotifier<bool>(false),
+  //                       userId: widget.userId,
+  //                     );
+  //                   },
+  //                 );
+  //               },
+  //             ),
+  //           ),
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
 
 // リストを更新するメソッド
   Future<void> _refreshSearchResults() async {
@@ -434,238 +499,238 @@ class _SearchPageState extends State<SearchPage> {
     });
   }
 
-  Widget _buildSearchByAccountNamePage() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 500),
-        child: ListView.builder(
-          itemCount: _accountSearchResults.length,
-          itemBuilder: (context, index) {
-            final account = _accountSearchResults[index];
+  // Widget _buildSearchByAccountNamePage() {
+  //   return Center(
+  //     child: ConstrainedBox(
+  //       constraints: BoxConstraints(maxWidth: 500),
+  //       child: ListView.builder(
+  //         itemCount: _accountSearchResults.length,
+  //         itemBuilder: (context, index) {
+  //           final account = _accountSearchResults[index];
 
-            return Padding(
-              padding:
-                  const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-              child: Row(
-                children: [
-                  InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AccountPage(
-                            postUserId: account.id,
-                            withDelay: false,
-                          ),
-                        ),
-                      );
-                    },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8.0),
-                      child: Image.network(
-                        account.imagePath ??
-                            'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                        width: 40,
-                        height: 40,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          // 画像の取得に失敗した場合のエラービルダー
-                          return Image.network(
-                            'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => AccountPage(
-                              postUserId: account.id,
-                              withDelay: false,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  account.name.length > 25
-                                      ? '${account.name.substring(0, 25)}...' // 25文字を超える場合は切り捨てて「...」を追加
-                                      : account.name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  '@${account.userId.length > 25 ? '${account.userId.substring(0, 25)}...' : account.userId}',
-                                  style: const TextStyle(color: Colors.grey),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            account.selfIntroduction,
-                            style: const TextStyle(
-                                fontSize: 13, color: Colors.black),
-                            maxLines: 2, // 最大2行に設定
-                            overflow: TextOverflow.ellipsis, // 省略記号を表示
-                            softWrap: true,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
+  //           return Padding(
+  //             padding:
+  //                 const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+  //             child: Row(
+  //               children: [
+  //                 InkWell(
+  //                   onTap: () {
+  //                     Navigator.push(
+  //                       context,
+  //                       MaterialPageRoute(
+  //                         builder: (context) => AccountPage(
+  //                           postUserId: account.id,
+  //                           withDelay: false,
+  //                         ),
+  //                       ),
+  //                     );
+  //                   },
+  //                   child: ClipRRect(
+  //                     borderRadius: BorderRadius.circular(8.0),
+  //                     child: Image.network(
+  //                       account.imagePath ??
+  //                           'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+  //                       width: 40,
+  //                       height: 40,
+  //                       fit: BoxFit.cover,
+  //                       errorBuilder: (context, error, stackTrace) {
+  //                         // 画像の取得に失敗した場合のエラービルダー
+  //                         return Image.network(
+  //                           'https://firebasestorage.googleapis.com/v0/b/cymva-595b7.appspot.com/o/export.jpg?alt=media&token=82889b0e-2163-40d8-917b-9ffd4a116ae7',
+  //                           width: 40,
+  //                           height: 40,
+  //                           fit: BoxFit.cover,
+  //                         );
+  //                       },
+  //                     ),
+  //                   ),
+  //                 ),
+  //                 const SizedBox(width: 10),
+  //                 Expanded(
+  //                   child: InkWell(
+  //                     onTap: () {
+  //                       Navigator.push(
+  //                         context,
+  //                         MaterialPageRoute(
+  //                           builder: (context) => AccountPage(
+  //                             postUserId: account.id,
+  //                             withDelay: false,
+  //                           ),
+  //                         ),
+  //                       );
+  //                     },
+  //                     child: Column(
+  //                       crossAxisAlignment: CrossAxisAlignment.start,
+  //                       children: [
+  //                         Row(
+  //                           crossAxisAlignment: CrossAxisAlignment.start,
+  //                           children: [
+  //                             Flexible(
+  //                               child: Text(
+  //                                 account.name.length > 25
+  //                                     ? '${account.name.substring(0, 25)}...' // 25文字を超える場合は切り捨てて「...」を追加
+  //                                     : account.name,
+  //                                 style: const TextStyle(
+  //                                     fontWeight: FontWeight.bold),
+  //                                 overflow: TextOverflow.ellipsis,
+  //                                 maxLines: 1,
+  //                               ),
+  //                             ),
+  //                             const SizedBox(width: 4),
+  //                             Flexible(
+  //                               child: Text(
+  //                                 '@${account.userId.length > 25 ? '${account.userId.substring(0, 25)}...' : account.userId}',
+  //                                 style: const TextStyle(color: Colors.grey),
+  //                                 overflow: TextOverflow.ellipsis,
+  //                                 maxLines: 1,
+  //                               ),
+  //                             ),
+  //                           ],
+  //                         ),
+  //                         const SizedBox(height: 4),
+  //                         Text(
+  //                           account.selfIntroduction,
+  //                           style: const TextStyle(
+  //                               fontSize: 13, color: Colors.black),
+  //                           maxLines: 2, // 最大2行に設定
+  //                           overflow: TextOverflow.ellipsis, // 省略記号を表示
+  //                           softWrap: true,
+  //                         ),
+  //                       ],
+  //                     ),
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+  //           );
+  //         },
+  //       ),
+  //     ),
+  //   );
+  // }
 
-  Widget _buildRecentFavoritesPage() {
-    if (_recentFavoritesResults.isEmpty) {
-      return const Center(child: Text('検索結果がありません'));
-    }
+  // Widget _buildRecentFavoritesPage() {
+  //   if (_recentFavoritesResults.isEmpty) {
+  //     return const Center(child: Text('検索結果がありません'));
+  //   }
 
-    return FutureBuilder<List<String>>(
-      future: _fetchBlockedUserIds(), // ブロックされたユーザーIDを取得するFuture
-      builder: (context, blockedUsersSnapshot) {
-        if (blockedUsersSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (blockedUsersSnapshot.hasError) {
-          return Center(
-              child: Text('エラーが発生しました: ${blockedUsersSnapshot.error}'));
-        } else if (!blockedUsersSnapshot.hasData) {
-          return Container(); // データがない場合は空のコンテナを返す
-        }
+  //   return FutureBuilder<List<String>>(
+  //     future: _fetchBlockedUserIds(), // ブロックされたユーザーIDを取得するFuture
+  //     builder: (context, blockedUsersSnapshot) {
+  //       if (blockedUsersSnapshot.connectionState == ConnectionState.waiting) {
+  //         return const Center(child: CircularProgressIndicator());
+  //       } else if (blockedUsersSnapshot.hasError) {
+  //         return Center(
+  //             child: Text('エラーが発生しました: ${blockedUsersSnapshot.error}'));
+  //       } else if (!blockedUsersSnapshot.hasData) {
+  //         return Container(); // データがない場合は空のコンテナを返す
+  //       }
 
-        final blockedUserIds = blockedUsersSnapshot.data!; // ブロックされたユーザーIDのリスト
+  //       final blockedUserIds = blockedUsersSnapshot.data!; // ブロックされたユーザーIDのリスト
 
-        return Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 500),
-            child: RefreshIndicator(
-              onRefresh: _refreshRecentFavorites,
-              child: ListView.builder(
-                itemCount: _recentFavoritesResults.length +
-                    (_recentFavoritesResults.length ~/ 5) +
-                    1,
-                itemBuilder: (context, index) {
-                  if (index ==
-                      _recentFavoritesResults.length +
-                          (_recentFavoritesResults.length ~/ 5)) {
-                    return const Center(child: Text("結果は以上です"));
-                  }
+  //       return Center(
+  //         child: ConstrainedBox(
+  //           constraints: BoxConstraints(maxWidth: 500),
+  //           child: RefreshIndicator(
+  //             onRefresh: _refreshRecentFavorites,
+  //             child: ListView.builder(
+  //               itemCount: _recentFavoritesResults.length +
+  //                   (_recentFavoritesResults.length ~/ 5) +
+  //                   1,
+  //               itemBuilder: (context, index) {
+  //                 if (index ==
+  //                     _recentFavoritesResults.length +
+  //                         (_recentFavoritesResults.length ~/ 5)) {
+  //                   return const Center(child: Text("結果は以上です"));
+  //                 }
 
-                  if (index % 6 == 5) {
-                    return BannerAdWidget() ??
-                        SizedBox(height: 50); // 広告ウィジェットを表示
-                  }
+  //                 if (index % 6 == 5) {
+  //                   return BannerAdWidget() ??
+  //                       SizedBox(height: 50); // 広告ウィジェットを表示
+  //                 }
 
-                  final postIndex = index - (index ~/ 6);
-                  if (postIndex >= _recentFavoritesResults.length) {
-                    return Container(); // インデックスが範囲外の場合は空のコンテナを返す
-                  }
+  //                 final postIndex = index - (index ~/ 6);
+  //                 if (postIndex >= _recentFavoritesResults.length) {
+  //                   return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+  //                 }
 
-                  final postDoc = _recentFavoritesResults[postIndex];
-                  final post = Post.fromDocument(postDoc);
+  //                 final postDoc = _recentFavoritesResults[postIndex];
+  //                 final post = Post.fromDocument(postDoc);
 
-                  return FutureBuilder<Account?>(
-                    future: _searchItem.getPostAccount(post.postAccountId),
-                    builder: (context, accountSnapshot) {
-                      if (accountSnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      } else if (accountSnapshot.hasError) {
-                        return Center(
-                            child:
-                                Text('エラーが発生しました: ${accountSnapshot.error}'));
-                      } else if (!accountSnapshot.hasData) {
-                        return Container();
-                      }
+  //                 return FutureBuilder<Account?>(
+  //                   future: _searchItem.getPostAccount(post.postAccountId),
+  //                   builder: (context, accountSnapshot) {
+  //                     if (accountSnapshot.connectionState ==
+  //                         ConnectionState.waiting) {
+  //                       return const Center(child: CircularProgressIndicator());
+  //                     } else if (accountSnapshot.hasError) {
+  //                       return Center(
+  //                           child:
+  //                               Text('エラーが発生しました: ${accountSnapshot.error}'));
+  //                     } else if (!accountSnapshot.hasData) {
+  //                       return Container();
+  //                     }
 
-                      final postAccount = accountSnapshot.data!;
+  //                     final postAccount = accountSnapshot.data!;
 
-                      // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
-                      if (blockedUserIds.contains(postAccount.id)) {
-                        return Container(); // スキップして何も表示しない
-                      }
+  //                     // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
+  //                     if (blockedUserIds.contains(postAccount.id)) {
+  //                       return Container(); // スキップして何も表示しない
+  //                     }
 
-                      // lock_accountがtrueで、自分ではないアカウントならスキップする
-                      if (postAccount.lockAccount &&
-                          postAccount.id != widget.userId) {
-                        return Container(); // スキップして何も表示しない
-                      }
+  //                     // lock_accountがtrueで、自分ではないアカウントならスキップする
+  //                     if (postAccount.lockAccount &&
+  //                         postAccount.id != widget.userId) {
+  //                       return Container(); // スキップして何も表示しない
+  //                     }
 
-                      _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      _favoritePost.updateFavoriteUsersCount(post.id);
+  //                     _favoritePost.favoriteUsersNotifiers[post.id] ??=
+  //                         ValueNotifier<int>(0);
+  //                     _favoritePost.updateFavoriteUsersCount(post.id);
 
-                      _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      _bookmarkPost.updateBookmarkUsersCount(post.id);
+  //                     _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+  //                         ValueNotifier<int>(0);
+  //                     _bookmarkPost.updateBookmarkUsersCount(post.id);
 
-                      // PostItemWidget に recentFavoriteCount をそのまま渡す
-                      return PostItemWidget(
-                        post: post,
-                        postAccount: postAccount,
-                        favoriteUsersNotifier:
-                            _favoritePost.favoriteUsersNotifiers[post.id]!,
-                        isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
-                            .favoritePostsNotifier.value
-                            .contains(post.id)),
-                        onFavoriteToggle: () {
-                          final isFavorite = _favoritePost
-                              .favoritePostsNotifier.value
-                              .contains(post.id);
-                          _favoritePost.toggleFavorite(post.id, isFavorite);
-                        },
-                        bookmarkUsersNotifier:
-                            _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
-                        isBookmarkedNotifier: ValueNotifier<bool>(
-                          _bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
-                          post.id,
-                          _bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        replyFlag: ValueNotifier<bool>(false),
-                        userId: widget.userId,
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
+  //                     // PostItemWidget に recentFavoriteCount をそのまま渡す
+  //                     return PostItemWidget(
+  //                       post: post,
+  //                       postAccount: postAccount,
+  //                       favoriteUsersNotifier:
+  //                           _favoritePost.favoriteUsersNotifiers[post.id]!,
+  //                       isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
+  //                           .favoritePostsNotifier.value
+  //                           .contains(post.id)),
+  //                       onFavoriteToggle: () {
+  //                         final isFavorite = _favoritePost
+  //                             .favoritePostsNotifier.value
+  //                             .contains(post.id);
+  //                         _favoritePost.toggleFavorite(post.id, isFavorite);
+  //                       },
+  //                       bookmarkUsersNotifier:
+  //                           _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+  //                       isBookmarkedNotifier: ValueNotifier<bool>(
+  //                         _bookmarkPost.bookmarkPostsNotifier.value
+  //                             .contains(post.id),
+  //                       ),
+  //                       onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+  //                         post.id,
+  //                         _bookmarkPost.bookmarkPostsNotifier.value
+  //                             .contains(post.id),
+  //                       ),
+  //                       replyFlag: ValueNotifier<bool>(false),
+  //                       userId: widget.userId,
+  //                     );
+  //                   },
+  //                 );
+  //               },
+  //             ),
+  //           ),
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
 
   // リストを更新するメソッド
   Future<void> _refreshRecentFavorites() async {
@@ -680,133 +745,133 @@ class _SearchPageState extends State<SearchPage> {
   }
 
 // 画像の検索結果を表示するWidget
-  Widget _buildSearchByImagePage() {
-    if (_recentImageResults.isEmpty) {
-      return const Center(child: Text('検索結果がありません'));
-    }
+  // Widget _buildSearchByImagePage() {
+  //   if (_recentImageResults.isEmpty) {
+  //     return const Center(child: Text('検索結果がありません'));
+  //   }
 
-    return FutureBuilder<List<String>>(
-      future: _fetchBlockedUserIds(), // ブロックされたユーザーIDを取得するFuture
-      builder: (context, blockedUsersSnapshot) {
-        if (blockedUsersSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (blockedUsersSnapshot.hasError) {
-          return Center(
-              child: Text('エラーが発生しました: ${blockedUsersSnapshot.error}'));
-        } else if (!blockedUsersSnapshot.hasData) {
-          return Container(); // データがない場合は空のコンテナを返す
-        }
+  //   return FutureBuilder<List<String>>(
+  //     future: _fetchBlockedUserIds(), // ブロックされたユーザーIDを取得するFuture
+  //     builder: (context, blockedUsersSnapshot) {
+  //       if (blockedUsersSnapshot.connectionState == ConnectionState.waiting) {
+  //         return const Center(child: CircularProgressIndicator());
+  //       } else if (blockedUsersSnapshot.hasError) {
+  //         return Center(
+  //             child: Text('エラーが発生しました: ${blockedUsersSnapshot.error}'));
+  //       } else if (!blockedUsersSnapshot.hasData) {
+  //         return Container(); // データがない場合は空のコンテナを返す
+  //       }
 
-        final blockedUserIds = blockedUsersSnapshot.data!; // ブロックされたユーザーIDのリスト
+  //       final blockedUserIds = blockedUsersSnapshot.data!; // ブロックされたユーザーIDのリスト
 
-        return Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 500),
-            child: RefreshIndicator(
-              onRefresh: _refreshPosts, // 更新時に呼び出されるメソッド
-              child: ListView.builder(
-                itemCount: _recentImageResults.length +
-                    (_recentImageResults.length ~/ 5) +
-                    1,
-                itemBuilder: (context, index) {
-                  if (index ==
-                      _recentImageResults.length +
-                          (_recentImageResults.length ~/ 5)) {
-                    return const Center(child: Text("結果は以上です"));
-                  }
+  //       return Center(
+  //         child: ConstrainedBox(
+  //           constraints: BoxConstraints(maxWidth: 500),
+  //           child: RefreshIndicator(
+  //             onRefresh: _refreshPosts, // 更新時に呼び出されるメソッド
+  //             child: ListView.builder(
+  //               itemCount: _recentImageResults.length +
+  //                   (_recentImageResults.length ~/ 5) +
+  //                   1,
+  //               itemBuilder: (context, index) {
+  //                 if (index ==
+  //                     _recentImageResults.length +
+  //                         (_recentImageResults.length ~/ 5)) {
+  //                   return const Center(child: Text("結果は以上です"));
+  //                 }
 
-                  if (index % 6 == 5) {
-                    return BannerAdWidget() ??
-                        SizedBox(height: 50); // 広告ウィジェットを表示
-                  }
+  //                 if (index % 6 == 5) {
+  //                   return BannerAdWidget() ??
+  //                       SizedBox(height: 50); // 広告ウィジェットを表示
+  //                 }
 
-                  final postIndex = index - (index ~/ 6);
-                  if (postIndex >= _recentImageResults.length) {
-                    return Container(); // インデックスが範囲外の場合は空のコンテナを返す
-                  }
+  //                 final postIndex = index - (index ~/ 6);
+  //                 if (postIndex >= _recentImageResults.length) {
+  //                   return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+  //                 }
 
-                  final postDoc = _recentImageResults[postIndex];
-                  final post = Post.fromDocument(postDoc);
+  //                 final postDoc = _recentImageResults[postIndex];
+  //                 final post = Post.fromDocument(postDoc);
 
-                  // media_urlがある投稿のみ表示
-                  if (post.mediaUrl == null || post.mediaUrl!.isEmpty) {
-                    return Container(); // media_urlがない場合はスキップ
-                  }
+  //                 // media_urlがある投稿のみ表示
+  //                 if (post.mediaUrl == null || post.mediaUrl!.isEmpty) {
+  //                   return Container(); // media_urlがない場合はスキップ
+  //                 }
 
-                  return FutureBuilder<Account?>(
-                    future: _searchItem.getPostAccount(post.postAccountId),
-                    builder: (context, accountSnapshot) {
-                      if (accountSnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      } else if (accountSnapshot.hasError) {
-                        return Center(
-                            child:
-                                Text('エラーが発生しました: ${accountSnapshot.error}'));
-                      } else if (!accountSnapshot.hasData) {
-                        return Container();
-                      }
+  //                 return FutureBuilder<Account?>(
+  //                   future: _searchItem.getPostAccount(post.postAccountId),
+  //                   builder: (context, accountSnapshot) {
+  //                     if (accountSnapshot.connectionState ==
+  //                         ConnectionState.waiting) {
+  //                       return const Center(child: CircularProgressIndicator());
+  //                     } else if (accountSnapshot.hasError) {
+  //                       return Center(
+  //                           child:
+  //                               Text('エラーが発生しました: ${accountSnapshot.error}'));
+  //                     } else if (!accountSnapshot.hasData) {
+  //                       return Container();
+  //                     }
 
-                      final postAccount = accountSnapshot.data!;
+  //                     final postAccount = accountSnapshot.data!;
 
-                      // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
-                      if (blockedUserIds.contains(postAccount.id)) {
-                        return Container(); // スキップして何も表示しない
-                      }
+  //                     // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
+  //                     if (blockedUserIds.contains(postAccount.id)) {
+  //                       return Container(); // スキップして何も表示しない
+  //                     }
 
-                      // lock_accountがtrueで、自分ではないアカウントならスキップする
-                      if (postAccount.lockAccount &&
-                          postAccount.id != widget.userId) {
-                        return Container(); // スキップして何も表示しない
-                      }
+  //                     // lock_accountがtrueで、自分ではないアカウントならスキップする
+  //                     if (postAccount.lockAccount &&
+  //                         postAccount.id != widget.userId) {
+  //                       return Container(); // スキップして何も表示しない
+  //                     }
 
-                      // フォロワー数の処理
-                      _favoritePost.favoriteUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      _favoritePost.updateFavoriteUsersCount(post.id);
+  //                     // フォロワー数の処理
+  //                     _favoritePost.favoriteUsersNotifiers[post.id] ??=
+  //                         ValueNotifier<int>(0);
+  //                     _favoritePost.updateFavoriteUsersCount(post.id);
 
-                      _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      _bookmarkPost.updateBookmarkUsersCount(post.id);
+  //                     _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+  //                         ValueNotifier<int>(0);
+  //                     _bookmarkPost.updateBookmarkUsersCount(post.id);
 
-                      return PostItemWidget(
-                        post: post,
-                        postAccount: postAccount,
-                        favoriteUsersNotifier:
-                            _favoritePost.favoriteUsersNotifiers[post.id]!,
-                        isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
-                            .favoritePostsNotifier.value
-                            .contains(post.id)),
-                        onFavoriteToggle: () {
-                          final isFavorite = _favoritePost
-                              .favoritePostsNotifier.value
-                              .contains(post.id);
-                          _favoritePost.toggleFavorite(post.id, isFavorite);
-                        },
-                        bookmarkUsersNotifier:
-                            _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
-                        isBookmarkedNotifier: ValueNotifier<bool>(
-                          _bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
-                          post.id,
-                          _bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        replyFlag: ValueNotifier<bool>(false),
-                        userId: widget.userId,
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
+  //                     return PostItemWidget(
+  //                       post: post,
+  //                       postAccount: postAccount,
+  //                       favoriteUsersNotifier:
+  //                           _favoritePost.favoriteUsersNotifiers[post.id]!,
+  //                       isFavoriteNotifier: ValueNotifier<bool>(_favoritePost
+  //                           .favoritePostsNotifier.value
+  //                           .contains(post.id)),
+  //                       onFavoriteToggle: () {
+  //                         final isFavorite = _favoritePost
+  //                             .favoritePostsNotifier.value
+  //                             .contains(post.id);
+  //                         _favoritePost.toggleFavorite(post.id, isFavorite);
+  //                       },
+  //                       bookmarkUsersNotifier:
+  //                           _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+  //                       isBookmarkedNotifier: ValueNotifier<bool>(
+  //                         _bookmarkPost.bookmarkPostsNotifier.value
+  //                             .contains(post.id),
+  //                       ),
+  //                       onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
+  //                         post.id,
+  //                         _bookmarkPost.bookmarkPostsNotifier.value
+  //                             .contains(post.id),
+  //                       ),
+  //                       replyFlag: ValueNotifier<bool>(false),
+  //                       userId: widget.userId,
+  //                     );
+  //                   },
+  //                 );
+  //               },
+  //             ),
+  //           ),
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
 
 // リストを更新するメソッド
   Future<void> _refreshPosts() async {

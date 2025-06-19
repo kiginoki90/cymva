@@ -35,15 +35,18 @@ class _CheckEmailPageState extends State<CheckEmailPage> {
                       }
                       await UserFirestore.getUser(result.user!.uid);
 
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AccountPage(
-                            postUserId: result.user!.uid,
-                            withDelay: false,
-                          ),
-                        ),
-                      );
+                      navigateToPage(
+                          context, result.user!.uid, '0', false, true, true);
+
+                      // Navigator.push(
+                      //   context,
+                      //   MaterialPageRoute(
+                      //     builder: (context) => AccountPage(
+                      //       postUserId: result.user!.uid,
+                      //       withDelay: false,
+                      //     ),
+                      //   ),
+                      // );
                     } else {
                       print('メール認証は終わっていません');
                     }

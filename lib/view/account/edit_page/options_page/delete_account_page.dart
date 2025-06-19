@@ -83,7 +83,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'メールアドレスに紐づいた全てのアカウントが消えます。',
+              'メールアドレスに紐づいた全てのアカウントが削除されます。',
               style: TextStyle(
                 fontSize: 13,
                 color: Colors.red,

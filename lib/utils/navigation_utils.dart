@@ -23,8 +23,7 @@ void navigateToPage(
 }
 
 void navigateToSearchPage(BuildContext context, String userId,
-    String firstIndex, bool notDleteStotage,
-    [bool rebuildNavigation = true]) {
+    String firstIndex, bool notDleteStotage, bool rebuildNavigation) {
   Navigator.push(
     context,
     PageRouteBuilder(

@@ -57,7 +57,7 @@ class _TimelineHeaderState extends State<TimelineHeader> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildIconButton('タイムライン', 0),
-              _buildIconButton('ランキング', 1),
+              _buildIconButton('人気', 1),
               _buildIconButton('フォロー', 2),
             ],
           ),

@@ -4,7 +4,8 @@ module.exports = {
     node: true,
   },
   parserOptions: {
-    "ecmaVersion": 2018,
+    ecmaVersion: 2021, // 最新の JavaScript 機能をサポート
+    sourceType: "module", // ES Modules をサポート
   },
   extends: [
     "eslint:recommended",
@@ -14,7 +15,8 @@ module.exports = {
     "no-restricted-globals": ["error", "name", "length"],
     "prefer-arrow-callback": "error",
     "quotes": ["error", "double", {"allowTemplateLiterals": true}],
-    "max-len": ["warn", {"code": 120}],
+    "max-len": ["warn", {"code": 120, "ignoreComments": true, "ignoreStrings": true}],
+    "require-jsdoc": "off", // Google スタイルガイドのルールを無効化
   },
   overrides: [
     {

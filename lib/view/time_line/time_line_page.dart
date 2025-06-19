@@ -21,19 +21,23 @@ class TimeLinePage extends ConsumerStatefulWidget {
   _TimeLinePageState createState() => _TimeLinePageState();
 }
 
-class _TimeLinePageState extends ConsumerState<TimeLinePage> {
+class _TimeLinePageState extends ConsumerState<TimeLinePage>
+    with AutomaticKeepAliveClientMixin {
   final ScrollController _scrollController = ScrollController();
   final FavoritePost _favoritePost = FavoritePost();
   final BookmarkPost _bookmarkPost = BookmarkPost();
   final ValueNotifier<bool> _showScrollToTopButton = ValueNotifier(false);
+  bool _isLoadingMore = false;
   DateTime? _startTime; // 開始時刻を記録する変数
-  bool _isLoadingMore = false; // データの追加読み込み中かどうかを示すフラグ
 
   // ValueNotifierを再利用するためのマップ
   final Map<String, ValueNotifier<int>> _favoriteUsersNotifiers = {};
   final Map<String, ValueNotifier<int>> _bookmarkUsersNotifiers = {};
   final Map<String, ValueNotifier<bool>> _isFavoriteNotifiers = {};
   final Map<String, ValueNotifier<bool>> _isBookmarkedNotifiers = {};
+
+  @override
+  bool get wantKeepAlive => true; // ページの状態を保持
 
   @override
   void initState() {
@@ -78,44 +82,44 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // AutomaticKeepAliveClientMixin を使用する場合に必要
     final model = ref.watch(viewModelProvider);
 
     return Scaffold(
       body: Stack(
+        fit: StackFit.expand,
         children: [
           Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: 500),
-              // リフレッシュ機能
               child: RefreshIndicator(
                 onRefresh: () => model.getPosts(widget.userId),
                 child: model.isFirstLoad && model.isLoading
-                    ? const Center(child: Text("データ取得中...")) // 初回データ取得中のメッセージ
+                    ? const Center(child: Text("データ取得中..."))
                     : model.stackedPostList.isEmpty
-                        ? const Center(child: Text("データ取得中..."))
+                        ? const Center(child: Text("データがありません"))
                         : ListView.builder(
-                            //リストのスクロール位置を制御するためにScrollControllerを指定
                             controller: _scrollController,
                             itemCount: model.stackedPostList.length +
                                 (model.stackedPostList.length ~/ 7) +
                                 1,
-                            itemBuilder: (context, int index) {
+                            itemBuilder: (context, index) {
                               if (index ==
                                   model.stackedPostList.length +
                                       (model.stackedPostList.length ~/ 7)) {
                                 return _isLoadingMore
-                                    ? const Center(child: Text(" Loading..."))
+                                    ? const Center(child: Text("Loading..."))
                                     : const Center(child: Text("結果は以上です"));
                               }
 
                               if (index % 8 == 7) {
                                 return BannerAdWidget() ??
-                                    SizedBox(height: 50); // 広告ウィジェットを表示
+                                    const SizedBox(height: 50);
                               }
 
                               final postIndex = index - (index ~/ 8);
                               if (postIndex >= model.stackedPostList.length) {
-                                return Container(); // インデックスが範囲外の場合は空のコンテナを返す
+                                return Container();
                               }
 
                               final postDoc = model.stackedPostList[postIndex];
@@ -123,7 +127,6 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
                               final postAccount =
                                   model.postUserMap[post.postAccountId];
 
-                              // blockedUserIds に postAccount.id が含まれている場合は表示をスキップ
                               if (postAccount == null ||
                                   postAccount.lockAccount ||
                                   model.blockedAccounts
@@ -131,7 +134,6 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
                                 return Container();
                               }
 
-                              // ValueNotifierを再利用する
                               _favoriteUsersNotifiers[post.id] ??=
                                   ValueNotifier<int>(0);
                               _favoritePost.updateFavoriteUsersCount(post.id);
@@ -183,38 +185,30 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage> {
             ),
           ),
           Positioned(
-            bottom: 30.0,
+            bottom: 230.0,
             right: 16.0,
-            child: ValueListenableBuilder<bool>(
-              valueListenable: _showScrollToTopButton,
-              builder: (context, value, child) {
-                return value
-                    ? GestureDetector(
-                        onTap: () {
-                          _scrollController.animateTo(
-                            0,
-                            duration: Duration(milliseconds: 500),
-                            curve: Curves.easeInOut,
-                          );
-                        },
-                        child: Container(
-                          width: 56.0,
-                          height: 56.0,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border:
-                                Border.all(color: Colors.lightBlue, width: 2.0),
-                            color: Colors.transparent, // 内側を透明にする場合
-                          ),
-                          child: const Icon(
-                            Icons.keyboard_double_arrow_up,
-                            color: Colors.lightBlue,
-                            size: 40.0,
-                          ),
-                        ),
-                      )
-                    : Container();
+            child: GestureDetector(
+              onTap: () {
+                _scrollController.animateTo(
+                  0,
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeInOut,
+                );
               },
+              child: Container(
+                width: 56.0,
+                height: 56.0,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.lightBlue, width: 2.0),
+                  color: Colors.transparent,
+                ),
+                child: const Icon(
+                  Icons.keyboard_double_arrow_up,
+                  color: Colors.lightBlue,
+                  size: 40.0,
+                ),
+              ),
             ),
           ),
         ],

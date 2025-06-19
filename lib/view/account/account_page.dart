@@ -71,6 +71,20 @@ class _AccountPageState extends State<AccountPage> {
     return null;
   }
 
+  // 自分がブロックしているか確認するメソッド
+  Future<bool> _isBlockUser(String myAccountId, String postAccountId) async {
+    // Firestoreから自分のblockUsersサブコレクションを取得
+    final blockSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(myAccountId)
+        .collection('block')
+        .where('blocked_user_id', isEqualTo: postAccountId) // 条件を追加
+        .get();
+
+    // 一致するドキュメントが存在するかどうかを確認
+    return blockSnapshot.docs.isNotEmpty;
+  }
+
   // ブロックされているか確認するメソッド
   Future<bool> _isBlocked(String myAccountId, String postAccountId) async {
     final blockSnapshot = await FirebaseFirestore.instance
@@ -135,16 +149,16 @@ class _AccountPageState extends State<AccountPage> {
           );
         }
 
-        // ブロックされているかチェックするFutureBuilder
+        // 自分がブロックしているかチェックするFutureBuilder
         return FutureBuilder<bool>(
-          future: _isBlocked(myAccount.id, account!.id),
+          future: _isBlockUser(myAccount.id, account!.id),
           builder: (context, blockSnapshot) {
             if (blockSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            if (blockSnapshot.data == true && myAccount.admin != 1) {
-              // 自分がブロックされている場合の表示
+            if (blockSnapshot.data == true) {
+              // 自分がブロックしている場合の表示
               return Scaffold(
                 body: SafeArea(
                   child: Column(
@@ -154,35 +168,27 @@ class _AccountPageState extends State<AccountPage> {
                         pageController: _pageController,
                         value: 0,
                       ),
-                      // ブロックされているメッセージを表示
                       Expanded(
                         child: Center(
-                          child: Text('このアカウントの情報はお見せすることができません。'),
+                          child: Text('このユーザーはブロックされています。'),
                         ),
                       ),
                     ],
                   ),
                 ),
-                // bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
               );
             }
 
-            // follow状態をチェックするFutureBuilder
+            // ブロックされているかチェックするFutureBuilder
             return FutureBuilder<bool>(
-              future: _isFollowing(myAccount.id, account!.id),
-              builder: (context, followSnapshot) {
-                if (followSnapshot.connectionState == ConnectionState.waiting) {
+              future: _isBlocked(myAccount.id, account!.id),
+              builder: (context, blockSnapshot) {
+                if (blockSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final isFollowing = followSnapshot.data ?? false;
-
-                // ページ遷移の条件をチェック
-                if (account!.lockAccount &&
-                    account!.id != myAccount.id &&
-                    !isFollowing &&
-                    myAccount.admin != 1) {
-                  // 非公開アカウントの場合の表示
+                if (blockSnapshot.data == true && myAccount.admin != 1) {
+                  // 自分がブロックされている場合の表示
                   return Scaffold(
                     body: SafeArea(
                       child: Column(
@@ -192,74 +198,115 @@ class _AccountPageState extends State<AccountPage> {
                             pageController: _pageController,
                             value: 0,
                           ),
+                          // ブロックされているメッセージを表示
                           Expanded(
                             child: Center(
-                              child: Text('このアカウントの投稿は非公開です。'),
+                              child: Text('このアカウントの情報はお見せすることができません。'),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    // bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
                   );
                 }
 
-                // 通常の表示
-                return Scaffold(
-                  body: Dismissible(
-                    key: const Key('SafeAreaWrapper'),
-                    direction: account != null && account!.id == myAccount.id
-                        ? DismissDirection.none // 自分のアカウントの場合はスワイプ無効
-                        : DismissDirection.startToEnd, // 他のアカウントの場合は左スワイプで戻る
-                    onDismissed: (direction) {
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.of(context).pop(); // 現在のページを閉じて前のページに戻る
-                      } else {
-                        navigateToPage(
-                            context, myAccount.id, '0', false, false);
-                      }
-                    },
-                    child: SafeArea(
-                      child: Column(
-                        children: [
-                          AccountHeader(
-                            postUserId: widget.postUserId,
-                            pageController: _pageController,
-                            value: 1,
-                          ),
-                          if (isPosting)
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              color: Colors.yellow[100],
-                              child: const Text(
-                                '処理中...お待ちください。',
-                                style: TextStyle(fontSize: 16),
+                // follow状態をチェックするFutureBuilder
+                return FutureBuilder<bool>(
+                  future: _isFollowing(myAccount.id, account!.id),
+                  builder: (context, followSnapshot) {
+                    if (followSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final isFollowing = followSnapshot.data ?? false;
+
+                    // ページ遷移の条件をチェック
+                    if (account!.lockAccount &&
+                        account!.id != myAccount.id &&
+                        !isFollowing &&
+                        myAccount.admin != 1) {
+                      // 非公開アカウントの場合の表示
+                      return Scaffold(
+                        body: SafeArea(
+                          child: Column(
+                            children: [
+                              AccountHeader(
+                                postUserId: widget.postUserId,
+                                pageController: _pageController,
+                                value: 0,
                               ),
-                            ),
-                          Expanded(
-                            child: PageView(
-                              controller: _pageController,
-                              children: [
-                                PostList(
-                                  postAccount: account!,
-                                  myAccount: myAccount,
-                                  withDelay: widget.withDelay,
+                              Expanded(
+                                child: Center(
+                                  child: Text('このアカウントの投稿は非公開です。'),
                                 ),
-                                ImagePostList(myAccount: account!),
-                                FavoriteList(
-                                    myAccount: account!, userId: userId),
-                                GroupPostsPage(
-                                  postAccount: account!,
-                                  userId: userId,
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
+                        // bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
+                      );
+                    }
+
+                    // 通常の表示
+                    return Scaffold(
+                      body: Dismissible(
+                        key: const Key('SafeAreaWrapper'),
+                        direction:
+                            account != null && account!.id == myAccount.id
+                                ? DismissDirection.none // 自分のアカウントの場合はスワイプ無効
+                                : DismissDirection
+                                    .startToEnd, // 他のアカウントの場合は左スワイプで戻る
+                        onDismissed: (direction) {
+                          if (Navigator.of(context).canPop()) {
+                            Navigator.of(context).pop(); // 現在のページを閉じて前のページに戻る
+                          } else {
+                            navigateToPage(
+                                context, myAccount.id, '0', false, false);
+                          }
+                        },
+                        child: SafeArea(
+                          child: Column(
+                            children: [
+                              AccountHeader(
+                                postUserId: widget.postUserId,
+                                pageController: _pageController,
+                                value: 1,
+                              ),
+                              if (isPosting)
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  color: Colors.yellow[100],
+                                  child: const Text(
+                                    '処理中...お待ちください。',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                ),
+                              Expanded(
+                                child: PageView(
+                                  controller: _pageController,
+                                  children: [
+                                    PostList(
+                                      postAccount: account!,
+                                      myAccount: myAccount,
+                                      withDelay: widget.withDelay,
+                                    ),
+                                    ImagePostList(myAccount: account!),
+                                    FavoriteList(
+                                        myAccount: account!, userId: userId),
+                                    GroupPostsPage(
+                                      postAccount: account!,
+                                      userId: userId,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  // bottomNavigationBar: NavigationBarPage(selectedIndex: 1),
+                    );
+                  },
                 );
               },
             );
