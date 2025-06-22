@@ -16,6 +16,7 @@ class PostFirestore {
         'post_user_id': newPost.postUserId,
         'created_time': Timestamp.now(),
         'media_url': newPost.mediaUrl,
+        'music_url': newPost.musicUrl ?? '',
         'is_video': newPost.isVideo,
         'post_id': '',
         'reply': newPost.reply,
@@ -65,6 +66,7 @@ class PostFirestore {
           mediaUrl: (data['media_url'] as List<dynamic>?)
               ?.map((item) => item as String)
               .toList(), // リストに変換
+          musicUrl: data['music_url'] as String?,
           reply: data['reply'] ?? null,
           postId: data['post_id'] ?? '',
           repost: data['repost'] ?? null,

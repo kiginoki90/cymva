@@ -48,7 +48,7 @@ class _SearchByImagePageState extends State<SearchByImagePage>
       future: widget.fetchBlockedUserIds(),
       builder: (context, blockedUsersSnapshot) {
         if (blockedUsersSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: Text('読み込み中...'));
         } else if (blockedUsersSnapshot.hasError) {
           return Center(
               child: Text('エラーが発生しました: ${blockedUsersSnapshot.error}'));
@@ -94,10 +94,7 @@ class _SearchByImagePageState extends State<SearchByImagePage>
                   return FutureBuilder<Account?>(
                     future: widget.getPostAccount(post.postAccountId),
                     builder: (context, accountSnapshot) {
-                      if (accountSnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      } else if (accountSnapshot.hasError) {
+                      if (accountSnapshot.hasError) {
                         return Center(
                             child:
                                 Text('エラーが発生しました: ${accountSnapshot.error}'));

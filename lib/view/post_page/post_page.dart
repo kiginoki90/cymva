@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/account/account_page.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +33,7 @@ class _PostPageState extends State<PostPage> {
       GlobalKey<ScaffoldMessengerState>();
   Map<String, dynamic>? accountData;
   String? _imageUrl;
+  String? musicUrl;
   int? imageHeight;
   int? imageWidth;
   final FlutterSecureStorage storage = FlutterSecureStorage();
@@ -225,6 +227,58 @@ class _PostPageState extends State<PostPage> {
     }
   }
 
+  Future<void> uploadMusicFile() async {
+    if (_mediaFile != null) {
+      try {
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('music/${DateTime.now().millisecondsSinceEpoch}.mp3');
+        final uploadTask = ref.putFile(_mediaFile!);
+
+        final snapshot = await uploadTask;
+        final downloadUrl = await snapshot.ref.getDownloadURL();
+
+        print('音楽ファイルのアップロードが完了しました: $downloadUrl');
+      } catch (e) {
+        print('音楽ファイルのアップロード中にエラーが発生しました: $e');
+      }
+    }
+  }
+
+  Future<void> selectMusicFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['mp3', 'wav', 'm4a'], // 音声形式を指定
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final fileSize = result.files.single.size; // ファイルサイズを取得 (バイト単位)
+        const maxFileSize = 20 * 1024 * 1024; // 最大ファイルサイズ: 20MB
+
+        if (fileSize > maxFileSize) {
+          // ファイルサイズが制限を超えている場合
+          print('選択された音楽ファイルが容量制限を超えています: ${fileSize / (1024 * 1024)} MB');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('音楽ファイルは最大20MBまで選択可能です。'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return; // 処理を中断
+        }
+
+        setState(() {
+          _mediaFile = File(result.files.single.path!); // 選択された音楽ファイルを保存
+          isVideo = false; // 動画フラグをリセット
+        });
+        print('音楽ファイルを選択しました: ${result.files.single.path}');
+      }
+    } catch (e) {
+      print('音楽ファイルの選択中にエラーが発生しました: $e');
+    }
+  }
+
   Future<void> _fetchAccountData() async {
     final doc =
         await FirebaseFirestore.instance.collection('users').doc(userId).get();
@@ -275,6 +329,8 @@ class _PostPageState extends State<PostPage> {
         return '縦書きになります。40文字以内で入力してください。';
       case '漫画':
         return '画像は最大50枚まで選択できます。';
+      case '音楽':
+        return 'mp3、wav、m4a形式のファイルを使用できます。画像は1枚まで選択できます。';
       case '憲章宣誓':
         return '私は市民国家Cymvaの一員として、この国及び全ての機構生命の繁栄と平和のためにその責務を全うすることを誓います。';
       case '改修要望/バグ':
@@ -563,7 +619,8 @@ class _PostPageState extends State<PostPage> {
                                         builder: (BuildContext context) {
                                           return Dialog(
                                             backgroundColor:
-                                                Colors.black.withOpacity(0.5),
+                                                const Color(0xFF000000)
+                                                    .withAlpha(138),
                                             child: GestureDetector(
                                               onTap: () =>
                                                   Navigator.of(context).pop(),
@@ -609,7 +666,8 @@ class _PostPageState extends State<PostPage> {
                                       },
                                       child: Container(
                                         decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.7),
+                                          color: const Color(0xFF000000)
+                                              .withAlpha(178),
                                           shape: BoxShape.circle,
                                         ),
                                         padding: const EdgeInsets.all(4),
@@ -635,8 +693,76 @@ class _PostPageState extends State<PostPage> {
                               );
                             },
                           ),
-                        )
-                      else if (_mediaFile != null && isVideo)
+                        ),
+                      if (_mediaFile != null && !isVideo)
+                        Container(
+                          width: 150,
+                          height: 150,
+                          decoration: BoxDecoration(
+                            color:
+                                const Color.fromARGB(255, 255, 255, 255), // 背景色
+                            borderRadius: BorderRadius.circular(8.0), // 角丸
+                            border: Border.all(
+                                color: Colors.grey, width: 2.0), // 枠線
+                          ),
+                          child: Stack(
+                            children: [
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.music_note, // 音符アイコン
+                                      size: 50,
+                                      color: Colors.grey, // アイコンの色
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      width: 140, // 最大幅を設定
+                                      child: Text(
+                                        _mediaFile != null
+                                            ? _mediaFile!.path.split('/').last
+                                            : '', // ファイル名を表示
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        overflow:
+                                            TextOverflow.ellipsis, // 長いテキストを省略
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _mediaFile = null; // ファイルを削除
+                                    });
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF000000)
+                                          .withAlpha(178),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    padding: const EdgeInsets.all(4),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (_mediaFile != null && isVideo)
                         _videoController != null &&
                                 _videoController!.value.isInitialized
                             ? Container(
@@ -649,7 +775,6 @@ class _PostPageState extends State<PostPage> {
                                 ),
                               )
                             : const SizedBox(),
-                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
@@ -750,17 +875,27 @@ class _PostPageState extends State<PostPage> {
                       ),
                       Row(
                         children: [
+                          if (selectedCategory == '音楽')
+                            IconButton(
+                              icon: const Icon(Icons.music_note),
+                              onPressed: isVideo
+                                  ? null // 動画まが選択されている場合は無効
+                                  : () => selectMusicFile(),
+                              tooltip: '音楽ファイルを選択',
+                            ),
                           IconButton(
                             icon: const Icon(Icons.image),
-                            onPressed: _mediaFile != null
-                                ? null // 動画が選択されている場合は無効
+                            onPressed: isVideo
+                                ? null // 動画ファイルが選択されている場合は無効
                                 : () => selectImages(),
                             tooltip: '画像を選択',
                           ),
                           IconButton(
                             icon: const Icon(Icons.videocam),
-                            onPressed: images.isNotEmpty
-                                ? null // 画像が選択されている場合は無効
+                            onPressed: (_mediaFile != null ||
+                                    images.isNotEmpty ||
+                                    musicUrl != null)
+                                ? null // 画像または音楽ファイルが選択されている場合は無効
                                 : () => getMedia(true),
                             tooltip: 'ビデオを選択',
                           ),
@@ -793,8 +928,17 @@ class _PostPageState extends State<PostPage> {
                                       .addPostFrameCallback((_) async {
                                     // 投稿処理を行う
                                     List<String> mediaUrls = [];
-                                    int maxImageLimit =
-                                        selectedCategory == '漫画' ? 50 : 4;
+                                    int maxImageLimit;
+                                    switch (selectedCategory) {
+                                      case '漫画':
+                                        maxImageLimit = 50; // 漫画カテゴリーは最大50枚
+                                        break;
+                                      case '音楽':
+                                        maxImageLimit = 1; // 音楽カテゴリーは最大1枚
+                                        break;
+                                      default:
+                                        maxImageLimit = 4; // その他カテゴリーは最大4枚
+                                    }
 
                                     // 画像ファイルのアップロード処理
                                     for (var i = 0;
@@ -849,6 +993,21 @@ class _PostPageState extends State<PostPage> {
                                       }
                                     }
 
+                                    // 音楽ファイルのアップロード処理
+                                    if (_mediaFile != null && !isVideo) {
+                                      Map<String, dynamic>? uploadResult =
+                                          await FunctionUtils.uploadMusic(
+                                        userId!,
+                                        _mediaFile!,
+                                        context,
+                                      );
+
+                                      if (uploadResult != null) {
+                                        musicUrl = uploadResult[
+                                            'downloadUrl']; // 音楽ファイルのURLを取得
+                                      }
+                                    }
+
                                     // 新しい投稿データの作成
                                     Post newPost = Post(
                                       content: selectedCategory == '憲章宣誓'
@@ -858,6 +1017,7 @@ class _PostPageState extends State<PostPage> {
                                       postUserId: postUserId!,
                                       mediaUrl: mediaUrls,
                                       isVideo: isVideo,
+                                      musicUrl: musicUrl,
                                       category: selectedCategory,
                                       imageWidth: imageWidth,
                                       imageHeight: imageHeight,

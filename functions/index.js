@@ -108,34 +108,36 @@ exports.updateRanking = onSchedule("0 0,6,12,18 * * *", async (event) => {
     console.error("Error updating ranking:", error);
   }
 });
-
-exports.updateTrends = onSchedule("0 12 * * *", async (event) => {
+exports.updateTrends = onSchedule("0 12,22 * * *", async (event) => {
   try {
-    const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const thirtySixHoursAgo = new Date(Date.now() - 36 * 60 * 60 * 1000);
 
-    // 過去24時間の投稿を取得
+    // 過去36時間以内の投稿を取得
     const postsSnapshot = await db
         .collection("posts")
-        .where("created_time", ">", twoDaysAgo)
+        .where("created_time", ">", thirtySixHoursAgo)
         .get();
 
-    const wordCounts = {};
+    const wordCounts = new Map(); // 単語の出現回数を格納するマップ
 
     // 投稿のcontentを単語ごとに分割し、カウント
     postsSnapshot.docs.forEach((doc) => {
       const content = doc.data().content || "";
       const words = content
-          .split(/\W+/) // 単語を分割（非単語文字で分割）
-          .filter((word) => word.length >= 3); // 3文字以上の単語のみ
+          .split(new RegExp("[^\\p{L}\\p{N}_]+", "u")) // 日本語や特殊文字を含む単語を分割
+          .filter((word) => word.length >= 3 && word.length <= 15); // 1文字以上15文字以内の単語のみ
 
       words.forEach((word) => {
         const lowerWord = word.toLowerCase(); // 小文字に変換して統一
-        wordCounts[lowerWord] = (wordCounts[lowerWord] || 0) + 1;
+
+        // 重複回数をカウント
+        const currentCount = wordCounts.get(lowerWord) || 0;
+        wordCounts.set(lowerWord, currentCount + 1);
       });
     });
 
     // 頻出単語を取得し、ランキング順にソート
-    const sortedWords = Object.entries(wordCounts)
+    const sortedWords = Array.from(wordCounts.entries())
         .sort((a, b) => b[1] - a[1])
         .slice(0, 20); // 上位20個を取得
 

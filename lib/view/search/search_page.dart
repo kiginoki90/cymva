@@ -1,9 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cymva/ad_widget.dart';
 import 'package:cymva/utils/book_mark.dart';
-import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/search/detailed_search_page.dart';
-import 'package:cymva/view/search/search_by_text_page.dart';
 import 'package:cymva/view/search/search_contents/recent_favorites_page.dart';
 import 'package:cymva/view/search/search_contents/search_image_page.dart';
 import 'package:cymva/view/search/search_contents/search_name_page.dart';
@@ -12,8 +9,6 @@ import 'package:cymva/view/search/search_item.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/account.dart';
-import 'package:cymva/model/post.dart';
-import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';

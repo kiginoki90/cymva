@@ -127,16 +127,12 @@ class SearchItem {
     final queryWords = lowerCaseQuery.split(' ');
 
     // 取得したドキュメントに対して、すべての単語が含まれているかをフィルタリング
-    final filteredPosts = querySnapshot.docs
-        .where((doc) {
-          final content =
-              (doc['content'] as String).toLowerCase(); // コンテンツを小文字に変換
-          return queryWords.every((word) => content.contains(word));
-        })
-        .take(100) // ここで結果を100件までに制限
-        .toList();
+    final filteredPosts = querySnapshot.docs.where((doc) {
+      final content = (doc['content'] as String).toLowerCase(); // コンテンツを小文字に変換
+      return queryWords.every((word) => content.contains(word));
+    }).toList();
 
-// フォローしているユーザーとお気に入りユーザーのフィルタリングを適用
+    // フォローしているユーザーとお気に入りユーザーのフィルタリングを適用
     List<DocumentSnapshot> finalFilteredPosts = filteredPosts;
     if (followUserIds.isNotEmpty && favoritePostIds.isNotEmpty) {
       finalFilteredPosts = filteredPosts
@@ -161,7 +157,7 @@ class SearchItem {
           .toList();
     }
 
-    updateResults(finalFilteredPosts);
+    return updateResults(finalFilteredPosts);
   }
 
   Future<void> searchAccounts(
@@ -181,45 +177,27 @@ class SearchItem {
     final Set<String> uniqueAccountIds = {}; // 重複を防ぐためのセット
     final List<DocumentSnapshot> allDocs = [];
 
-    // ユーザー名に対するクエリ
-    Query nameQuery = firestore.collection('users');
-    // ユーザーIDに対するクエリ
-    Query userIdQuery = firestore.collection('users');
+    // Firestoreからすべてのユーザーを取得
+    final allUsersSnapshot = await firestore.collection('users').get();
 
-    for (String word in queryWords) {
-      if (word.isNotEmpty) {
-        nameQuery = nameQuery
-            .where('name', isGreaterThanOrEqualTo: word)
-            .where('name', isLessThanOrEqualTo: word + '\uf8ff');
-        userIdQuery = userIdQuery
-            .where('user_id', isGreaterThanOrEqualTo: word)
-            .where('user_id', isLessThanOrEqualTo: word + '\uf8ff');
+    // クライアント側でフィルタリング
+    for (var doc in allUsersSnapshot.docs) {
+      if (doc.data().containsKey('name') && doc.data().containsKey('user_id')) {
+        final name = (doc['name'] as String).toLowerCase();
+        final userId = (doc['user_id'] as String).toLowerCase();
+
+        // 名前またはユーザーIDがクエリのいずれかの単語を含む場合
+        if (queryWords
+            .any((word) => name.contains(word) || userId.contains(word))) {
+          if (uniqueAccountIds.add(doc.id)) {
+            allDocs.add(doc);
+          }
+        }
       }
     }
 
-    // `name`フィールドに対するクエリ
-    final nameQuerySnapshot = await nameQuery.get();
-    // `user_id`フィールドに対するクエリ
-    final userIdQuerySnapshot = await userIdQuery.get();
-
-    // 名前の結果を追加
-    for (var doc in nameQuerySnapshot.docs) {
-      if (uniqueAccountIds.add(doc.id)) {
-        allDocs.add(doc);
-      }
-    }
-
-    // ユーザーIDの結果を追加
-    for (var doc in userIdQuerySnapshot.docs) {
-      if (uniqueAccountIds.add(doc.id)) {
-        allDocs.add(doc);
-      }
-    }
-
-    // 最終的な結果を100件までに制限
-    final limitedResults = allDocs.take(100).toList();
-
-    updateResults(limitedResults.map((doc) {
+    // 結果をすべて返す
+    updateResults(allDocs.map((doc) {
       return Account.fromDocument(doc);
     }).toList());
   }

@@ -1,10 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/post_item_utils.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/post_item/Icons_action.dart';
 import 'package:cymva/view/post_item/link_text.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
+import 'package:cymva/view/post_item/music_player_widget.dart';
 import 'package:cymva/view/post_item/post_visibility_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:cymva/model/post.dart';
@@ -460,17 +460,32 @@ class _PostItemWidgetState extends State<PostItemWidget> {
                                       maxLines: 15,
                                     ),
                                 ]),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 10),
-                                MediaDisplayWidget(
-                                  mediaUrl: widget.post.mediaUrl,
-                                  category: widget.post.category ?? '',
-                                  post: widget.post,
-                                ),
-                              ],
+                            const SizedBox(height: 10),
+                            Center(
+                              child: widget.post.musicUrl != null &&
+                                      widget.post.musicUrl!.isNotEmpty
+                                  ? MusicPlayerWidget(
+                                      musicUrl: widget.post.musicUrl!,
+                                      mediaUrl: widget.post.mediaUrl != null &&
+                                              widget.post.mediaUrl!.isNotEmpty
+                                          ? widget.post.mediaUrl!
+                                              .first // リストの最初の要素を渡す
+                                          : null,
+                                    ) // 音楽プレイヤーを表示
+                                  : Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        MediaDisplayWidget(
+                                          mediaUrl: widget.post.mediaUrl,
+                                          category: widget.post.category ?? '',
+                                          fullVideo: true,
+                                          post: widget.post,
+                                        ),
+                                      ],
+                                    ),
                             ),
+                            const SizedBox(height: 20),
                             if (_repostPost?.hide == true)
                               Center(
                                 child: Column(

@@ -224,4 +224,29 @@ class FunctionUtils {
     await controller.initialize();
     return controller;
   }
+
+  static Future<Map<String, dynamic>?> uploadMusic(
+      String userId, File musicFile, BuildContext context) async {
+    try {
+      // Firebase Storage に保存するパスを設定
+      final ref = FirebaseStorage.instance.ref().child(
+          'music/${DateTime.now().millisecondsSinceEpoch}_${userId}.mp3');
+
+      // ファイルをアップロード
+      final uploadTask = ref.putFile(musicFile);
+
+      // アップロード完了を待機
+      final snapshot = await uploadTask;
+
+      // ダウンロードURLを取得
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+
+      return {
+        'downloadUrl': downloadUrl,
+      };
+    } catch (e) {
+      print('音楽ファイルのアップロード中にエラーが発生しました: $e');
+      return null;
+    }
+  }
 }

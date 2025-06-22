@@ -10,9 +10,6 @@ import 'package:visibility_detector/visibility_detector.dart';
 import 'full_screen_image.dart';
 import 'dart:async';
 import 'dart:math';
-import 'dart:io';
-import 'package:flutter/services.dart'; // 追加
-import 'dart:ui' as ui; // 追加
 
 class MediaDisplayWidget extends StatefulWidget {
   final List<String>? mediaUrl;
@@ -230,21 +227,27 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
       },
       child: Stack(
         children: [
-          Hero(
-            tag: widget.mediaUrl![0],
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.grey.shade300,
-                  width: 0.5,
-                ),
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: Colors.grey.shade300,
+                width: 0.5,
               ),
-              child: Image.network(
-                widget.mediaUrl![0],
-                width: screenWidth,
-                height: maxHeight,
-                fit: BoxFit.cover,
-              ),
+            ),
+            child: Image.network(
+              widget.mediaUrl![0],
+              width: screenWidth,
+              height: maxHeight,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return const Center(
+                  child: Icon(
+                    Icons.error, // エラー時のアイコン
+                    size: 50,
+                    color: Colors.red,
+                  ),
+                );
+              },
             ),
           ),
           if (widget.mediaUrl!.length > 1)
@@ -255,7 +258,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
+                  color: const Color(0xFF000000).withAlpha(138),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -300,28 +303,34 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                 ),
               );
             },
-            child: Hero(
-              tag: mediaUrl,
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Colors.grey.shade300,
-                    width: 0.5,
-                  ),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Colors.grey.shade300,
+                  width: 0.5,
                 ),
-                child: ClipRect(
-                  child: Align(
-                    alignment: Alignment.center,
-                    heightFactor: imageHeight > maxHeight
-                        ? maxHeight / imageHeight
-                        : 1.0, // 高さをトリミング
-                    child: AspectRatio(
-                      aspectRatio: aspectRatio, // 縦横比を維持
-                      child: Image.network(
-                        mediaUrl,
-                        width: double.infinity, // 横幅を全て表示
-                        fit: BoxFit.cover,
-                      ),
+              ),
+              child: ClipRect(
+                child: Align(
+                  alignment: Alignment.center,
+                  heightFactor: imageHeight > maxHeight
+                      ? maxHeight / imageHeight
+                      : 1.0, // 高さをトリミング
+                  child: AspectRatio(
+                    aspectRatio: aspectRatio, // 縦横比を維持
+                    child: Image.network(
+                      mediaUrl,
+                      width: double.infinity, // 横幅を全て表示
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(
+                          child: Icon(
+                            Icons.error, // エラー時のアイコン
+                            size: 50,
+                            color: Colors.red,
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -571,19 +580,25 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
                             ),
                           );
                         },
-                        child: Hero(
-                          tag: mediaUrl,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Colors.grey.shade300,
-                                width: 0.5,
-                              ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Colors.grey.shade300,
+                              width: 0.5,
                             ),
-                            child: Image.network(
-                              mediaUrl,
-                              fit: BoxFit.cover,
-                            ),
+                          ),
+                          child: Image.network(
+                            mediaUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Center(
+                                child: Icon(
+                                  Icons.error, // エラー時のアイコン
+                                  size: 50,
+                                  color: Colors.red,
+                                ),
+                              );
+                            },
                           ),
                         ),
                       );

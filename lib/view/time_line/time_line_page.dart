@@ -108,8 +108,18 @@ class _TimeLinePageState extends ConsumerState<TimeLinePage>
                                   model.stackedPostList.length +
                                       (model.stackedPostList.length ~/ 7)) {
                                 return _isLoadingMore
-                                    ? const Center(child: Text("Loading..."))
-                                    : const Center(child: Text("結果は以上です"));
+                                    ? const Center(
+                                        child: SizedBox(
+                                          height: 250, // 高さを指定
+                                          child: Text("Loading..."),
+                                        ),
+                                      )
+                                    : const Center(
+                                        child: SizedBox(
+                                          height: 250, // 高さを指定
+                                          child: Text("結果は以上です"),
+                                        ),
+                                      );
                               }
 
                               if (index % 8 == 7) {
@@ -227,7 +237,7 @@ class DbManager {
         .collection('posts')
         .where('hide', isEqualTo: false)
         .orderBy('created_time', descending: true)
-        .limit(15);
+        .limit(10);
     final querySnapshot = await query.get();
     if (querySnapshot.docs.isNotEmpty) {
       _lastDocument = querySnapshot.docs.last;

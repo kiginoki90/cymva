@@ -3,7 +3,6 @@ import 'package:cymva/model/account.dart';
 import 'package:cymva/utils/book_mark.dart';
 import 'package:cymva/utils/favorite_post.dart';
 import 'package:cymva/utils/firestore/users.dart';
-import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/post_item_utils.dart';
 import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/account/account_page.dart';
@@ -15,6 +14,7 @@ import 'package:cymva/view/post_item/group_list_dialog.dart';
 import 'package:cymva/view/post_item/group_name_dialog.dart';
 import 'package:cymva/view/post_item/link_text.dart';
 import 'package:cymva/view/post_item/media_display_widget.dart';
+import 'package:cymva/view/post_item/music_player_widget.dart';
 import 'package:cymva/view/post_item/post_item_widget.dart';
 import 'package:cymva/view/post_item/post_visibility_widget.dart';
 import 'package:cymva/view/post_item/show_report_Dialog.dart';
@@ -1001,17 +1001,29 @@ class _PostDetailPageState extends State<PostDetailPage> {
                 ),
               const SizedBox(height: 10),
 
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  MediaDisplayWidget(
-                    mediaUrl: widget.post.mediaUrl,
-                    category: widget.post.category ?? '',
-                    fullVideo: true,
-                    post: widget.post,
-                  ),
-                ],
+              Center(
+                child: widget.post.musicUrl != null &&
+                        widget.post.musicUrl!.isNotEmpty
+                    ? MusicPlayerWidget(
+                        musicUrl: widget.post.musicUrl!,
+                        mediaUrl: widget.post.mediaUrl != null &&
+                                widget.post.mediaUrl!.isNotEmpty
+                            ? widget.post.mediaUrl!.first // リストの最初の要素を渡す
+                            : null,
+                      ) // 音楽プレイヤーを表示
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          MediaDisplayWidget(
+                            mediaUrl: widget.post.mediaUrl,
+                            category: widget.post.category ?? '',
+                            fullVideo: true,
+                            post: widget.post,
+                          ),
+                        ],
+                      ),
               ),
+              const SizedBox(height: 20),
               if (_repostPost?.hide == true)
                 Center(
                   child: Column(

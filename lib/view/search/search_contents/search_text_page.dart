@@ -33,8 +33,59 @@ class SearchTextPage extends StatefulWidget {
 
 class _SearchByTextPageState extends State<SearchTextPage>
     with AutomaticKeepAliveClientMixin {
+  int _displayLimit = 15; // 表示する件数の上限
+  bool _isLoadingMore = false; // ローディング状態を管理
+  List<String> _blockedUserIds = [];
+
   @override
   bool get wantKeepAlive => true;
+
+  Future<void> _loadMorePosts() async {
+    if (_displayLimit < widget.postSearchResults.length) {
+      setState(() {
+        _isLoadingMore = true;
+        _displayLimit += 15; // 表示件数を増やす
+      });
+
+      await Future.delayed(const Duration(milliseconds: 500)); // ローディングのための遅延
+
+      setState(() {
+        _isLoadingMore = false;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBlockedUserIds().then((ids) {
+      setState(() {
+        _blockedUserIds = ids; // 非表示対象のユーザーIDを設定
+      });
+    });
+  }
+
+  Future<List<String>> _fetchBlockedUserIds() async {
+    final blockUsersSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .collection('blockUsers')
+        .get();
+
+    final blockSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .collection('block')
+        .get();
+
+    // blocked_user_id をリストにまとめる
+    final blockedUserIds = [
+      ...blockUsersSnapshot.docs.map((doc) => doc['blocked_user_id'] as String),
+      ...blockSnapshot.docs.map((doc) => doc['blocked_user_id'] as String),
+    ];
+
+    return blockedUserIds;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,121 +95,108 @@ class _SearchByTextPageState extends State<SearchTextPage>
       return const Center(child: Text('検索結果がありません'));
     }
 
-    return FutureBuilder<List<String>>(
-      future: widget.fetchBlockedUserIds(),
-      builder: (context, blockedUsersSnapshot) {
-        if (blockedUsersSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (blockedUsersSnapshot.hasError) {
-          return Center(
-              child: Text('エラーが発生しました: ${blockedUsersSnapshot.error}'));
-        } else if (!blockedUsersSnapshot.hasData) {
-          return Container();
-        }
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 500),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (ScrollNotification scrollInfo) {
+            if (scrollInfo is ScrollUpdateNotification) {
+              if (scrollInfo.metrics.pixels ==
+                      scrollInfo.metrics.maxScrollExtent &&
+                  !_isLoadingMore &&
+                  _displayLimit < widget.postSearchResults.length) {
+                // 下にスクロールして一番下に到達した場合
+                _loadMorePosts();
+              } else if (scrollInfo.metrics.pixels == 0) {
+                // 上にスクロールして一番上に到達した場合
+                widget.refreshSearchResults();
+              }
+            }
+            return true;
+          },
+          child: ListView.builder(
+            key: PageStorageKey('SearchTextPageList'),
+            itemCount: _displayLimit + (_displayLimit ~/ 5) + 1,
+            itemBuilder: (context, index) {
+              if (index == _displayLimit + (_displayLimit ~/ 5)) {
+                return const Center(child: Text("結果は以上です"));
+              }
 
-        final blockedUserIds = blockedUsersSnapshot.data!;
+              if (index % 6 == 5) {
+                return BannerAdWidget() ??
+                    const SizedBox(height: 50); // 広告ウィジェットを表示
+              }
 
-        return Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 500),
-            child: RefreshIndicator(
-              onRefresh: widget.refreshSearchResults,
-              child: ListView.builder(
-                itemCount: widget.postSearchResults.length +
-                    (widget.postSearchResults.length ~/ 5) +
-                    1,
-                itemBuilder: (context, index) {
-                  if (index ==
-                      widget.postSearchResults.length +
-                          (widget.postSearchResults.length ~/ 5)) {
-                    return const Center(child: Text("結果は以上です"));
-                  }
+              final postIndex = index - (index ~/ 6);
+              if (postIndex >= _displayLimit ||
+                  postIndex >= widget.postSearchResults.length) {
+                return Container();
+              }
 
-                  if (index % 6 == 5) {
-                    return BannerAdWidget() ??
-                        const SizedBox(height: 50); // 広告ウィジェットを表示
-                  }
+              final postDoc = widget.postSearchResults[postIndex];
+              final post = Post.fromDocument(postDoc);
 
-                  final postIndex = index - (index ~/ 6);
-                  if (postIndex >= widget.postSearchResults.length) {
+              return FutureBuilder<Account?>(
+                future: widget.getPostAccount(post.postAccountId),
+                builder: (context, accountSnapshot) {
+                  if (accountSnapshot.hasError) {
+                    return Center(
+                        child: Text('エラーが発生しました: ${accountSnapshot.error}'));
+                  } else if (!accountSnapshot.hasData) {
                     return Container();
                   }
 
-                  final postDoc = widget.postSearchResults[postIndex];
-                  final post = Post.fromDocument(postDoc);
+                  final postAccount = accountSnapshot.data!;
 
-                  return FutureBuilder<Account?>(
-                    future: widget.getPostAccount(post.postAccountId),
-                    builder: (context, accountSnapshot) {
-                      if (accountSnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      } else if (accountSnapshot.hasError) {
-                        return Center(
-                            child:
-                                Text('エラーが発生しました: ${accountSnapshot.error}'));
-                      } else if (!accountSnapshot.hasData) {
-                        return Container();
-                      }
+                  if (postAccount == null ||
+                      postAccount.lockAccount ||
+                      _blockedUserIds.contains(postAccount.id)) {
+                    return Container();
+                  }
 
-                      final postAccount = accountSnapshot.data!;
+                  widget.favoritePost.favoriteUsersNotifiers[post.id] ??=
+                      ValueNotifier<int>(0);
+                  widget.favoritePost.updateFavoriteUsersCount(post.id);
 
-                      if (blockedUserIds.contains(postAccount.id)) {
-                        return Container();
-                      }
+                  widget.bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+                      ValueNotifier<int>(0);
+                  widget.bookmarkPost.updateBookmarkUsersCount(post.id);
 
-                      if (postAccount.lockAccount &&
-                          postAccount.id != widget.userId) {
-                        return Container();
-                      }
-
-                      widget.favoritePost.favoriteUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      widget.favoritePost.updateFavoriteUsersCount(post.id);
-
-                      widget.bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      widget.bookmarkPost.updateBookmarkUsersCount(post.id);
-
-                      return PostItemWidget(
-                        post: post,
-                        postAccount: postAccount,
-                        favoriteUsersNotifier: widget
-                            .favoritePost.favoriteUsersNotifiers[post.id]!,
-                        isFavoriteNotifier: ValueNotifier<bool>(
-                          widget.favoritePost.favoritePostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        onFavoriteToggle: () {
-                          final isFavorite = widget
-                              .favoritePost.favoritePostsNotifier.value
-                              .contains(post.id);
-                          widget.favoritePost
-                              .toggleFavorite(post.id, isFavorite);
-                        },
-                        bookmarkUsersNotifier: widget
-                            .bookmarkPost.bookmarkUsersNotifiers[post.id]!,
-                        isBookmarkedNotifier: ValueNotifier<bool>(
-                          widget.bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        onBookMsrkToggle: () =>
-                            widget.bookmarkPost.toggleBookmark(
-                          post.id,
-                          widget.bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        replyFlag: ValueNotifier<bool>(false),
-                        userId: widget.userId,
-                      );
+                  return PostItemWidget(
+                    post: post,
+                    postAccount: postAccount,
+                    favoriteUsersNotifier:
+                        widget.favoritePost.favoriteUsersNotifiers[post.id]!,
+                    isFavoriteNotifier: ValueNotifier<bool>(
+                      widget.favoritePost.favoritePostsNotifier.value
+                          .contains(post.id),
+                    ),
+                    onFavoriteToggle: () {
+                      final isFavorite = widget
+                          .favoritePost.favoritePostsNotifier.value
+                          .contains(post.id);
+                      widget.favoritePost.toggleFavorite(post.id, isFavorite);
                     },
+                    bookmarkUsersNotifier:
+                        widget.bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+                    isBookmarkedNotifier: ValueNotifier<bool>(
+                      widget.bookmarkPost.bookmarkPostsNotifier.value
+                          .contains(post.id),
+                    ),
+                    onBookMsrkToggle: () => widget.bookmarkPost.toggleBookmark(
+                      post.id,
+                      widget.bookmarkPost.bookmarkPostsNotifier.value
+                          .contains(post.id),
+                    ),
+                    replyFlag: ValueNotifier<bool>(false),
+                    userId: widget.userId,
                   );
                 },
-              ),
-            ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

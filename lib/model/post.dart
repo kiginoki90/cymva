@@ -7,6 +7,7 @@ class Post {
   String postUserId;
   Timestamp? createdTime;
   List<String>? mediaUrl;
+  String? musicUrl;
   bool isVideo;
   String postId;
   String? reply;
@@ -27,6 +28,7 @@ class Post {
     this.postUserId = '',
     this.createdTime,
     this.mediaUrl,
+    this.musicUrl,
     this.isVideo = false,
     this.postId = '',
     this.reply,
@@ -78,6 +80,7 @@ class Post {
       postUserId: data['post_user_id'] ?? '',
       createdTime: data['created_time'] as Timestamp?,
       mediaUrl: List<String>.from(data['media_url'] ?? []),
+      musicUrl: data['music_url'] as String?,
       isVideo: data['is_video'] ?? false,
       postId: data['post_id'] ?? '',
       reply: data['reply'] as String?,
