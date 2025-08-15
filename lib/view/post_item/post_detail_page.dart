@@ -396,9 +396,50 @@ class _PostDetailPageState extends State<PostDetailPage> {
       // Firestoreに更新を反映
       await postRef.update(data);
 
-      print('Post clip status updated to $clipStatus and user posts updated');
+      showTopSnackBar(context, 'クリップ状態を更新しました',
+          backgroundColor: Colors.green); // 成功時のメッセージ
     } catch (e) {
-      print('Error updating post clip status: $e');
+      showTopSnackBar(context, 'エラーが発生しました: $e', backgroundColor: Colors.red);
+    }
+  }
+
+  Future<void> swapImageDimensions(String postId) async {
+    try {
+      // Firestoreのpostsコレクションから該当の投稿を取得
+      final postRef =
+          FirebaseFirestore.instance.collection('posts').doc(postId);
+      final postSnapshot = await postRef.get();
+
+      if (postSnapshot.exists) {
+        final postData = postSnapshot.data() as Map<String, dynamic>;
+
+        // imageHeight と imageWidth を取得
+        final int? imageHeight = postData['imageHeight'];
+        final int? imageWidth = postData['imageWidth'];
+
+        // 両方の値が存在する場合のみ入れ替え
+        if (imageHeight != null && imageWidth != null) {
+          await postRef.update({
+            'imageHeight': imageWidth,
+            'imageWidth': imageHeight,
+          });
+
+          // ページを更新
+          setState(() {
+            widget.post.imageHeight = imageWidth;
+            widget.post.imageWidth = imageHeight;
+          });
+
+          showTopSnackBar(context, '縦横比を入れ替えました',
+              backgroundColor: Colors.green);
+        } else {
+          showTopSnackBar(context, 'データが存在しません', backgroundColor: Colors.red);
+        }
+      } else {
+        showTopSnackBar(context, 'エラーが発生しました', backgroundColor: Colors.red);
+      }
+    } catch (e) {
+      showTopSnackBar(context, 'エラーが発生しました: $e', backgroundColor: Colors.red);
     }
   }
 
@@ -909,6 +950,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                               await _showGroupListDialog();
                             } else if (value == 'Option 8') {
                               _deleteGroupDialog(widget.post.id, groupId);
+                            } else if (value == 'Option 9') {
+                              swapImageDimensions(widget.post.id);
                             }
                           },
                           itemBuilder: (BuildContext context) {
@@ -952,6 +995,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                 const PopupMenuItem<String>(
                                   value: 'Option 8',
                                   child: Text('グループから削除'),
+                                ),
+                              if (widget.post.isVideo == true)
+                                const PopupMenuItem<String>(
+                                  value: 'Option 9',
+                                  child: Text('縦横比反転'),
                                 ),
                             ];
                           },
@@ -999,31 +1047,41 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   textSize: 18,
                   tapable: true,
                 ),
-              const SizedBox(height: 10),
 
-              Center(
-                child: widget.post.musicUrl != null &&
-                        widget.post.musicUrl!.isNotEmpty
-                    ? MusicPlayerWidget(
+              if (widget.post.musicUrl != null &&
+                  widget.post.musicUrl!.isNotEmpty)
+                Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    Center(
+                      child: MusicPlayerWidget(
                         musicUrl: widget.post.musicUrl!,
                         mediaUrl: widget.post.mediaUrl != null &&
                                 widget.post.mediaUrl!.isNotEmpty
                             ? widget.post.mediaUrl!.first // リストの最初の要素を渡す
                             : null,
-                      ) // 音楽プレイヤーを表示
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          MediaDisplayWidget(
-                            mediaUrl: widget.post.mediaUrl,
-                            category: widget.post.category ?? '',
-                            fullVideo: true,
-                            post: widget.post,
-                          ),
-                        ],
                       ),
-              ),
-              const SizedBox(height: 20),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                )
+              else if (widget.post.mediaUrl != null &&
+                  widget.post.mediaUrl!.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    MediaDisplayWidget(
+                      mediaUrl: widget.post.mediaUrl,
+                      category: widget.post.category ?? '',
+                      fullVideo: true,
+                      post: widget.post,
+                      is_video: widget.post.isVideo ?? false,
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                ),
+
               if (_repostPost?.hide == true)
                 Center(
                   child: Column(
@@ -1072,6 +1130,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     ],
                   ),
                 ),
+              SizedBox(height: 15),
               if (isHidden == false)
                 IconsActionsWidget(
                   post: widget.post,

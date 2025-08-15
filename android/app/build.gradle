@@ -30,12 +30,13 @@ if (localPropertiesFile.exists()) {
 def flutterVersionCode = localProperties.getProperty("flutter.versionCode", "1")
 def flutterVersionName = localProperties.getProperty("flutter.versionName", "1.0")
 
-def flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion", "33")
-def flutterTargetSdkVersion = localProperties.getProperty("flutter.targetSdkVersion", "34")
+def flutterCompileSdkVersion = localProperties.getProperty("flutter.compileSdkVersion", "35")
+def flutterTargetSdkVersion = localProperties.getProperty("flutter.targetSdkVersion", "35")
 def flutterMinSdkVersion = "23"
 
 android {
     namespace = "com.kobayashi.cymva"
+    compileSdkVersion 35
     compileSdk 35  // 数値で設定
     ndkVersion = localProperties.getProperty("flutter.ndkVersion") ?: "25.1.8937393"
 
@@ -50,9 +51,9 @@ android {
     }
 
     defaultConfig {
+        targetSdkVersion 35
         applicationId "com.kobayashi.cymva"
         minSdkVersion flutterMinSdkVersion.toInteger()
-        targetSdkVersion flutterTargetSdkVersion.toInteger()
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true
@@ -88,8 +89,7 @@ android {
         implementation 'androidx.multidex:multidex:2.0.1'
         implementation platform('com.google.firebase:firebase-bom:32.2.0') // Firebase BOM
         implementation 'com.google.firebase:firebase-messaging' // Firebase Messaging
-        coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
-
+        coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
     }
 }
 

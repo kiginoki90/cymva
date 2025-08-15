@@ -17,7 +17,7 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.2.13</string> <!-- バージョン番号を直接設定 -->
+    <string>1.2.16</string> <!-- バージョン番号を直接設定 -->
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleVersion</key>

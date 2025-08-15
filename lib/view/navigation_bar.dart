@@ -422,9 +422,11 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
                         }
                       }
                     } else {
-                      if (index == 3) {
-                        _markNotificationsAsRead();
-                      } else if (index != 1) {
+                      if (index != 1) {
+                        if (index == 3) {
+                          _markNotificationsAsRead();
+                        }
+
                         // 現在のページをリセットする場合
                         if (pageKeys[index].currentState?.canPop() ?? false) {
                           pageKeys[index]

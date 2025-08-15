@@ -43,6 +43,7 @@ class RepostItem extends StatelessWidget {
               category: repostPost.category ?? '',
               atStart: true,
               post: repostPost,
+              is_video: repostPost.isVideo ?? false,
             ),
         ],
       ),

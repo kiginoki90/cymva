@@ -425,6 +425,7 @@ class _ReplyPageState extends State<ReplyPage> {
                           category: widget.post.category ?? '',
                           atStart: true,
                           post: widget.post,
+                          is_video: widget.post.isVideo ?? false,
                         ),
                       const SizedBox(height: 20),
                       // カテゴリー選択用のドロップダウンメニュー

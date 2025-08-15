@@ -211,7 +211,8 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
     if ((widget.post.category == '写真' || widget.post.category == 'イラスト') &&
         widget.post.mediaUrl != null &&
         widget.post.mediaUrl!.length == 1 &&
-        widget.post.content.isEmpty) {
+        widget.post.content.isEmpty &&
+        (widget.post.isVideo == null || widget.post.isVideo == false)) {
       // 投稿欄全体に画像を表示
       return GestureDetector(
         onTap: () {
@@ -387,31 +388,40 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                                     ),
                                 ]),
                             const SizedBox(height: 10),
-                            Center(
-                              child: widget.post.musicUrl != null &&
-                                      widget.post.musicUrl!.isNotEmpty
-                                  ? MusicPlayerWidget(
+                            if (widget.post.musicUrl != null &&
+                                widget.post.musicUrl!.isNotEmpty)
+                              Column(
+                                children: [
+                                  const SizedBox(height: 15),
+                                  Center(
+                                    child: MusicPlayerWidget(
                                       musicUrl: widget.post.musicUrl!,
                                       mediaUrl: widget.post.mediaUrl != null &&
                                               widget.post.mediaUrl!.isNotEmpty
                                           ? widget.post.mediaUrl!
                                               .first // リストの最初の要素を渡す
                                           : null,
-                                    ) // 音楽プレイヤーを表示
-                                  : Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        MediaDisplayWidget(
-                                          mediaUrl: widget.post.mediaUrl,
-                                          category: widget.post.category ?? '',
-                                          fullVideo: true,
-                                          post: widget.post,
-                                        ),
-                                      ],
                                     ),
-                            ),
-                            const SizedBox(height: 20),
+                                  ),
+                                  const SizedBox(height: 10),
+                                ],
+                              )
+                            else if (widget.post.mediaUrl != null &&
+                                widget.post.mediaUrl!.isNotEmpty)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 15),
+                                  MediaDisplayWidget(
+                                    mediaUrl: widget.post.mediaUrl,
+                                    category: widget.post.category ?? '',
+                                    fullVideo: true,
+                                    post: widget.post,
+                                    is_video: widget.post.isVideo ?? false,
+                                  ),
+                                  const SizedBox(height: 10),
+                                ],
+                              ),
                             if (_repostPost?.hide == true)
                               Center(
                                 child: Column(
@@ -467,7 +477,7 @@ class _PostItetmAccounWidgetState extends State<PostItetmAccounWidget> {
                                   ],
                                 ),
                               ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 15),
                             if (isHidden == false)
                               IconsActionsWidget(
                                 post: widget.post,

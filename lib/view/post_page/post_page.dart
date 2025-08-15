@@ -269,8 +269,9 @@ class _PostPageState extends State<PostPage> {
         }
 
         setState(() {
-          _mediaFile = File(result.files.single.path!); // 選択された音楽ファイルを保存
+          _mediaFile = File(result.files.single.path!); // 音楽ファイルを保存
           isVideo = false; // 動画フラグをリセット
+          // 画像はクリアしない
         });
         print('音楽ファイルを選択しました: ${result.files.single.path}');
       }
@@ -290,19 +291,12 @@ class _PostPageState extends State<PostPage> {
   }
 
   Future<void> selectImages() async {
-    if (_mediaFile != null) {
-      setState(() {
-        _mediaFile = null;
-        _videoController?.dispose();
-        _videoController = null;
-        isVideo = false;
-      });
-    }
+    // 動画ファイルはクリアしない
     final pickedFiles =
         await FunctionUtils.selectImages(context, selectedCategory);
     if (pickedFiles != null) {
       setState(() {
-        images.addAll(pickedFiles);
+        images.addAll(pickedFiles); // 画像を追加
       });
     }
   }
@@ -912,6 +906,25 @@ class _PostPageState extends State<PostPage> {
                         onPressed: isPosting
                             ? null
                             : () async {
+                                if (selectedCategory == '音楽' &&
+                                    images.length > 1) {
+                                  // エラーメッセージを表示
+                                  showTopSnackBar(
+                                      context, 'カテゴリーが音楽の場合、選択できる画像は1枚です',
+                                      backgroundColor: Colors.red);
+
+                                  return; // 処理を中断
+                                }
+
+                                if (selectedCategory != '音楽' &&
+                                    musicUrl != null) {
+                                  // エラーメッセージを表示
+                                  showTopSnackBar(
+                                      context, '音楽ファイルは音楽カテゴリーでのみ選択可能です',
+                                      backgroundColor: Colors.red);
+
+                                  return; // 処理を中断
+                                }
                                 if (selectedCategory == '憲章宣誓' ||
                                     contentController.text.isNotEmpty ||
                                     images.isNotEmpty ||

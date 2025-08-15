@@ -451,6 +451,7 @@ class _RepostPageState extends State<RepostPage> {
                                   category: widget.post.category ?? '',
                                   atStart: true,
                                   post: widget.post,
+                                  is_video: widget.post.isVideo ?? false,
                                 ),
                               ],
                             ],

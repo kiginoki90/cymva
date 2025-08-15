@@ -11,7 +11,7 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-exports.updateRanking = onSchedule("0 0,6,12,18 * * *", async (event) => {
+exports.updateRanking = onSchedule("0 */2 * * *", async (event) => {
   try {
     // 今日を起点に2週間前の日時を計算
     const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
@@ -108,7 +108,8 @@ exports.updateRanking = onSchedule("0 0,6,12,18 * * *", async (event) => {
     console.error("Error updating ranking:", error);
   }
 });
-exports.updateTrends = onSchedule("0 12,22 * * *", async (event) => {
+
+exports.updateTrends = onSchedule("0 */2 * * *", async (event) => {
   try {
     const thirtySixHoursAgo = new Date(Date.now() - 36 * 60 * 60 * 1000);
 

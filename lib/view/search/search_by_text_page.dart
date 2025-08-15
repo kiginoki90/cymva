@@ -1,215 +1,200 @@
-// import 'package:cymva/utils/book_mark.dart';
-// import 'package:flutter/material.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'package:cymva/model/account.dart';
-// import 'package:cymva/model/post.dart';
-// import 'package:cymva/view/post_item/post_item_widget.dart';
-// import 'package:cymva/utils/favorite_post.dart';
-// import 'package:cymva/view/search/search_item.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cymva/ad_widget.dart';
+import 'package:cymva/model/account.dart';
+import 'package:cymva/model/post.dart';
+import 'package:cymva/utils/book_mark.dart';
+import 'package:cymva/utils/favorite_post.dart';
+import 'package:cymva/view/post_item/post_item_widget.dart';
+import 'package:flutter/material.dart';
 
-// class SearchByTextPage extends StatefulWidget {
-//   final List<DocumentSnapshot> postSearchResults;
-//   final Future<List<String>> Function() fetchBlockedUserIds;
-//   final Future<void> Function() refreshSearchResults;
-//   final Future<void> Function() fetchInitialSearchResults;
-//   final ScrollController scrollController;
-//   final SearchItem searchItem;
-//   final String userId;
-//   final FavoritePost favoritePost;
-//   final bool hasMore;
-//   final String lastQuery;
-//   final String? selectedCategory;
+class SearchTextPage extends StatefulWidget {
+  final List<DocumentSnapshot> postSearchResults;
+  final Future<List<String>> Function() fetchBlockedUserIds;
+  final Future<void> Function() refreshSearchResults;
+  final String userId;
+  final FavoritePost favoritePost;
+  final BookmarkPost bookmarkPost;
+  final Future<Account?> Function(String postAccountId) getPostAccount;
 
-//   const SearchByTextPage({
-//     Key? key,
-//     required this.postSearchResults,
-//     required this.fetchBlockedUserIds,
-//     required this.refreshSearchResults,
-//     required this.fetchInitialSearchResults,
-//     required this.scrollController,
-//     required this.searchItem,
-//     required this.userId,
-//     required this.favoritePost,
-//     required this.hasMore,
-//     required this.lastQuery,
-//     required this.selectedCategory,
-//   }) : super(key: key);
+  const SearchTextPage({
+    Key? key,
+    required this.postSearchResults,
+    required this.fetchBlockedUserIds,
+    required this.refreshSearchResults,
+    required this.userId,
+    required this.favoritePost,
+    required this.bookmarkPost,
+    required this.getPostAccount,
+  }) : super(key: key);
 
-//   @override
-//   _SearchByTextPageState createState() => _SearchByTextPageState();
-// }
+  @override
+  _SearchByTextPageState createState() => _SearchByTextPageState();
+}
 
-// class _SearchByTextPageState extends State<SearchByTextPage> {
-//   List<DocumentSnapshot> _postSearchResults = [];
-//   bool _hasMore = true;
-//   DocumentSnapshot? _lastDocument;
-//   final BookmarkPost _bookmarkPost = BookmarkPost();
+class _SearchByTextPageState extends State<SearchTextPage>
+    with AutomaticKeepAliveClientMixin {
+  int _displayLimit = 15; // 表示する件数の上限
+  bool _isLoadingMore = false; // ローディング状態を管理
+  List<String> _blockedUserIds = [];
 
-//   @override
-//   void initState() {
-//     super.initState();
-//     _postSearchResults = widget.postSearchResults;
-//     _hasMore = widget.hasMore;
-//   }
+  @override
+  bool get wantKeepAlive => true;
 
-//   Future<void> _fetchMoreSearchResults() async {
-//     if (!_hasMore) return;
+  Future<void> _loadMorePosts() async {
+    if (_displayLimit < widget.postSearchResults.length && !_isLoadingMore) {
+      setState(() {
+        _isLoadingMore = true;
+      });
 
-//     widget.searchItem.searchPosts(
-//         widget.lastQuery, widget.userId, widget.selectedCategory, _lastDocument,
-//         (results) {
-//       if (results.isNotEmpty) {
-//         setState(() {
-//           _postSearchResults.addAll(results); // 新しい投稿を既存のリストに追加
-//           _lastDocument = results.last;
-//           if (results.length < 5) {
-//             _hasMore = false;
-//           }
-//         });
-//       } else {
-//         setState(() {
-//           _hasMore = false;
-//         });
-//       }
-//     });
-//   }
+      await Future.delayed(const Duration(milliseconds: 500)); // ローディングのための遅延
 
-//   @override
-//   Widget build(BuildContext context) {
-//     if (_postSearchResults.isEmpty) {
-//       return const Center(child: Text('検索結果がありません'));
-//     }
+      setState(() {
+        _displayLimit = (_displayLimit + 15)
+            .clamp(0, widget.postSearchResults.length); // 上限を超えないように調整
+        _isLoadingMore = false;
+      });
+    }
+  }
 
-//     return FutureBuilder<List<String>>(
-//       future: widget.fetchBlockedUserIds(), // ブロックされたユーザーIDを取得するFuture
-//       builder: (context, blockedUsersSnapshot) {
-//         if (blockedUsersSnapshot.connectionState == ConnectionState.waiting) {
-//           return const Center(child: CircularProgressIndicator());
-//         } else if (blockedUsersSnapshot.hasError) {
-//           return Center(
-//               child: Text('エラーが発生しました: ${blockedUsersSnapshot.error}'));
-//         } else if (!blockedUsersSnapshot.hasData) {
-//           return Container();
-//         }
+  @override
+  void initState() {
+    super.initState();
+    _fetchBlockedUserIds().then((ids) {
+      setState(() {
+        _blockedUserIds = ids; // 非表示対象のユーザーIDを設定
+      });
+    });
+  }
 
-//         final blockedUserIds = blockedUsersSnapshot.data!; // ブロックされたユーザーIDのリスト
+  Future<List<String>> _fetchBlockedUserIds() async {
+    final blockUsersSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .collection('blockUsers')
+        .get();
 
-//         return RefreshIndicator(
-//           onRefresh: widget.refreshSearchResults,
-//           child: ListView.builder(
-//             controller: widget.scrollController,
-//             itemCount: _postSearchResults.length + 1,
-//             itemBuilder: (context, index) {
-//               if (index == _postSearchResults.length) {
-//                 if (_hasMore) {
-//                   return Center(
-//                     child: ElevatedButton(
-//                       onPressed: _fetchMoreSearchResults,
-//                       child: const Text('さらに表示する'),
-//                     ),
-//                   );
-//                 } else {
-//                   return const Center(child: Text('結果は以上です'));
-//                 }
-//               }
+    final blockSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .collection('block')
+        .get();
 
-//               final postDoc = _postSearchResults[index];
-//               final post = Post.fromDocument(postDoc);
+    // blocked_user_id をリストにまとめる
+    final blockedUserIds = [
+      ...blockUsersSnapshot.docs.map((doc) => doc['blocked_user_id'] as String),
+      ...blockSnapshot.docs.map((doc) => doc['blocked_user_id'] as String),
+    ];
 
-//               return FutureBuilder<Account?>(
-//                 future: widget.searchItem.getPostAccount(post.postAccountId),
-//                 builder: (context, accountSnapshot) {
-//                   if (accountSnapshot.connectionState ==
-//                       ConnectionState.waiting) {
-//                     return const Center(child: CircularProgressIndicator());
-//                   } else if (accountSnapshot.hasError) {
-//                     return Center(
-//                         child: Text('エラーが発生しました: ${accountSnapshot.error}'));
-//                   } else if (!accountSnapshot.hasData) {
-//                     return Container();
-//                   }
+    return blockedUserIds;
+  }
 
-//                   final postAccount = accountSnapshot.data!;
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
 
-//                   // 自分のblockUsersサブコレクションでブロックされたユーザーIDと一致したらスキップする
-//                   if (blockedUserIds.contains(postAccount.id)) {
-//                     return Container(); // スキップして何も表示しない
-//                   }
+    if (widget.postSearchResults.isEmpty) {
+      return const Center(child: Text('検索結果がありません'));
+    }
 
-//                   // lock_accountがtrueで、自分ではないアカウントならスキップする
-//                   if (postAccount.lockAccount &&
-//                       postAccount.id != widget.userId) {
-//                     return Container(); // スキップして何も表示しない
-//                   }
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 500),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (ScrollNotification scrollInfo) {
+            if (scrollInfo is ScrollUpdateNotification) {
+              if (scrollInfo.metrics.pixels >=
+                      scrollInfo.metrics.maxScrollExtent - 50 &&
+                  !_isLoadingMore &&
+                  _displayLimit < widget.postSearchResults.length) {
+                // 下にスクロールして一番下に近づいた場合
+                _loadMorePosts();
+              }
+            }
+            return true;
+          },
+          child: ListView.builder(
+            key: PageStorageKey('SearchTextPageList'),
+            itemCount: _displayLimit + (_displayLimit ~/ 5) + 1,
+            itemBuilder: (context, index) {
+              if (index == _displayLimit + (_displayLimit ~/ 5)) {
+                return const Center(child: Text("結果は以上です"));
+              }
 
-//                   // フォロワー数の処理
-//                   widget.favoritePost.favoriteUsersNotifiers[post.id] ??=
-//                       ValueNotifier<int>(0);
-//                   widget.favoritePost.updateFavoriteUsersCount(post.id);
+              if (index % 6 == 5) {
+                return BannerAdWidget() ??
+                    const SizedBox(height: 50); // 広告ウィジェットを表示
+              }
 
-//                   _bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
-//                       ValueNotifier<int>(0);
-//                   _bookmarkPost.updateBookmarkUsersCount(post.id);
+              final postIndex = index - (index ~/ 6);
+              if (postIndex >= _displayLimit ||
+                  postIndex >= widget.postSearchResults.length) {
+                return Container();
+              }
 
-//                   return PostItemWidget(
-//                     post: post,
-//                     postAccount: postAccount,
-//                     favoriteUsersNotifier:
-//                         widget.favoritePost.favoriteUsersNotifiers[post.id]!,
-//                     isFavoriteNotifier: ValueNotifier<bool>(widget
-//                         .favoritePost.favoritePostsNotifier.value
-//                         .contains(post.id)),
-//                     onFavoriteToggle: () {
-//                       final isFavorite = widget
-//                           .favoritePost.favoritePostsNotifier.value
-//                           .contains(post.id);
-//                       widget.favoritePost.toggleFavorite(post.id, isFavorite);
-//                     },
-//                     bookmarkUsersNotifier:
-//                         _bookmarkPost.bookmarkUsersNotifiers[post.id]!,
-//                     isBookmarkedNotifier: ValueNotifier<bool>(
-//                       _bookmarkPost.bookmarkPostsNotifier.value
-//                           .contains(post.id),
-//                     ),
-//                     onBookMsrkToggle: () => _bookmarkPost.toggleBookmark(
-//                       post.id,
-//                       _bookmarkPost.bookmarkPostsNotifier.value
-//                           .contains(post.id),
-//                     ),
-//                     replyFlag: ValueNotifier<bool>(false),
-//                     userId: widget.userId,
-//                   );
-//                 },
-//               );
-//             },
-//           ),
-//         );
-//       },
-//     );
-//   }
-// }
+              final postDoc = widget.postSearchResults[postIndex];
+              final post = Post.fromDocument(postDoc);
 
-// Future<void> fetchInitialSearchResults({
-//   required String lastQuery,
-//   required String userId,
-//   required String? selectedCategory,
-//   required SearchItem searchItem,
-//   required Function(List<DocumentSnapshot>) updateResults,
-//   required Function(bool) updateHasMore,
-// }) async {
-//   updateHasMore(true);
+              return FutureBuilder<Account?>(
+                future: widget.getPostAccount(post.postAccountId),
+                builder: (context, accountSnapshot) {
+                  if (accountSnapshot.hasError) {
+                    return Center(
+                        child: Text('エラーが発生しました: ${accountSnapshot.error}'));
+                  } else if (!accountSnapshot.hasData) {
+                    return Container();
+                  }
 
-//   searchItem.searchPosts(
-//     lastQuery,
-//     userId,
-//     selectedCategory,
-//     null,
-//     (results) {
-//       updateResults(results);
+                  final postAccount = accountSnapshot.data!;
 
-//       if (results.length < 5) {
-//         updateHasMore(false);
-//       }
-//     },
-//   );
-// }
+                  if (postAccount == null ||
+                      postAccount.lockAccount ||
+                      _blockedUserIds.contains(postAccount.id)) {
+                    return Container();
+                  }
+
+                  widget.favoritePost.favoriteUsersNotifiers[post.id] ??=
+                      ValueNotifier<int>(0);
+                  widget.favoritePost.updateFavoriteUsersCount(post.id);
+
+                  widget.bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+                      ValueNotifier<int>(0);
+                  widget.bookmarkPost.updateBookmarkUsersCount(post.id);
+
+                  return PostItemWidget(
+                    post: post,
+                    postAccount: postAccount,
+                    favoriteUsersNotifier:
+                        widget.favoritePost.favoriteUsersNotifiers[post.id]!,
+                    isFavoriteNotifier: ValueNotifier<bool>(
+                      widget.favoritePost.favoritePostsNotifier.value
+                          .contains(post.id),
+                    ),
+                    onFavoriteToggle: () {
+                      final isFavorite = widget
+                          .favoritePost.favoritePostsNotifier.value
+                          .contains(post.id);
+                      widget.favoritePost.toggleFavorite(post.id, isFavorite);
+                    },
+                    bookmarkUsersNotifier:
+                        widget.bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+                    isBookmarkedNotifier: ValueNotifier<bool>(
+                      widget.bookmarkPost.bookmarkPostsNotifier.value
+                          .contains(post.id),
+                    ),
+                    onBookMsrkToggle: () => widget.bookmarkPost.toggleBookmark(
+                      post.id,
+                      widget.bookmarkPost.bookmarkPostsNotifier.value
+                          .contains(post.id),
+                    ),
+                    replyFlag: ValueNotifier<bool>(false),
+                    userId: widget.userId,
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}

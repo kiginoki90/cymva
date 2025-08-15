@@ -33,6 +33,10 @@ class RecentFavoritesPage extends StatefulWidget {
 
 class _RecentFavoritesPageState extends State<RecentFavoritesPage>
     with AutomaticKeepAliveClientMixin {
+  final ScrollController _scrollController =
+      ScrollController(); // ScrollControllerを保持
+  final Map<String, Account?> _accountCache = {}; // キャッシュを追加
+
   @override
   bool get wantKeepAlive => true; // 状態を保持する
 
@@ -64,6 +68,7 @@ class _RecentFavoritesPageState extends State<RecentFavoritesPage>
             child: RefreshIndicator(
               onRefresh: widget.refreshRecentFavorites,
               child: ListView.builder(
+                controller: _scrollController, // ScrollControllerを設定
                 itemCount: widget.recentFavoritesResults.length +
                     (widget.recentFavoritesResults.length ~/ 5) +
                     1,
@@ -87,6 +92,18 @@ class _RecentFavoritesPageState extends State<RecentFavoritesPage>
                   final postDoc = widget.recentFavoritesResults[postIndex];
                   final post = Post.fromDocument(postDoc);
 
+                  if (_accountCache.containsKey(post.postAccountId)) {
+                    final postAccount = _accountCache[post.postAccountId];
+                    if (postAccount == null ||
+                        blockedUserIds.contains(postAccount.id) ||
+                        (postAccount.lockAccount &&
+                            postAccount.id != widget.userId)) {
+                      return Container();
+                    }
+
+                    return _buildPostItem(post, postAccount);
+                  }
+
                   return FutureBuilder<Account?>(
                     future: widget.getPostAccount(post.postAccountId),
                     builder: (context, accountSnapshot) {
@@ -99,55 +116,15 @@ class _RecentFavoritesPageState extends State<RecentFavoritesPage>
                       }
 
                       final postAccount = accountSnapshot.data!;
+                      _accountCache[post.postAccountId] = postAccount;
 
-                      if (blockedUserIds.contains(postAccount.id)) {
+                      if (blockedUserIds.contains(postAccount.id) ||
+                          (postAccount.lockAccount &&
+                              postAccount.id != widget.userId)) {
                         return Container();
                       }
 
-                      if (postAccount.lockAccount &&
-                          postAccount.id != widget.userId) {
-                        return Container();
-                      }
-
-                      widget.favoritePost.favoriteUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      widget.favoritePost.updateFavoriteUsersCount(post.id);
-
-                      widget.bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
-                          ValueNotifier<int>(0);
-                      widget.bookmarkPost.updateBookmarkUsersCount(post.id);
-
-                      return PostItemWidget(
-                        post: post,
-                        postAccount: postAccount,
-                        favoriteUsersNotifier: widget
-                            .favoritePost.favoriteUsersNotifiers[post.id]!,
-                        isFavoriteNotifier: ValueNotifier<bool>(
-                          widget.favoritePost.favoritePostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        onFavoriteToggle: () {
-                          final isFavorite = widget
-                              .favoritePost.favoritePostsNotifier.value
-                              .contains(post.id);
-                          widget.favoritePost
-                              .toggleFavorite(post.id, isFavorite);
-                        },
-                        bookmarkUsersNotifier: widget
-                            .bookmarkPost.bookmarkUsersNotifiers[post.id]!,
-                        isBookmarkedNotifier: ValueNotifier<bool>(
-                          widget.bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        onBookMsrkToggle: () =>
-                            widget.bookmarkPost.toggleBookmark(
-                          post.id,
-                          widget.bookmarkPost.bookmarkPostsNotifier.value
-                              .contains(post.id),
-                        ),
-                        replyFlag: ValueNotifier<bool>(false),
-                        userId: widget.userId,
-                      );
+                      return _buildPostItem(post, postAccount);
                     },
                   );
                 },
@@ -156,6 +133,42 @@ class _RecentFavoritesPageState extends State<RecentFavoritesPage>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildPostItem(Post post, Account postAccount) {
+    widget.favoritePost.favoriteUsersNotifiers[post.id] ??=
+        ValueNotifier<int>(0);
+    widget.favoritePost.updateFavoriteUsersCount(post.id);
+
+    widget.bookmarkPost.bookmarkUsersNotifiers[post.id] ??=
+        ValueNotifier<int>(0);
+    widget.bookmarkPost.updateBookmarkUsersCount(post.id);
+
+    return PostItemWidget(
+      post: post,
+      postAccount: postAccount,
+      favoriteUsersNotifier:
+          widget.favoritePost.favoriteUsersNotifiers[post.id]!,
+      isFavoriteNotifier: ValueNotifier<bool>(
+        widget.favoritePost.favoritePostsNotifier.value.contains(post.id),
+      ),
+      onFavoriteToggle: () {
+        final isFavorite =
+            widget.favoritePost.favoritePostsNotifier.value.contains(post.id);
+        widget.favoritePost.toggleFavorite(post.id, isFavorite);
+      },
+      bookmarkUsersNotifier:
+          widget.bookmarkPost.bookmarkUsersNotifiers[post.id]!,
+      isBookmarkedNotifier: ValueNotifier<bool>(
+        widget.bookmarkPost.bookmarkPostsNotifier.value.contains(post.id),
+      ),
+      onBookMsrkToggle: () => widget.bookmarkPost.toggleBookmark(
+        post.id,
+        widget.bookmarkPost.bookmarkPostsNotifier.value.contains(post.id),
+      ),
+      replyFlag: ValueNotifier<bool>(false),
+      userId: widget.userId,
     );
   }
 }

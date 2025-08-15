@@ -1,4 +1,3 @@
-import 'package:cymva/utils/navigation_utils.dart';
 import 'package:cymva/utils/snackbar_utils.dart';
 import 'package:cymva/view/account/account_page.dart';
 import 'package:cymva/view/search/search_page.dart';

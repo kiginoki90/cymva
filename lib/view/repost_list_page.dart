@@ -262,6 +262,9 @@ class _RepostListPageState extends State<RepostListPage> {
                                                             '',
                                                         atStart: true,
                                                         post: post,
+                                                        is_video: postData[
+                                                                'is_video'] ??
+                                                            false,
                                                       ),
                                                     ],
                                                   ),

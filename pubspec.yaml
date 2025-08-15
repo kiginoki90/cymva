@@ -2,7 +2,7 @@ name: cymva
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.2.13+29
+version: 1.2.16+35
 
 environment:
   sdk: '>=3.4.4 <4.0.0'
@@ -13,12 +13,12 @@ dependencies:
   cupertino_icons: ^1.0.8
   intl: any
   image_picker: ^1.1.2
-  firebase_core: ^3.12.1
-  firebase_auth: ^5.5.1
-  firebase_storage: ^12.4.4
-  cloud_firestore: ^5.6.5
-  firebase_app_check: ^0.3.2+4
-  google_sign_in: ^6.3.0
+  firebase_core: ^4.0.0
+  firebase_auth: ^6.0.1
+  firebase_storage: ^13.0.0
+  cloud_firestore: ^6.0.0
+  firebase_app_check: ^0.4.0
+  google_sign_in: ^7.1.1
   flutter_signin_button: ^2.0.0
   video_player: ^2.9.1
   path_provider: ^2.1.5
@@ -29,16 +29,16 @@ dependencies:
   visibility_detector: ^0.4.0+2
   flutter_riverpod: ^2.6.1
   mailer: ^6.4.1
-  flutter_link_previewer: ^3.2.2
-  google_mobile_ads: ^5.3.1
+  flutter_link_previewer: ^4.1.2
+  google_mobile_ads: ^6.0.0
   shared_preferences: ^2.5.3
   device_info_plus: ^11.3.3
   collection: ^1.19.1
   animated_reorderable_list: ^1.2.0
   webview_flutter: ^4.0.0
-  font_awesome_flutter: ^9.2.0
+  font_awesome_flutter: ^10.9.0
   reorderable_grid_view: ^2.2.8
-  firebase_messaging: ^15.2.5
+  firebase_messaging: ^16.0.0
   flutter_local_notifications: ^19.1.0
   file_picker: ^10.2.0
   audioplayers: ^6.5.0
@@ -46,7 +46,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true

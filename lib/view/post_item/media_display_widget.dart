@@ -17,6 +17,7 @@ class MediaDisplayWidget extends StatefulWidget {
   final bool atStart;
   final bool? fullVideo;
   final Post? post;
+  final bool is_video;
 
   const MediaDisplayWidget({
     Key? key,
@@ -25,6 +26,7 @@ class MediaDisplayWidget extends StatefulWidget {
     this.fullVideo = false,
     this.atStart = false,
     required this.post,
+    this.is_video = false,
   }) : super(key: key);
 
   @override
@@ -157,7 +159,11 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
   // }
 
   double _calculateHeightFactor(double originalHeight) {
-    if (widget.fullVideo == true || originalHeight <= 700) {
+    if (widget.fullVideo == false) {
+      return 1.0;
+    }
+
+    if (originalHeight <= 700) {
       return 1.0;
     } else if (originalHeight <= 777) {
       return 0.9;
@@ -180,7 +186,7 @@ class _MediaDisplayWidgetState extends State<MediaDisplayWidget> {
       return const SizedBox.shrink();
     }
 
-    if (widget.category == '漫画') {
+    if (widget.category == '漫画' && widget.is_video == false) {
       return _buildMangaMedia(context);
     } else if (widget.mediaUrl!.length == 1) {
       final mediaUrl = widget.mediaUrl!.first;

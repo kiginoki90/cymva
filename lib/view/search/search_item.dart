@@ -156,8 +156,10 @@ class SearchItem {
           .where((doc) => filteredDocumentIds.contains(doc.id))
           .toList();
     }
+    // 最終的な結果を150件に制限
+    final limitedResults = finalFilteredPosts.take(150).toList();
 
-    return updateResults(finalFilteredPosts);
+    updateResults(limitedResults);
   }
 
   Future<void> searchAccounts(
@@ -196,8 +198,11 @@ class SearchItem {
       }
     }
 
-    // 結果をすべて返す
-    updateResults(allDocs.map((doc) {
+    // 結果を150件までに制限
+    final limitedResults = allDocs.take(150).toList();
+
+    // 結果を返す
+    updateResults(limitedResults.map((doc) {
       return Account.fromDocument(doc);
     }).toList());
   }
@@ -370,35 +375,34 @@ class SearchItem {
         return countB.compareTo(countA);
       });
 
-      // 最終的な結果を100件までに制限
-      final limitedResults = postWithFavorites.take(100).toList();
-
       // フォローしているユーザーとお気に入りユーザーのフィルタリングを適用
-      List<DocumentSnapshot> finalFilteredPosts = limitedResults;
+      List<DocumentSnapshot> finalFilteredPosts = postWithFavorites;
       if (followUserIds.isNotEmpty && favoritePostIds.isNotEmpty) {
-        finalFilteredPosts = limitedResults
+        finalFilteredPosts = postWithFavorites
             .where((doc) =>
                 followUserIds.contains(doc['post_account_id']) &&
                 favoritePostIds.contains(doc.id))
             .toList();
       } else if (followUserIds.isNotEmpty) {
-        finalFilteredPosts = limitedResults
+        finalFilteredPosts = postWithFavorites
             .where((doc) => followUserIds.contains(doc['post_account_id']))
             .toList();
       } else if (favoritePostIds.isNotEmpty) {
-        finalFilteredPosts = limitedResults
+        finalFilteredPosts = postWithFavorites
             .where((doc) => favoritePostIds.contains(doc.id))
             .toList();
       }
 
-      // ユーザーIDでフィルタリングされたドキュメントのIDを適用
       if (filteredDocumentIds.isNotEmpty) {
         finalFilteredPosts = finalFilteredPosts
             .where((doc) => filteredDocumentIds.contains(doc.id))
             .toList();
       }
 
-      updateResults(finalFilteredPosts);
+      // 最終的な結果を150件までに制限
+      final limitedResults = finalFilteredPosts.take(150).toList();
+
+      updateResults(limitedResults);
     } catch (error) {
       // エラーハンドリング
       print('Error fetching recent favorites: $error');
@@ -535,20 +539,15 @@ class SearchItem {
     final queryWords = lowerCaseQuery.split(' ');
 
     // 取得したドキュメントに対して、文字列に query が含まれているかをフィルタリング
-    final filteredPosts = querySnapshot.docs
-        .where((doc) {
-          final content =
-              (doc['content'] as String).toLowerCase(); // コンテンツを小文字に変換
-          final mediaUrl =
-              doc['media_url'] as List<dynamic>?; // media_urlのフィールド
+    final filteredPosts = querySnapshot.docs.where((doc) {
+      final content = (doc['content'] as String).toLowerCase(); // コンテンツを小文字に変換
+      final mediaUrl = doc['media_url'] as List<dynamic>?; // media_urlのフィールド
 
-          // 投稿の内容がすべての単語を含むかつmedia_urlが存在するかをチェック
-          return queryWords.every((word) => content.contains(word)) &&
-              mediaUrl != null &&
-              mediaUrl.isNotEmpty;
-        })
-        .take(100)
-        .toList(); // ここで結果を100件までに制限
+      // 投稿の内容がすべての単語を含むかつmedia_urlが存在するかをチェック
+      return queryWords.every((word) => content.contains(word)) &&
+          mediaUrl != null &&
+          mediaUrl.isNotEmpty;
+    }).toList();
 
     // フォローしているユーザーとお気に入りユーザーのフィルタリングを適用
     List<DocumentSnapshot> finalFilteredPosts = filteredPosts;
@@ -574,7 +573,9 @@ class SearchItem {
           .where((doc) => filteredDocumentIds.contains(doc.id))
           .toList();
     }
+    // 最終的な結果を150件までに制限
+    final limitedResults = finalFilteredPosts.take(150).toList();
 
-    updateResults(finalFilteredPosts);
+    updateResults(limitedResults);
   }
 }
